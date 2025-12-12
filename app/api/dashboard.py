@@ -22,14 +22,27 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(func.count(Miner.id)).where(Miner.enabled == True))
     active_miners = result.scalar()
     
-    # Get latest telemetry for total hashrate
+    # Get latest telemetry for each miner for total hashrate
+    # Use a subquery to get the latest timestamp per miner, then sum their hashrates
+    from sqlalchemy import and_
+    
+    # Get latest telemetry for each enabled miner
+    total_hashrate = 0.0
+    result = await db.execute(select(Miner).where(Miner.enabled == True))
+    miners = result.scalars().all()
+    
     cutoff = datetime.utcnow() - timedelta(minutes=5)
-    result = await db.execute(
-        select(func.sum(Telemetry.hashrate))
-        .where(Telemetry.timestamp > cutoff)
-        .group_by(Telemetry.miner_id)
-    )
-    total_hashrate = sum([r for r in result.scalars()]) or 0
+    for miner in miners:
+        result = await db.execute(
+            select(Telemetry.hashrate)
+            .where(Telemetry.miner_id == miner.id)
+            .where(Telemetry.timestamp > cutoff)
+            .order_by(Telemetry.timestamp.desc())
+            .limit(1)
+        )
+        latest_hashrate = result.scalar()
+        if latest_hashrate:
+            total_hashrate += latest_hashrate
     
     # Get current energy price
     now = datetime.utcnow()
