@@ -53,9 +53,14 @@
 async function loadPricing() {
     try {
         // Load config to get current region
-        const configRes = await fetch('/api/dashboard/stats');
-        const configData = await configRes.json();
-        // Note: We'll need to add an endpoint to get current config, for now just continue
+        const configRes = await fetch('/api/dashboard/energy/config');
+        const config = await configRes.json();
+        
+        // Set dropdown to current region
+        const regionSelect = document.getElementById('region');
+        if (regionSelect && config.region) {
+            regionSelect.value = config.region;
+        }
         
         // Load current price
         const currentRes = await fetch('/api/dashboard/energy/current');

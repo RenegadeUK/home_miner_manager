@@ -141,6 +141,17 @@ async def get_energy_timeline(hours: int = 24, db: AsyncSession = Depends(get_db
     }
 
 
+@router.get("/energy/config")
+async def get_energy_config():
+    """Get current Octopus Agile configuration"""
+    from core.config import app_config
+    
+    return {
+        "enabled": app_config.get("octopus_agile.enabled", False),
+        "region": app_config.get("octopus_agile.region", "H")
+    }
+
+
 @router.post("/energy/region")
 async def set_energy_region(region: str):
     """Set Octopus Agile region"""
