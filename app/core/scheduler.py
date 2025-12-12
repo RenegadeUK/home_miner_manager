@@ -47,6 +47,27 @@ class SchedulerService:
             name="Purge telemetry older than 24 hours"
         )
         
+        self.scheduler.add_job(
+            self._purge_old_events,
+            IntervalTrigger(hours=24),
+            id="purge_old_events",
+            name="Purge events older than 30 days"
+        )
+        
+        self.scheduler.add_job(
+            self._purge_old_energy_prices,
+            IntervalTrigger(days=7),
+            id="purge_old_energy_prices",
+            name="Purge energy prices older than 60 days"
+        )
+        
+        self.scheduler.add_job(
+            self._vacuum_database,
+            IntervalTrigger(days=30),
+            id="vacuum_database",
+            name="Optimize database (VACUUM)"
+        )
+        
         # Start NMMiner UDP listener
         self.scheduler.add_job(
             self._start_nmminer_listener,
@@ -494,6 +515,63 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to purge old telemetry: {e}")
+    
+    async def _purge_old_events(self):
+        """Purge events older than 30 days"""
+        from core.database import AsyncSessionLocal, Event
+        from sqlalchemy import delete
+        
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(days=30)
+            
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    delete(Event)
+                    .where(Event.timestamp < cutoff_time)
+                )
+                await db.commit()
+                
+                deleted_count = result.rowcount
+                if deleted_count > 0:
+                    print(f"🗑️ Purged {deleted_count} events older than 30 days")
+        
+        except Exception as e:
+            print(f"❌ Failed to purge old events: {e}")
+    
+    async def _purge_old_energy_prices(self):
+        """Purge energy prices older than 60 days"""
+        from core.database import AsyncSessionLocal, EnergyPrice
+        from sqlalchemy import delete
+        
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(days=60)
+            
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(
+                    delete(EnergyPrice)
+                    .where(EnergyPrice.valid_from < cutoff_time)
+                )
+                await db.commit()
+                
+                deleted_count = result.rowcount
+                if deleted_count > 0:
+                    print(f"🗑️ Purged {deleted_count} energy prices older than 60 days")
+        
+        except Exception as e:
+            print(f"❌ Failed to purge old energy prices: {e}")
+    
+    async def _vacuum_database(self):
+        """Run VACUUM to optimize SQLite database"""
+        from core.database import engine
+        
+        try:
+            async with engine.begin() as conn:
+                await conn.execute("VACUUM")
+            
+            print(f"✨ Database optimized (VACUUM completed)")
+        
+        except Exception as e:
+            print(f"❌ Failed to vacuum database: {e}")
 
 
 scheduler = SchedulerService()
