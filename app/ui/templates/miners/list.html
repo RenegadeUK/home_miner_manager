@@ -36,6 +36,7 @@
                     <td>{{ miner.current_mode or '--' }}</td>
                     <td>
                         <button class="btn btn-secondary" onclick="viewMiner({{ miner.id }})">View</button>
+                        <button class="btn btn-error" onclick="deleteMiner({{ miner.id }}, '{{ miner.name }}')">Delete</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -53,6 +54,27 @@
 function viewMiner(id) {
     // TODO: Implement miner detail view
     alert('Miner details: ' + id);
+}
+
+async function deleteMiner(id, name) {
+    if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/miners/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete miner');
+        }
+        
+        // Reload page to show updated list
+        window.location.reload();
+    } catch (error) {
+        alert('Error deleting miner: ' + error.message);
+    }
 }
 </script>
 {% endblock %}
