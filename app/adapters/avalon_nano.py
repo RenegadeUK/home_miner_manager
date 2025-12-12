@@ -167,8 +167,33 @@ class AvalonNanoAdapter(MinerAdapter):
             
             sock.close()
             
-            # Parse JSON response
-            return json.loads(response.decode())
+            # Parse JSON response - cgminer returns multiple JSON objects separated by null bytes
+            # Split on null byte and take the first valid JSON
+            decoded = response.decode('utf-8', errors='ignore')
+            
+            # Remove null bytes and extra characters
+            decoded = decoded.strip('\x00').strip()
+            
+            # Try to find the first complete JSON object
+            if decoded:
+                # cgminer often returns JSON with trailing null bytes or extra data
+                # Find the end of the first JSON object
+                brace_count = 0
+                json_end = -1
+                for i, char in enumerate(decoded):
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            json_end = i + 1
+                            break
+                
+                if json_end > 0:
+                    json_str = decoded[:json_end]
+                    return json.loads(json_str)
+            
+            return json.loads(decoded)
         except Exception as e:
             print(f"⚠️ cgminer command failed: {e}")
             return None
