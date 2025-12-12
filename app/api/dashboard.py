@@ -74,9 +74,13 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
 @router.get("/energy/current")
 async def get_current_energy_price(db: AsyncSession = Depends(get_db)):
     """Get current energy price slot"""
+    from core.config import app_config
+    
+    region = app_config.get("octopus_agile.region", "H")
     now = datetime.utcnow()
     result = await db.execute(
         select(EnergyPrice)
+        .where(EnergyPrice.region == region)
         .where(EnergyPrice.valid_from <= now)
         .where(EnergyPrice.valid_to > now)
         .limit(1)
@@ -96,9 +100,13 @@ async def get_current_energy_price(db: AsyncSession = Depends(get_db)):
 @router.get("/energy/next")
 async def get_next_energy_price(db: AsyncSession = Depends(get_db)):
     """Get next energy price slot"""
+    from core.config import app_config
+    
+    region = app_config.get("octopus_agile.region", "H")
     now = datetime.utcnow()
     result = await db.execute(
         select(EnergyPrice)
+        .where(EnergyPrice.region == region)
         .where(EnergyPrice.valid_from > now)
         .order_by(EnergyPrice.valid_from)
         .limit(1)
@@ -118,12 +126,17 @@ async def get_next_energy_price(db: AsyncSession = Depends(get_db)):
 @router.get("/energy/timeline")
 async def get_energy_timeline(hours: int = 24, db: AsyncSession = Depends(get_db)):
     """Get energy price timeline"""
+    from core.config import app_config
+    
+    region = app_config.get("octopus_agile.region", "H")
     now = datetime.utcnow()
+    past = now - timedelta(hours=2)  # Show last 2 hours for context
     future = now + timedelta(hours=hours)
     
     result = await db.execute(
         select(EnergyPrice)
-        .where(EnergyPrice.valid_from >= now)
+        .where(EnergyPrice.region == region)
+        .where(EnergyPrice.valid_from >= past)
         .where(EnergyPrice.valid_from < future)
         .order_by(EnergyPrice.valid_from)
     )

@@ -68,8 +68,8 @@ class SchedulerService:
         
         region = app_config.get("octopus_agile.region", "H")
         
-        # Octopus Agile API endpoint
-        url = f"https://api.octopus.energy/v1/products/AGILE-FLEX-22-11-25/electricity-tariffs/E-1R-AGILE-FLEX-22-11-25-{region}/standard-unit-rates/"
+        # Octopus Agile API endpoint - using current product code
+        url = f"https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-{region}/standard-unit-rates/"
         
         try:
             async with aiohttp.ClientSession() as session:
