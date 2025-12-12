@@ -223,10 +223,22 @@ async function loadTelemetry() {
 async function loadModes() {
     try {
         const response = await fetch(`/api/miners/${minerId}/modes`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('Modes loaded:', data);
         
         const select = document.getElementById('mode-select');
         const currentMode = '{{ miner.current_mode }}';
+        
+        if (!data.modes || data.modes.length === 0) {
+            select.innerHTML = '<option value="">No modes available</option>';
+            select.disabled = true;
+            return;
+        }
         
         data.modes.forEach(mode => {
             const option = document.createElement('option');
@@ -242,8 +254,13 @@ async function loadModes() {
         if (currentMode) {
             select.value = currentMode;
         }
+        
+        console.log('Modes dropdown populated with', data.modes.length, 'modes');
     } catch (error) {
         console.error('Failed to load modes:', error);
+        const select = document.getElementById('mode-select');
+        select.innerHTML = '<option value="">Error loading modes</option>';
+        select.disabled = true;
     }
 }
 
