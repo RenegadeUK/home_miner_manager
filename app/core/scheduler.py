@@ -40,6 +40,13 @@ class SchedulerService:
             name="Evaluate automation rules"
         )
         
+        self.scheduler.add_job(
+            self._purge_old_telemetry,
+            IntervalTrigger(hours=6),
+            id="purge_old_telemetry",
+            name="Purge telemetry older than 24 hours"
+        )
+        
         # Start NMMiner UDP listener
         self.scheduler.add_job(
             self._start_nmminer_listener,
@@ -464,6 +471,29 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to start NMMiner UDP listener: {e}")
+    
+    async def _purge_old_telemetry(self):
+        """Purge telemetry data older than 24 hours"""
+        from core.database import AsyncSessionLocal, Telemetry
+        from sqlalchemy import delete
+        
+        try:
+            cutoff_time = datetime.utcnow() - timedelta(hours=24)
+            
+            async with AsyncSessionLocal() as db:
+                # Delete old telemetry records
+                result = await db.execute(
+                    delete(Telemetry)
+                    .where(Telemetry.timestamp < cutoff_time)
+                )
+                await db.commit()
+                
+                deleted_count = result.rowcount
+                if deleted_count > 0:
+                    print(f"🗑️ Purged {deleted_count} telemetry records older than 24 hours")
+        
+        except Exception as e:
+            print(f"❌ Failed to purge old telemetry: {e}")
 
 
 scheduler = SchedulerService()
