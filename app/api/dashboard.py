@@ -273,6 +273,16 @@ async def set_energy_region(region: str):
     return {"status": "success", "region": region}
 
 
+@router.post("/energy/toggle")
+async def toggle_energy_pricing(enabled: bool):
+    """Enable or disable Octopus Agile energy pricing"""
+    from core.config import save_config
+    
+    save_config("octopus_agile.enabled", enabled)
+    
+    return {"status": "success", "enabled": enabled}
+
+
 @router.get("/events/recent")
 async def get_recent_events(limit: int = 50, db: AsyncSession = Depends(get_db)):
     """Get recent events"""

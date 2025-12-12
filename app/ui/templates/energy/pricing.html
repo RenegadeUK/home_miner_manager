@@ -17,6 +17,14 @@
         </p>
     </div>
     
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-weight: 600;">Status:</span>
+            <span id="status-badge" style="padding: 0.25rem 0.75rem; border-radius: 1rem; font-size: 0.875rem; font-weight: 600;"></span>
+        </div>
+        <button id="toggle-button" class="btn" onclick="toggleEnabled()" style="min-width: 120px;">Loading...</button>
+    </div>
+    
     <div class="form-group">
         <label class="form-label">Select Region</label>
         <select class="form-select" id="region">
@@ -88,6 +96,24 @@ async function loadPricing() {
         // Load config to get current region
         const configRes = await fetch('/api/dashboard/energy/config');
         const config = await configRes.json();
+        
+        // Update status badge
+        const statusBadge = document.getElementById('status-badge');
+        const toggleButton = document.getElementById('toggle-button');
+        
+        if (config.enabled) {
+            statusBadge.textContent = 'Enabled';
+            statusBadge.style.background = '#10b981';
+            statusBadge.style.color = '#ffffff';
+            toggleButton.textContent = 'Disable';
+            toggleButton.className = 'btn btn-danger';
+        } else {
+            statusBadge.textContent = 'Disabled';
+            statusBadge.style.background = '#6b7280';
+            statusBadge.style.color = '#ffffff';
+            toggleButton.textContent = 'Enable';
+            toggleButton.className = 'btn btn-success';
+        }
         
         // Set dropdown to current region
         const regionSelect = document.getElementById('region');
@@ -211,6 +237,27 @@ async function saveRegion() {
         }, 2000);
     } catch (error) {
         alert('Error saving region: ' + error.message);
+    }
+}
+
+async function toggleEnabled() {
+    try {
+        const configRes = await fetch('/api/dashboard/energy/config');
+        const config = await configRes.json();
+        const newState = !config.enabled;
+        
+        const response = await fetch(`/api/dashboard/energy/toggle?enabled=${newState}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to toggle energy pricing');
+        }
+        
+        alert(newState ? 'Energy pricing enabled' : 'Energy pricing disabled');
+        loadPricing();
+    } catch (error) {
+        alert('Error: ' + error.message);
     }
 }
 
