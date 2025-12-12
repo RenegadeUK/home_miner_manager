@@ -86,6 +86,9 @@ async function loadPricing() {
         const timelineRes = await fetch('/api/dashboard/energy/timeline');
         const timeline = await timelineRes.json();
         
+        // Get current time
+        const now = new Date();
+        
         // Helper function to get color based on price
         function getPriceColor(price) {
             if (price < 0) return '#3b82f6'; // blue
@@ -96,13 +99,16 @@ async function loadPricing() {
         
         // Helper function to create price table
         function createPriceTable(prices) {
-            if (prices.length === 0) return '<p class="text-muted">No pricing data available</p>';
+            // Filter out past prices
+            const futurePrices = prices.filter(p => new Date(p.valid_to) > now);
+            
+            if (futurePrices.length === 0) return '<p class="text-muted">No upcoming prices</p>';
             
             let html = '<table style="width: 100%; border-collapse: collapse;">';
             
             // Process prices in pairs for 4-column layout
-            for (let i = 0; i < prices.length; i += 2) {
-                const p1 = prices[i];
+            for (let i = 0; i < futurePrices.length; i += 2) {
+                const p1 = futurePrices[i];
                 const time1 = new Date(p1.valid_from).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                 const color1 = getPriceColor(p1.price_pence);
                 
@@ -110,8 +116,8 @@ async function loadPricing() {
                 html += `<td style="padding: 0.5rem; border: 1px solid var(--border); font-weight: bold;">${time1}</td>`;
                 html += `<td style="padding: 0.5rem; border: 1px solid var(--border); background-color: ${color1}; color: white; font-weight: bold;">${p1.price_pence.toFixed(2)} p</td>`;
                 
-                if (i + 1 < prices.length) {
-                    const p2 = prices[i + 1];
+                if (i + 1 < futurePrices.length) {
+                    const p2 = futurePrices[i + 1];
                     const time2 = new Date(p2.valid_from).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                     const color2 = getPriceColor(p2.price_pence);
                     
