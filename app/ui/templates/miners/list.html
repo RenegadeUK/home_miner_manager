@@ -52,8 +52,7 @@
 {% block extra_scripts %}
 <script>
 function viewMiner(id) {
-    // TODO: Implement miner detail view
-    alert('Miner details: ' + id);
+    window.location.href = `/miners/${id}`;
 }
 
 async function deleteMiner(id, name) {

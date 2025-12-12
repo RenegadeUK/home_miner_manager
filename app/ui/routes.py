@@ -63,6 +63,30 @@ async def add_miner(request: Request):
     })
 
 
+@router.get("/miners/{miner_id}", response_class=HTMLResponse)
+async def miner_detail(request: Request, miner_id: int, db: AsyncSession = Depends(get_db)):
+    """Miner detail page"""
+    result = await db.execute(select(Miner).where(Miner.id == miner_id))
+    miner = result.scalar_one_or_none()
+    
+    if not miner:
+        return templates.TemplateResponse("404.html", {
+            "request": request,
+            "page_title": "Miner Not Found"
+        }, status_code=404)
+    
+    return templates.TemplateResponse("miners/detail.html", {
+        "request": request,
+        "page_title": f"Miner: {miner.name}",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Miners", "url": "/miners"},
+            {"label": miner.name, "url": f"/miners/{miner_id}"}
+        ],
+        "miner": miner
+    })
+
+
 @router.get("/pools", response_class=HTMLResponse)
 async def pools_list(request: Request, db: AsyncSession = Depends(get_db)):
     """Pools list page"""
