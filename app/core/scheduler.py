@@ -98,10 +98,15 @@ class SchedulerService:
         from core.config import app_config
         from core.database import AsyncSessionLocal, EnergyPrice
         
-        if not app_config.get("octopus_agile.enabled", False):
+        enabled = app_config.get("octopus_agile.enabled", False)
+        print(f"🔍 Octopus Agile enabled: {enabled}")
+        
+        if not enabled:
+            print("⚠️ Octopus Agile is disabled in config")
             return
         
         region = app_config.get("octopus_agile.region", "H")
+        print(f"🌍 Fetching prices for region: {region}")
         
         # Octopus Agile API endpoint - using current product code
         url = f"https://api.octopus.energy/v1/products/AGILE-24-10-01/electricity-tariffs/E-1R-AGILE-24-10-01-{region}/standard-unit-rates/"
