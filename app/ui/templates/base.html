@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}v0 Miner Controller{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <h1>⛏️ v0 Miner</h1>
+            </div>
+            <nav>
+                <ul class="sidebar-nav">
+                    <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
+                        📊 Dashboard
+                    </a></li>
+                    <li><a href="/miners" class="{% if '/miners' in request.url.path %}active{% endif %}">
+                        🖥️ Miners
+                    </a></li>
+                    <li><a href="/pools" class="{% if '/pools' in request.url.path %}active{% endif %}">
+                        🌊 Pools
+                    </a></li>
+                    <li><a href="/automation" class="{% if '/automation' in request.url.path %}active{% endif %}">
+                        ⚡ Automation
+                    </a></li>
+                    <li><a href="/energy" class="{% if '/energy' in request.url.path %}active{% endif %}">
+                        💡 Energy Pricing
+                    </a></li>
+                    <li><a href="/settings" class="{% if '/settings' in request.url.path %}active{% endif %}">
+                        ⚙️ Settings
+                    </a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Breadcrumbs -->
+            {% if breadcrumbs %}
+            <div class="breadcrumbs">
+                {% for crumb in breadcrumbs %}
+                    {% if not loop.last %}
+                        <a href="{{ crumb.url }}">{{ crumb.label }}</a>
+                        <span>/</span>
+                    {% else %}
+                        <span>{{ crumb.label }}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>{{ page_title }}</h1>
+            </div>
+
+            <!-- Page Content -->
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

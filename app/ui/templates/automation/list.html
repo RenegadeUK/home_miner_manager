@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Automation Rules</h2>
+        <a href="/automation/add" class="btn btn-primary">+ Add Rule</a>
+    </div>
+    
+    <div class="table-container">
+        {% if rules %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Trigger</th>
+                    <th>Action</th>
+                    <th>Status</th>
+                    <th>Priority</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in rules %}
+                <tr>
+                    <td>{{ rule.name }}</td>
+                    <td>{{ rule.trigger_type }}</td>
+                    <td>{{ rule.action_type }}</td>
+                    <td>
+                        <span class="badge {% if rule.enabled %}badge-success{% else %}badge-error{% endif %}">
+                            {{ 'Enabled' if rule.enabled else 'Disabled' }}
+                        </span>
+                    </td>
+                    <td>{{ rule.priority }}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editRule({{ rule.id }})">Edit</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No automation rules configured.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

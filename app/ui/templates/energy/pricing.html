@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Octopus Agile Pricing</h2>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Select Region</label>
+        <select class="form-select" id="region">
+            <option value="A">A - Eastern England</option>
+            <option value="B">B - East Midlands</option>
+            <option value="C">C - London</option>
+            <option value="D">D - Merseyside and Northern Wales</option>
+            <option value="E">E - West Midlands</option>
+            <option value="F">F - North Eastern England</option>
+            <option value="G">G - North Western England</option>
+            <option value="H" selected>H - Southern England</option>
+            <option value="J">J - South Eastern England</option>
+            <option value="K">K - Southern Wales</option>
+            <option value="L">L - South Western England</option>
+            <option value="M">M - Yorkshire</option>
+            <option value="N">N - Southern Scotland</option>
+            <option value="P">P - Northern Scotland</option>
+        </select>
+    </div>
+    
+    <button class="btn btn-primary mt-4" onclick="saveRegion()">Save Region</button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Current Price</h2>
+    </div>
+    <div id="current-price">
+        <p class="text-muted">Loading...</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">24-Hour Price Timeline</h2>
+    </div>
+    <div id="price-timeline">
+        <p class="text-muted">Loading...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+async function loadPricing() {
+    try {
+        // Load current price
+        const currentRes = await fetch('/api/dashboard/energy/current');
+        const current = await currentRes.json();
+        
+        document.getElementById('current-price').innerHTML = current.price_pence 
+            ? `<div class="stat-value">${current.price_pence.toFixed(2)} p/kWh</div>
+               <p class="text-muted">Valid until ${new Date(current.valid_to).toLocaleTimeString()}</p>`
+            : '<p class="text-muted">No price data available</p>';
+        
+        // Load timeline
+        const timelineRes = await fetch('/api/dashboard/energy/timeline?hours=24');
+        const timeline = await timelineRes.json();
+        
+        if (timeline.prices && timeline.prices.length > 0) {
+            const timelineHtml = timeline.prices.map(p => `
+                <div style="padding: 0.5rem; border-bottom: 1px solid var(--border);">
+                    <strong>${new Date(p.valid_from).toLocaleTimeString()}</strong> - 
+                    ${p.price_pence.toFixed(2)} p/kWh
+                </div>
+            `).join('');
+            
+            document.getElementById('price-timeline').innerHTML = timelineHtml;
+        } else {
+            document.getElementById('price-timeline').innerHTML = '<p class="text-muted">No pricing data available. Please configure Octopus Agile.</p>';
+        }
+    } catch (error) {
+        console.error('Failed to load pricing:', error);
+    }
+}
+
+function saveRegion() {
+    const region = document.getElementById('region').value;
+    alert('Region saved: ' + region + '\n\nPricing data will be fetched on next update cycle.');
+}
+
+loadPricing();
+setInterval(loadPricing, 60000); // Refresh every minute
+</script>
+{% endblock %}

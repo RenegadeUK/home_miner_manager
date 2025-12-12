@@ -1,0 +1,85 @@
+"""
+Base MinerAdapter interface
+"""
+from abc import ABC, abstractmethod
+from typing import Dict, List, Optional
+from datetime import datetime
+
+
+class MinerTelemetry:
+    """Standardized telemetry data structure"""
+    
+    def __init__(
+        self,
+        miner_id: int,
+        hashrate: Optional[float] = None,
+        temperature: Optional[float] = None,
+        power_watts: Optional[float] = None,
+        shares_accepted: Optional[int] = None,
+        shares_rejected: Optional[int] = None,
+        pool_in_use: Optional[str] = None,
+        extra_data: Optional[Dict] = None
+    ):
+        self.miner_id = miner_id
+        self.timestamp = datetime.utcnow()
+        self.hashrate = hashrate
+        self.temperature = temperature
+        self.power_watts = power_watts
+        self.shares_accepted = shares_accepted
+        self.shares_rejected = shares_rejected
+        self.pool_in_use = pool_in_use
+        self.extra_data = extra_data or {}
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary"""
+        return {
+            "miner_id": self.miner_id,
+            "timestamp": self.timestamp.isoformat(),
+            "hashrate": self.hashrate,
+            "temperature": self.temperature,
+            "power_watts": self.power_watts,
+            "shares_accepted": self.shares_accepted,
+            "shares_rejected": self.shares_rejected,
+            "pool_in_use": self.pool_in_use,
+            "extra_data": self.extra_data
+        }
+
+
+class MinerAdapter(ABC):
+    """Base adapter interface for all miner types"""
+    
+    def __init__(self, miner_id: int, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
+        self.miner_id = miner_id
+        self.ip_address = ip_address
+        self.port = port
+        self.config = config or {}
+    
+    @abstractmethod
+    async def get_telemetry(self) -> Optional[MinerTelemetry]:
+        """Get current telemetry data from miner"""
+        pass
+    
+    @abstractmethod
+    async def set_mode(self, mode: str) -> bool:
+        """Set miner operating mode"""
+        pass
+    
+    @abstractmethod
+    async def get_available_modes(self) -> List[str]:
+        """Get list of available operating modes"""
+        pass
+    
+    @abstractmethod
+    async def switch_pool(self, pool_url: str, pool_user: str, pool_password: str) -> bool:
+        """Switch to a different mining pool"""
+        pass
+    
+    @abstractmethod
+    async def restart(self) -> bool:
+        """Restart the miner"""
+        pass
+    
+    @abstractmethod
+    async def is_online(self) -> bool:
+        """Check if miner is reachable"""
+        pass

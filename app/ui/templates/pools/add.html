@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Add Mining Pool</h2>
+    </div>
+    
+    <form id="add-pool-form">
+        <div class="form-group">
+            <label class="form-label">Pool Name</label>
+            <input type="text" class="form-input" id="name" required placeholder="e.g., Public Pool">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Pool URL</label>
+            <input type="text" class="form-input" id="url" required placeholder="e.g., stratum+tcp://pool.example.com:3333">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Username/Worker</label>
+            <input type="text" class="form-input" id="user" required placeholder="Your wallet address or username">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Password</label>
+            <input type="text" class="form-input" id="password" placeholder="x or worker password">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Priority</label>
+            <input type="number" class="form-input" id="priority" value="0" placeholder="0 = highest priority">
+        </div>
+        
+        <div class="flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Add Pool</button>
+            <a href="/pools" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('add-pool-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const data = {
+        name: document.getElementById('name').value,
+        url: document.getElementById('url').value,
+        user: document.getElementById('user').value,
+        password: document.getElementById('password').value || 'x',
+        priority: parseInt(document.getElementById('priority').value)
+    };
+    
+    try {
+        const res = await fetch('/api/pools/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (res.ok) {
+            window.location.href = '/pools';
+        } else {
+            alert('Failed to add pool');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

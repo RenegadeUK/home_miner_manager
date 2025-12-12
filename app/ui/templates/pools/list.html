@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Mining Pools</h2>
+        <a href="/pools/add" class="btn btn-primary">+ Add Pool</a>
+    </div>
+    
+    <div class="table-container">
+        {% if pools %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>URL</th>
+                    <th>User</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pool in pools %}
+                <tr>
+                    <td>{{ pool.name }}</td>
+                    <td>{{ pool.url }}</td>
+                    <td>{{ pool.user }}</td>
+                    <td>{{ pool.priority }}</td>
+                    <td>
+                        <span class="badge {% if pool.enabled %}badge-success{% else %}badge-error{% endif %}">
+                            {{ 'Enabled' if pool.enabled else 'Disabled' }}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="editPool({{ pool.id }})">Edit</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No pools configured. Add a mining pool to get started.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

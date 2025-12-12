@@ -1,0 +1,174 @@
+"""
+Avalon Nano 3 / 3S adapter using cgminer TCP API
+"""
+import socket
+import json
+from typing import Dict, List, Optional
+from adapters.base import MinerAdapter, MinerTelemetry
+
+
+class AvalonNanoAdapter(MinerAdapter):
+    """Adapter for Avalon Nano 3 / 3S miners"""
+    
+    MODES = ["low", "med", "high"]
+    DEFAULT_PORT = 4028
+    
+    def __init__(self, miner_id: int, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
+        super().__init__(miner_id, ip_address, port or self.DEFAULT_PORT, config)
+    
+    async def get_telemetry(self) -> Optional[MinerTelemetry]:
+        """Get telemetry from cgminer API"""
+        try:
+            # Get summary
+            summary = await self._cgminer_command("summary")
+            if not summary:
+                return None
+            
+            # Get estats for power calculation
+            estats = await self._cgminer_command("estats")
+            
+            # Get pool info
+            pools = await self._cgminer_command("pools")
+            
+            # Parse telemetry
+            summary_data = summary.get("SUMMARY", [{}])[0]
+            
+            hashrate = summary_data.get("GHS 5s", 0)  # GH/s
+            temperature = summary_data.get("Temperature", 0)
+            shares_accepted = summary_data.get("Accepted", 0)
+            shares_rejected = summary_data.get("Rejected", 0)
+            
+            # Calculate power from estats
+            power_watts = self._calculate_power(estats)
+            
+            # Get active pool
+            pool_in_use = None
+            if pools and "POOLS" in pools:
+                for pool in pools["POOLS"]:
+                    if pool.get("Status") == "Alive" and pool.get("Priority") == 0:
+                        pool_in_use = pool.get("URL")
+                        break
+            
+            return MinerTelemetry(
+                miner_id=self.miner_id,
+                hashrate=hashrate,
+                temperature=temperature,
+                power_watts=power_watts,
+                shares_accepted=shares_accepted,
+                shares_rejected=shares_rejected,
+                pool_in_use=pool_in_use,
+                extra_data={"summary": summary_data}
+            )
+        except Exception as e:
+            print(f"❌ Failed to get telemetry from Avalon Nano {self.ip_address}: {e}")
+            return None
+    
+    def _calculate_power(self, estats: Optional[Dict]) -> Optional[float]:
+        """Calculate power from PS[] fields: watts = raw_power_code / (millivolts / 1000)"""
+        if not estats or "ESTATS" not in estats:
+            return None
+        
+        try:
+            estats_data = estats["ESTATS"][0]
+            
+            # Find PS fields (e.g., PS[0 0 0 1200 1000])
+            for key, value in estats_data.items():
+                if key.startswith("PS["):
+                    # Parse PS array
+                    ps_values = [int(x) for x in value.strip("[]").split()]
+                    if len(ps_values) >= 5:
+                        raw_power_code = ps_values[3]  # 4th value
+                        millivolts = ps_values[4]      # 5th value
+                        
+                        if millivolts > 0:
+                            watts = raw_power_code / (millivolts / 1000.0)
+                            return watts
+            
+            return None
+        except Exception as e:
+            print(f"⚠️ Failed to calculate power: {e}")
+            return None
+    
+    async def set_mode(self, mode: str) -> bool:
+        """Set operating mode"""
+        if mode not in self.MODES:
+            print(f"❌ Invalid mode: {mode}. Valid modes: {self.MODES}")
+            return False
+        
+        try:
+            # Map mode to frequency preset (example values)
+            freq_map = {
+                "low": 450,
+                "med": 500,
+                "high": 550
+            }
+            
+            freq = freq_map.get(mode, 500)
+            result = await self._cgminer_command(f"ascset|0,freq,{freq}")
+            
+            return result is not None
+        except Exception as e:
+            print(f"❌ Failed to set mode on Avalon Nano: {e}")
+            return False
+    
+    async def get_available_modes(self) -> List[str]:
+        """Get available modes"""
+        return self.MODES
+    
+    async def switch_pool(self, pool_url: str, pool_user: str, pool_password: str) -> bool:
+        """Switch mining pool"""
+        try:
+            # Add pool and switch to it
+            result = await self._cgminer_command(f"addpool|{pool_url},{pool_user},{pool_password}")
+            if result:
+                # Switch to pool 0 (newly added)
+                await self._cgminer_command("switchpool|0")
+                return True
+            return False
+        except Exception as e:
+            print(f"❌ Failed to switch pool: {e}")
+            return False
+    
+    async def restart(self) -> bool:
+        """Restart miner"""
+        try:
+            result = await self._cgminer_command("restart")
+            return result is not None
+        except Exception as e:
+            print(f"❌ Failed to restart Avalon Nano: {e}")
+            return False
+    
+    async def is_online(self) -> bool:
+        """Check if miner is online"""
+        try:
+            result = await self._cgminer_command("summary")
+            return result is not None
+        except:
+            return False
+    
+    async def _cgminer_command(self, command: str) -> Optional[Dict]:
+        """Send command to cgminer API"""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(5)
+            sock.connect((self.ip_address, self.port))
+            
+            # Send command
+            cmd = {"command": command.split("|")[0], "parameter": command.split("|")[1] if "|" in command else ""}
+            sock.sendall(json.dumps(cmd).encode())
+            
+            # Receive response
+            response = b""
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                response += chunk
+            
+            sock.close()
+            
+            # Parse JSON response
+            return json.loads(response.decode())
+        except Exception as e:
+            print(f"⚠️ cgminer command failed: {e}")
+            return None

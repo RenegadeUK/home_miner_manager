@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Your Miners</h2>
+        <a href="/miners/add" class="btn btn-primary">+ Add Miner</a>
+    </div>
+    
+    <div class="table-container">
+        {% if miners %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>IP Address</th>
+                    <th>Port</th>
+                    <th>Status</th>
+                    <th>Mode</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for miner in miners %}
+                <tr>
+                    <td>{{ miner.name }}</td>
+                    <td>{{ miner.miner_type }}</td>
+                    <td>{{ miner.ip_address }}</td>
+                    <td>{{ miner.port or '--' }}</td>
+                    <td>
+                        <span class="badge {% if miner.enabled %}badge-success{% else %}badge-error{% endif %}">
+                            {{ 'Enabled' if miner.enabled else 'Disabled' }}
+                        </span>
+                    </td>
+                    <td>{{ miner.current_mode or '--' }}</td>
+                    <td>
+                        <button class="btn btn-secondary" onclick="viewMiner({{ miner.id }})">View</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">No miners configured. Add your first miner to get started.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function viewMiner(id) {
+    // TODO: Implement miner detail view
+    alert('Miner details: ' + id);
+}
+</script>
+{% endblock %}

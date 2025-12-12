@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Add Automation Rule</h2>
+    </div>
+    
+    <form id="add-rule-form">
+        <div class="form-group">
+            <label class="form-label">Rule Name</label>
+            <input type="text" class="form-input" id="name" required placeholder="e.g., Low price mode">
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Trigger Type</label>
+            <select class="form-select" id="trigger_type" required>
+                <option value="">Select trigger...</option>
+                <option value="price_threshold">Energy Price Threshold</option>
+                <option value="time_window">Time Window</option>
+                <option value="miner_offline">Miner Offline</option>
+                <option value="miner_overheat">Miner Overheating</option>
+                <option value="pool_failure">Pool Connection Failure</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Trigger Configuration (JSON)</label>
+            <textarea class="form-input" id="trigger_config" rows="4" required placeholder='{"threshold": 10}'></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Action Type</label>
+            <select class="form-select" id="action_type" required>
+                <option value="">Select action...</option>
+                <option value="apply_mode">Apply Miner Mode</option>
+                <option value="switch_pool">Switch Mining Pool</option>
+                <option value="send_alert">Send Alert</option>
+                <option value="log_event">Log Event</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Action Configuration (JSON)</label>
+            <textarea class="form-input" id="action_config" rows="4" required placeholder='{"mode": "eco"}'></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Priority</label>
+            <input type="number" class="form-input" id="priority" value="0">
+        </div>
+        
+        <div class="flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Create Rule</button>
+            <a href="/automation" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('add-rule-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    try {
+        const data = {
+            name: document.getElementById('name').value,
+            trigger_type: document.getElementById('trigger_type').value,
+            trigger_config: JSON.parse(document.getElementById('trigger_config').value),
+            action_type: document.getElementById('action_type').value,
+            action_config: JSON.parse(document.getElementById('action_config').value),
+            priority: parseInt(document.getElementById('priority').value)
+        };
+        
+        const res = await fetch('/api/automation/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (res.ok) {
+            window.location.href = '/automation';
+        } else {
+            alert('Failed to create rule');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

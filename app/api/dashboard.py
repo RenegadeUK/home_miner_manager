@@ -1,0 +1,153 @@
+"""
+Dashboard and analytics API endpoints
+"""
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from datetime import datetime, timedelta
+
+from core.database import get_db, Miner, Telemetry, EnergyPrice, Event
+
+
+router = APIRouter()
+
+
+@router.get("/stats")
+async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
+    """Get overall dashboard statistics"""
+    # Count miners
+    result = await db.execute(select(func.count(Miner.id)))
+    total_miners = result.scalar()
+    
+    result = await db.execute(select(func.count(Miner.id)).where(Miner.enabled == True))
+    active_miners = result.scalar()
+    
+    # Get latest telemetry for total hashrate
+    cutoff = datetime.utcnow() - timedelta(minutes=5)
+    result = await db.execute(
+        select(func.sum(Telemetry.hashrate))
+        .where(Telemetry.timestamp > cutoff)
+        .group_by(Telemetry.miner_id)
+    )
+    total_hashrate = sum([r for r in result.scalars()]) or 0
+    
+    # Get current energy price
+    now = datetime.utcnow()
+    result = await db.execute(
+        select(EnergyPrice.price_pence)
+        .where(EnergyPrice.valid_from <= now)
+        .where(EnergyPrice.valid_to > now)
+        .limit(1)
+    )
+    current_price = result.scalar()
+    
+    # Count recent events
+    cutoff_24h = datetime.utcnow() - timedelta(hours=24)
+    result = await db.execute(
+        select(func.count(Event.id))
+        .where(Event.timestamp > cutoff_24h)
+    )
+    recent_events = result.scalar()
+    
+    return {
+        "total_miners": total_miners,
+        "active_miners": active_miners,
+        "total_hashrate_ghs": round(total_hashrate, 2),
+        "current_energy_price_pence": current_price,
+        "recent_events_24h": recent_events
+    }
+
+
+@router.get("/energy/current")
+async def get_current_energy_price(db: AsyncSession = Depends(get_db)):
+    """Get current energy price slot"""
+    now = datetime.utcnow()
+    result = await db.execute(
+        select(EnergyPrice)
+        .where(EnergyPrice.valid_from <= now)
+        .where(EnergyPrice.valid_to > now)
+        .limit(1)
+    )
+    price = result.scalar_one_or_none()
+    
+    if not price:
+        return {"price_pence": None, "valid_from": None, "valid_to": None}
+    
+    return {
+        "price_pence": price.price_pence,
+        "valid_from": price.valid_from.isoformat(),
+        "valid_to": price.valid_to.isoformat()
+    }
+
+
+@router.get("/energy/next")
+async def get_next_energy_price(db: AsyncSession = Depends(get_db)):
+    """Get next energy price slot"""
+    now = datetime.utcnow()
+    result = await db.execute(
+        select(EnergyPrice)
+        .where(EnergyPrice.valid_from > now)
+        .order_by(EnergyPrice.valid_from)
+        .limit(1)
+    )
+    price = result.scalar_one_or_none()
+    
+    if not price:
+        return {"price_pence": None, "valid_from": None, "valid_to": None}
+    
+    return {
+        "price_pence": price.price_pence,
+        "valid_from": price.valid_from.isoformat(),
+        "valid_to": price.valid_to.isoformat()
+    }
+
+
+@router.get("/energy/timeline")
+async def get_energy_timeline(hours: int = 24, db: AsyncSession = Depends(get_db)):
+    """Get energy price timeline"""
+    now = datetime.utcnow()
+    future = now + timedelta(hours=hours)
+    
+    result = await db.execute(
+        select(EnergyPrice)
+        .where(EnergyPrice.valid_from >= now)
+        .where(EnergyPrice.valid_from < future)
+        .order_by(EnergyPrice.valid_from)
+    )
+    prices = result.scalars().all()
+    
+    return {
+        "prices": [
+            {
+                "price_pence": p.price_pence,
+                "valid_from": p.valid_from.isoformat(),
+                "valid_to": p.valid_to.isoformat()
+            }
+            for p in prices
+        ]
+    }
+
+
+@router.get("/events/recent")
+async def get_recent_events(limit: int = 50, db: AsyncSession = Depends(get_db)):
+    """Get recent events"""
+    result = await db.execute(
+        select(Event)
+        .order_by(Event.timestamp.desc())
+        .limit(limit)
+    )
+    events = result.scalars().all()
+    
+    return {
+        "events": [
+            {
+                "id": e.id,
+                "timestamp": e.timestamp.isoformat(),
+                "event_type": e.event_type,
+                "source": e.source,
+                "message": e.message,
+                "data": e.data
+            }
+            for e in events
+        ]
+    }

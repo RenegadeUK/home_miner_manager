@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Stats Grid -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Total Miners</div>
+        <div class="stat-value" id="total-miners">{{ miners_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total Hashrate</div>
+        <div class="stat-value" id="total-hashrate">0 GH/s</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Current Energy Price</div>
+        <div class="stat-value" id="energy-price">-- p/kWh</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Active Rules</div>
+        <div class="stat-value" id="active-rules">0</div>
+    </div>
+</div>
+
+<!-- Miners Overview -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Miners Overview</h2>
+        <a href="/miners/add" class="btn btn-primary">+ Add Miner</a>
+    </div>
+    <div class="table-container" id="miners-table">
+        <p class="text-muted">Loading miners...</p>
+    </div>
+</div>
+
+<!-- Recent Events -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Recent Events</h2>
+    </div>
+    <div id="events-list">
+        <p class="text-muted">No recent events</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Load dashboard data
+async function loadDashboard() {
+    try {
+        // Load stats
+        const statsRes = await fetch('/api/dashboard/stats');
+        const stats = await statsRes.json();
+        
+        document.getElementById('total-miners').textContent = stats.total_miners;
+        document.getElementById('total-hashrate').textContent = stats.total_hashrate_ghs.toFixed(2) + ' GH/s';
+        document.getElementById('energy-price').textContent = 
+            stats.current_energy_price_pence ? stats.current_energy_price_pence.toFixed(2) + ' p/kWh' : '-- p/kWh';
+        
+        // Load miners
+        const minersRes = await fetch('/api/miners/');
+        const miners = await minersRes.json();
+        
+        const minersTable = document.getElementById('miners-table');
+        if (miners.length === 0) {
+            minersTable.innerHTML = '<p class="text-muted">No miners configured</p>';
+        } else {
+            minersTable.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                            <th>Mode</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${miners.map(m => `
+                            <tr>
+                                <td>${m.name}</td>
+                                <td>${m.miner_type}</td>
+                                <td>${m.ip_address}</td>
+                                <td><span class="badge ${m.enabled ? 'badge-success' : 'badge-error'}">${m.enabled ? 'Enabled' : 'Disabled'}</span></td>
+                                <td>${m.current_mode || '--'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    } catch (error) {
+        console.error('Failed to load dashboard:', error);
+    }
+}
+
+loadDashboard();
+setInterval(loadDashboard, 30000); // Refresh every 30s
+</script>
+{% endblock %}

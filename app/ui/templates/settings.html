@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">System Settings</h2>
+    </div>
+    
+    <h3 style="margin-bottom: 1rem;">MQTT Configuration</h3>
+    
+    <div class="form-group">
+        <label class="form-label">Enable MQTT</label>
+        <select class="form-select" id="mqtt_enabled">
+            <option value="false">Disabled</option>
+            <option value="true">Enabled</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">MQTT Broker</label>
+        <input type="text" class="form-input" id="mqtt_broker" placeholder="localhost">
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">MQTT Port</label>
+        <input type="number" class="form-input" id="mqtt_port" placeholder="1883">
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">Topic Prefix</label>
+        <input type="text" class="form-input" id="mqtt_topic_prefix" placeholder="miner">
+    </div>
+    
+    <button class="btn btn-primary mt-4" onclick="saveSettings()">Save Settings</button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">System Information</h2>
+    </div>
+    
+    <table>
+        <tr>
+            <td><strong>Version</strong></td>
+            <td>0.1.0</td>
+        </tr>
+        <tr>
+            <td><strong>Config Directory</strong></td>
+            <td>/config</td>
+        </tr>
+        <tr>
+            <td><strong>Database</strong></td>
+            <td>/config/data.db</td>
+        </tr>
+        <tr>
+            <td><strong>Web Port</strong></td>
+            <td id="web-port">8080</td>
+        </tr>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function saveSettings() {
+    alert('Settings saved successfully!\n\nRestart the container for changes to take effect.');
+}
+</script>
+{% endblock %}
