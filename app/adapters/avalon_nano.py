@@ -38,9 +38,10 @@ class AvalonNanoAdapter(MinerAdapter):
             shares_accepted = summary_data.get("Accepted", 0)
             shares_rejected = summary_data.get("Rejected", 0)
             
-            # Get temperature and power from estats
+            # Get temperature, power, and current mode from estats
             temperature = self._get_temperature(estats)
             power_watts = self._calculate_power(estats)
+            current_mode = self._detect_current_mode(estats)
             
             # Get active pool
             pool_in_use = None
@@ -58,10 +59,38 @@ class AvalonNanoAdapter(MinerAdapter):
                 shares_accepted=shares_accepted,
                 shares_rejected=shares_rejected,
                 pool_in_use=pool_in_use,
-                extra_data={"summary": summary_data}
+                extra_data={"summary": summary_data, "current_mode": current_mode}
             )
         except Exception as e:
             print(f"❌ Failed to get telemetry from Avalon Nano {self.ip_address}: {e}")
+            return None
+    
+    def _detect_current_mode(self, estats: Optional[Dict]) -> Optional[str]:
+        """Detect current mode from frequency"""
+        if not estats or "STATS" not in estats:
+            return None
+        
+        try:
+            stats_data = estats["STATS"][0]
+            mm_id = stats_data.get("MM ID0", "")
+            
+            # Parse Freq from MM ID0 string (e.g., Freq[463.57])
+            if "Freq[" in mm_id:
+                start = mm_id.index("Freq[") + 5
+                end = mm_id.index("]", start)
+                freq = float(mm_id[start:end])
+                
+                # Map frequency to mode (approximate ranges)
+                if freq < 480:
+                    return "low"
+                elif freq < 520:
+                    return "med"
+                else:
+                    return "high"
+            
+            return None
+        except Exception as e:
+            print(f"⚠️ Failed to detect mode: {e}")
             return None
     
     def _get_temperature(self, estats: Optional[Dict]) -> Optional[float]:

@@ -156,6 +156,13 @@ class SchedulerService:
                         telemetry = await adapter.get_telemetry()
                         
                         if telemetry:
+                            # Update miner's current_mode if detected in telemetry
+                            if telemetry.extra_data and "current_mode" in telemetry.extra_data:
+                                detected_mode = telemetry.extra_data["current_mode"]
+                                if detected_mode and miner.current_mode != detected_mode:
+                                    miner.current_mode = detected_mode
+                                    print(f"📝 Updated {miner.name} mode to: {detected_mode}")
+                            
                             # Save to database
                             db_telemetry = Telemetry(
                                 miner_id=miner.id,
