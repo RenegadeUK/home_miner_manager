@@ -7,7 +7,7 @@ from sqlalchemy import select
 from typing import List
 from pydantic import BaseModel
 
-from core.database import get_db, Miner
+from core.database import get_db, Miner, Pool
 from adapters import create_adapter, get_supported_types
 
 
