@@ -116,7 +116,7 @@ class AvalonNanoAdapter(MinerAdapter):
             return None
     
     def _calculate_power(self, estats: Optional[Dict]) -> Optional[float]:
-        """Get power from ATA0 field in MM ID string"""
+        """Get power from MPO field in MM ID string"""
         if not estats or "STATS" not in estats:
             return None
         
@@ -124,21 +124,18 @@ class AvalonNanoAdapter(MinerAdapter):
             stats_data = estats["STATS"][0]
             mm_id = stats_data.get("MM ID0", "")
             
-            # Parse ATA0 array from MM ID0 string (e.g., ATA0[62-80-3392-210-20])
-            # ATA0[0] contains the actual power consumption in watts
-            if "ATA0[" in mm_id:
-                start = mm_id.index("ATA0[") + 5
+            # Parse MPO from MM ID0 string (e.g., MPO[62])
+            # MPO contains the actual power consumption in watts
+            if "MPO[" in mm_id:
+                start = mm_id.index("MPO[") + 4
                 end = mm_id.index("]", start)
-                ata_str = mm_id[start:end]
-                ata_values = [int(x) for x in ata_str.split('-')]
-                
-                if len(ata_values) >= 1:
-                    watts = float(ata_values[0])
-                    return watts
+                mpo_str = mm_id[start:end]
+                watts = float(mpo_str)
+                return watts
             
             return None
         except Exception as e:
-            print(f"⚠️ Failed to get power from ATA0: {e}")
+            print(f"⚠️ Failed to get power from MPO: {e}")
             return None
     
     async def set_mode(self, mode: str) -> bool:
