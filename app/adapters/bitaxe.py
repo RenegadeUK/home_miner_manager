@@ -85,6 +85,30 @@ class BitaxeAdapter(MinerAdapter):
         """Get available modes"""
         return self.MODES
     
+    async def get_current_mode(self) -> Optional[str]:
+        """Detect current mode based on frequency"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/api/system/info", timeout=5) as response:
+                    if response.status != 200:
+                        return None
+                    
+                    data = await response.json()
+                    frequency = data.get("frequency", 0)
+                    
+                    # Map frequency ranges to modes (with tolerance)
+                    if frequency < 450:
+                        return "eco"  # ~400 MHz
+                    elif frequency < 540:
+                        return "standard"  # ~500 MHz
+                    elif frequency < 600:
+                        return "turbo"  # ~575 MHz
+                    else:
+                        return "oc"  # ~625 MHz
+        except Exception as e:
+            print(f"❌ Failed to detect mode on Bitaxe: {e}")
+            return None
+    
     async def switch_pool(self, pool_url: str, pool_user: str, pool_password: str) -> bool:
         """Switch mining pool"""
         try:
