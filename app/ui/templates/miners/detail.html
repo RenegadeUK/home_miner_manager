@@ -521,6 +521,15 @@ async function loadPools() {
             return;
         }
         
+        // If device pools (Avalon Nano), fetch all database pools to match names
+        let allDbPools = [];
+        if (isDevicePools) {
+            const poolsResponse = await fetch('/api/pools/');
+            if (poolsResponse.ok) {
+                allDbPools = await poolsResponse.json();
+            }
+        }
+        
         // Clear loading message
         radioGroup.innerHTML = '';
         
@@ -562,7 +571,17 @@ async function loadPools() {
             poolName.className = 'pool-name';
             
             if (isDevicePools) {
-                poolName.textContent = `Slot ${pool.slot}`;
+                // Try to find matching pool name from database
+                const matchingPool = allDbPools.find(p => 
+                    p.url === pool.url && p.port === pool.port
+                );
+                
+                if (matchingPool) {
+                    poolName.textContent = `Slot ${pool.slot}: ${matchingPool.name}`;
+                } else {
+                    poolName.textContent = `Slot ${pool.slot}`;
+                }
+                
                 if (pool.active) {
                     poolName.innerHTML += ' <span style="color: #10b981;">● ACTIVE</span>';
                 }
