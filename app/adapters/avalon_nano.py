@@ -139,24 +139,23 @@ class AvalonNanoAdapter(MinerAdapter):
             return None
     
     async def set_mode(self, mode: str) -> bool:
-        """Set operating mode"""
+        """Set operating mode using workmode parameter"""
         if mode not in self.MODES:
             print(f"❌ Invalid mode: {mode}. Valid modes: {self.MODES}")
             return False
         
         try:
-            # Map mode to frequency preset (MHz values for Avalon Nano)
-            # Low ~200MHz (~60W), Med ~250MHz (~120W), High ~300MHz (~180W)
-            freq_map = {
-                "low": 200,
-                "med": 250,
-                "high": 300
+            # Map mode to workmode values (0=low, 1=med, 2=high)
+            workmode_map = {
+                "low": 0,
+                "med": 1,
+                "high": 2
             }
             
-            freq = freq_map.get(mode, 250)
-            print(f"📝 Setting Avalon Nano frequency to {freq} MHz for mode '{mode}'")
-            result = await self._cgminer_command(f"ascset|0,freq,{freq}")
-            print(f"✅ Frequency set result: {result}")
+            workmode = workmode_map.get(mode)
+            print(f"📝 Setting Avalon Nano workmode to {workmode} for mode '{mode}'")
+            result = await self._cgminer_command(f"ascset|0,workmode,set,{workmode}")
+            print(f"✅ Workmode set result: {result}")
             
             return result is not None
         except Exception as e:
