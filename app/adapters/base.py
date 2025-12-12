@@ -48,8 +48,9 @@ class MinerTelemetry:
 class MinerAdapter(ABC):
     """Base adapter interface for all miner types"""
     
-    def __init__(self, miner_id: int, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
+    def __init__(self, miner_id: int, miner_name: str, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
         self.miner_id = miner_id
+        self.miner_name = miner_name
         self.ip_address = ip_address
         self.port = port
         self.config = config or {}
@@ -70,7 +71,7 @@ class MinerAdapter(ABC):
         pass
     
     @abstractmethod
-    async def switch_pool(self, pool_url: str, pool_user: str, pool_password: str) -> bool:
+    async def switch_pool(self, pool_url: str, pool_port: int, pool_user: str, pool_password: str) -> bool:
         """Switch to a different mining pool"""
         pass
     

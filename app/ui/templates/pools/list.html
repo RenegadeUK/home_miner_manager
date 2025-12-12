@@ -14,8 +14,8 @@
                 <tr>
                     <th>Name</th>
                     <th>URL</th>
+                    <th>Port</th>
                     <th>User</th>
-                    <th>Priority</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -25,15 +25,16 @@
                 <tr>
                     <td>{{ pool.name }}</td>
                     <td>{{ pool.url }}</td>
+                    <td>{{ pool.port }}</td>
                     <td>{{ pool.user }}</td>
-                    <td>{{ pool.priority }}</td>
                     <td>
                         <span class="badge {% if pool.enabled %}badge-success{% else %}badge-error{% endif %}">
                             {{ 'Enabled' if pool.enabled else 'Disabled' }}
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-secondary" onclick="editPool({{ pool.id }})">Edit</button>
+                        <button class="btn btn-secondary btn-sm" onclick="editPool({{ pool.id }})">Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deletePool({{ pool.id }}, '{{ pool.name }}')">Delete</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -44,4 +45,30 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+function editPool(poolId) {
+    window.location.href = `/pools/${poolId}/edit`;
+}
+
+async function deletePool(poolId, poolName) {
+    if (!confirm(`Are you sure you want to delete pool "${poolName}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/pools/${poolId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete pool');
+        }
+        
+        window.location.reload();
+    } catch (error) {
+        alert('Error deleting pool: ' + error.message);
+    }
+}
+</script>
 {% endblock %}

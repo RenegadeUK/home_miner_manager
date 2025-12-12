@@ -3,6 +3,7 @@ Avalon Nano 3 / 3S adapter using cgminer TCP API
 """
 import socket
 import json
+import asyncio
 from typing import Dict, List, Optional
 from adapters.base import MinerAdapter, MinerTelemetry
 
@@ -13,8 +14,8 @@ class AvalonNanoAdapter(MinerAdapter):
     MODES = ["low", "med", "high"]
     DEFAULT_PORT = 4028
     
-    def __init__(self, miner_id: int, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
-        super().__init__(miner_id, ip_address, port or self.DEFAULT_PORT, config)
+    def __init__(self, miner_id: int, miner_name: str, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
+        super().__init__(miner_id, miner_name, ip_address, port or self.DEFAULT_PORT, config)
     
     async def get_telemetry(self) -> Optional[MinerTelemetry]:
         """Get telemetry from cgminer API"""
@@ -169,16 +170,78 @@ class AvalonNanoAdapter(MinerAdapter):
         """Get available modes"""
         return self.MODES
     
-    async def switch_pool(self, pool_url: str, pool_user: str, pool_password: str) -> bool:
-        """Switch mining pool"""
+    async def switch_pool(self, pool_url: str, pool_port: int, pool_user: str, pool_password: str) -> bool:
+        """Switch mining pool - Avalon Nano has 3 fixed pool slots (0, 1, 2)
+        
+        Strategy: Since cgminer doesn't support removepool, we must work within the 3-slot constraint.
+        We'll check if the desired pool exists in any slot, and if not, we'll reconfigure one of the
+        3 slots by manually updating it via the web interface or accepting the limitation.
+        
+        For now, we check existing pools and only switch if the pool already exists.
+        """
         try:
-            # Add pool and switch to it
-            result = await self._cgminer_command(f"addpool|{pool_url},{pool_user},{pool_password}")
-            if result:
-                # Switch to pool 0 (newly added)
-                await self._cgminer_command("switchpool|0")
+            # Construct username as pool_user.miner_name
+            full_username = f"{pool_user}.{self.miner_name}"
+            
+            # Construct full pool URL with stratum protocol and port
+            full_pool_url = f"stratum+tcp://{pool_url}:{pool_port}"
+            
+            print(f"🔄 Switching to pool: {full_pool_url} with user: {full_username}")
+            
+            # Get current pools
+            pools_result = await self._cgminer_command("pools")
+            if not pools_result or "POOLS" not in pools_result:
+                print("❌ Failed to get current pools")
+                return False
+            
+            print(f"📋 Found {len(pools_result['POOLS'])} pool slots:")
+            for pool in pools_result["POOLS"]:
+                active = "✅ ACTIVE" if pool.get("Stratum Active") else "⚪"
+                print(f"  {active} [{pool['POOL']}] {pool['URL']} - {pool['User']}")
+            
+            # Check if the desired pool exists in any slot (match by URL only, not user)
+            existing_slot = None
+            for pool in pools_result["POOLS"]:
+                pool_url_normalized = pool["URL"].lower().replace("stratum+tcp://", "")
+                target_url_normalized = full_pool_url.lower().replace("stratum+tcp://", "")
+                
+                if pool_url_normalized == target_url_normalized:
+                    existing_slot = pool["POOL"]
+                    print(f"✨ Pool found at slot {existing_slot}")
+                    break
+            
+            if existing_slot is not None:
+                # Pool exists, switch to it
+                print(f"🔀 Switching to pool slot {existing_slot}")
+                switch_result = await self._cgminer_command(f"switchpool|{existing_slot}")
+                if not switch_result:
+                    print(f"❌ Failed to switch to pool {existing_slot}")
+                    return False
+                
+                # Enable the pool
+                await self._cgminer_command(f"enablepool|{existing_slot}")
+                await asyncio.sleep(1.5)
+                
+                # Verify
+                verify_result = await self._cgminer_command("pools")
+                if verify_result and "POOLS" in verify_result:
+                    for pool in verify_result["POOLS"]:
+                        if pool["POOL"] == existing_slot and pool.get("Stratum Active"):
+                            print(f"✅ Successfully switched to slot {existing_slot}: {pool['URL']}")
+                            return True
+                
+                print(f"⚠️ Switch command sent but verification unclear")
                 return True
-            return False
+            else:
+                # Pool doesn't exist in the 3 slots
+                print(f"❌ Pool {full_pool_url} not found in any of the 3 available slots")
+                print(f"⚠️  Avalon Nano has 3 fixed pool slots that must be manually configured")
+                print(f"⚠️  Please configure this pool via the miner's web interface first")
+                print(f"📝 Current pools on device:")
+                for pool in pools_result["POOLS"]:
+                    print(f"    [{pool['POOL']}] {pool['URL']}")
+                return False
+            
         except Exception as e:
             print(f"❌ Failed to switch pool: {e}")
             return False

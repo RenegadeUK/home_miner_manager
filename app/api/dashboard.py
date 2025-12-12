@@ -4,7 +4,7 @@ Dashboard and analytics API endpoints
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from core.database import get_db, Miner, Telemetry, EnergyPrice, Event
 
@@ -62,12 +62,54 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     )
     recent_events = result.scalar()
     
+    # Calculate total 24h cost across all miners
+    total_cost_pence = 0.0
+    for miner in miners:
+        # Get telemetry for last 24 hours
+        result = await db.execute(
+            select(Telemetry.power_watts, Telemetry.timestamp)
+            .where(Telemetry.miner_id == miner.id)
+            .where(Telemetry.timestamp > cutoff_24h)
+            .order_by(Telemetry.timestamp)
+        )
+        telemetry_records = result.all()
+        
+        if not telemetry_records:
+            continue
+        
+        # Calculate cost by matching telemetry with energy prices
+        for i, (power, timestamp) in enumerate(telemetry_records):
+            if power is None or power <= 0:
+                continue
+            
+            # Find energy price for this timestamp
+            result = await db.execute(
+                select(EnergyPrice.price_pence)
+                .where(EnergyPrice.valid_from <= timestamp)
+                .where(EnergyPrice.valid_to > timestamp)
+                .limit(1)
+            )
+            price_pence = result.scalar()
+            
+            if price_pence is None:
+                continue
+            
+            # Calculate time duration (assume 30s intervals)
+            duration_hours = 0.00833  # 30 seconds in hours
+            
+            # Calculate cost: (power_watts / 1000) * duration_hours * price_pence_per_kwh
+            kwh = (power / 1000.0) * duration_hours
+            cost = kwh * price_pence
+            total_cost_pence += cost
+    
     return {
         "total_miners": total_miners,
         "active_miners": active_miners,
         "total_hashrate_ghs": round(total_hashrate, 2),
         "current_energy_price_pence": current_price,
-        "recent_events_24h": recent_events
+        "recent_events_24h": recent_events,
+        "total_cost_24h_pence": round(total_cost_pence, 2),
+        "total_cost_24h_pounds": round(total_cost_pence / 100, 2)
     }
 
 
@@ -77,7 +119,7 @@ async def get_current_energy_price(db: AsyncSession = Depends(get_db)):
     from core.config import app_config
     
     region = app_config.get("octopus_agile.region", "H")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     result = await db.execute(
         select(EnergyPrice)
         .where(EnergyPrice.region == region)
@@ -103,7 +145,7 @@ async def get_next_energy_price(db: AsyncSession = Depends(get_db)):
     from core.config import app_config
     
     region = app_config.get("octopus_agile.region", "H")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     result = await db.execute(
         select(EnergyPrice)
         .where(EnergyPrice.region == region)
@@ -127,14 +169,18 @@ async def get_next_energy_price(db: AsyncSession = Depends(get_db)):
 async def get_energy_timeline(db: AsyncSession = Depends(get_db)):
     """Get energy price timeline grouped by today and tomorrow"""
     from core.config import app_config
+    import logging
+    logger = logging.getLogger(__name__)
     
     region = app_config.get("octopus_agile.region", "H")
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     
-    # Calculate day boundaries
+    # Calculate day boundaries (timezone-aware)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow_start = today_start + timedelta(days=1)
     day_after_start = today_start + timedelta(days=2)
+    
+    logger.info(f"Energy timeline query - Region: {region}, Tomorrow: {tomorrow_start} to {day_after_start}")
     
     # Get today's prices
     result = await db.execute(
@@ -155,6 +201,14 @@ async def get_energy_timeline(db: AsyncSession = Depends(get_db)):
         .order_by(EnergyPrice.valid_from)
     )
     tomorrow_prices = result.scalars().all()
+    
+    # Debug: check total count in DB
+    debug_result = await db.execute(
+        select(func.count()).select_from(EnergyPrice).where(EnergyPrice.region == region)
+    )
+    total_count = debug_result.scalar()
+    logger.info(f"Total prices in DB for region {region}: {total_count}")
+    logger.info(f"Found {len(today_prices)} today prices, {len(tomorrow_prices)} tomorrow prices")
     
     return {
         "today": {

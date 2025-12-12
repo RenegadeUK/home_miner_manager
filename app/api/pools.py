@@ -16,18 +16,18 @@ router = APIRouter()
 class PoolCreate(BaseModel):
     name: str
     url: str
+    port: int
     user: str
     password: str
-    priority: int = 0
     enabled: bool = True
 
 
 class PoolUpdate(BaseModel):
     name: str | None = None
     url: str | None = None
+    port: int | None = None
     user: str | None = None
     password: str | None = None
-    priority: int | None = None
     enabled: bool | None = None
 
 
@@ -35,9 +35,9 @@ class PoolResponse(BaseModel):
     id: int
     name: str
     url: str
+    port: int
     user: str
     password: str
-    priority: int
     enabled: bool
     
     class Config:
@@ -47,7 +47,7 @@ class PoolResponse(BaseModel):
 @router.get("/", response_model=List[PoolResponse])
 async def list_pools(db: AsyncSession = Depends(get_db)):
     """List all pools"""
-    result = await db.execute(select(Pool).order_by(Pool.priority))
+    result = await db.execute(select(Pool).order_by(Pool.name))
     pools = result.scalars().all()
     return pools
 
@@ -70,9 +70,9 @@ async def create_pool(pool: PoolCreate, db: AsyncSession = Depends(get_db)):
     db_pool = Pool(
         name=pool.name,
         url=pool.url,
+        port=pool.port,
         user=pool.user,
         password=pool.password,
-        priority=pool.priority,
         enabled=pool.enabled
     )
     
@@ -97,12 +97,12 @@ async def update_pool(pool_id: int, pool_update: PoolUpdate, db: AsyncSession = 
         pool.name = pool_update.name
     if pool_update.url is not None:
         pool.url = pool_update.url
+    if pool_update.port is not None:
+        pool.port = pool_update.port
     if pool_update.user is not None:
         pool.user = pool_update.user
     if pool_update.password is not None:
         pool.password = pool_update.password
-    if pool_update.priority is not None:
-        pool.priority = pool_update.priority
     if pool_update.enabled is not None:
         pool.enabled = pool_update.enabled
     

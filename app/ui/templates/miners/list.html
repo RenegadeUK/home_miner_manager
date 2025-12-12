@@ -24,7 +24,7 @@
             <tbody>
                 {% for miner in miners %}
                 <tr>
-                    <td>{{ miner.name }}</td>
+                    <td><a href="/miners/{{ miner.id }}">{{ miner.name }}</a></td>
                     <td>{{ miner.miner_type }}</td>
                     <td>{{ miner.ip_address }}</td>
                     <td>{{ miner.port or '--' }}</td>
@@ -35,8 +35,8 @@
                     </td>
                     <td>{{ miner.current_mode or '--' }}</td>
                     <td>
-                        <button class="btn btn-secondary" onclick="viewMiner({{ miner.id }})">View</button>
-                        <button class="btn btn-error" onclick="deleteMiner({{ miner.id }}, '{{ miner.name }}')">Delete</button>
+                        <button class="btn btn-secondary btn-sm" onclick="viewMiner({{ miner.id }})">View</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteMiner({{ miner.id }}, '{{ miner.name }}')">Delete</button>
                     </td>
                 </tr>
                 {% endfor %}

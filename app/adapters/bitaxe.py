@@ -11,8 +11,8 @@ class BitaxeAdapter(MinerAdapter):
     
     MODES = ["eco", "standard", "turbo", "oc"]
     
-    def __init__(self, miner_id: int, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
-        super().__init__(miner_id, ip_address, port or 80, config)
+    def __init__(self, miner_id: int, miner_name: str, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
+        super().__init__(miner_id, miner_name, ip_address, port or 80, config)
         self.base_url = f"http://{ip_address}"
     
     async def get_telemetry(self) -> Optional[MinerTelemetry]:
@@ -84,12 +84,12 @@ class BitaxeAdapter(MinerAdapter):
             config = mode_config.get(mode)
             
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}/api/system/settings",
+                async with session.patch(
+                    f"{self.base_url}/api/system",
                     json=config,
                     timeout=5
                 ) as response:
-                    return response.status == 200
+                    return response.status in [200, 204]
         except Exception as e:
             print(f"❌ Failed to set mode on Bitaxe: {e}")
             return False
@@ -122,20 +122,25 @@ class BitaxeAdapter(MinerAdapter):
             print(f"❌ Failed to detect mode on Bitaxe: {e}")
             return None
     
-    async def switch_pool(self, pool_url: str, pool_user: str, pool_password: str) -> bool:
+    async def switch_pool(self, pool_url: str, pool_port: int, pool_user: str, pool_password: str) -> bool:
         """Switch mining pool"""
         try:
+            # Construct username as pool_user.miner_name
+            full_username = f"{pool_user}.{self.miner_name}"
+            
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}/api/system/settings",
+                async with session.patch(
+                    f"{self.base_url}/api/system",
                     json={
-                        "poolURL": pool_url,
-                        "poolUser": pool_user,
-                        "poolPassword": pool_password
+                        "stratumURL": pool_url,
+                        "stratumPort": pool_port,
+                        "stratumUser": full_username,
+                        "stratumPassword": pool_password
                     },
                     timeout=5
                 ) as response:
-                    return response.status == 200
+                    # Bitaxe returns empty response on success
+                    return response.status in [200, 204]
         except Exception as e:
             print(f"❌ Failed to switch pool on Bitaxe: {e}")
             return False

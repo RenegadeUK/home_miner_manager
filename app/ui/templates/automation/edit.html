@@ -3,10 +3,12 @@
 {% block content %}
 <div class="card">
     <div class="card-header">
-        <h2 class="card-title">Add Automation Rule</h2>
+        <h2 class="card-title">Edit Automation Rule</h2>
     </div>
     
-    <form id="add-rule-form">
+    <div id="loading" class="loading">Loading rule...</div>
+    
+    <form id="edit-rule-form" style="display: none;">
         <div class="form-group">
             <label class="form-label">Rule Name</label>
             <input type="text" class="form-input" id="name" required placeholder="e.g., Low price mode">
@@ -41,8 +43,14 @@
             <input type="number" class="form-input" id="priority" value="0">
         </div>
         
+        <div class="form-group">
+            <label class="form-label">
+                <input type="checkbox" id="enabled"> Enabled
+            </label>
+        </div>
+        
         <div class="flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">Create Rule</button>
+            <button type="submit" class="btn btn-primary">Update Rule</button>
             <a href="/automation" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
@@ -51,6 +59,8 @@
 
 {% block extra_scripts %}
 <script>
+const ruleId = {{ rule_id }};
+let loadedRule = null;
 let miners = [];
 let pools = [];
 
@@ -445,10 +455,44 @@ document.getElementById('action_type').addEventListener('change', function() {
     buildActionFields(this.value);
 });
 
-// Load options on page load
-loadOptions();
+// Load rule data
+async function loadRule() {
+// Load rule data
+async function loadRule() {
+    try {
+        // Load options first
+        await loadOptions();
+        
+        const response = await fetch(`/api/automation/${ruleId}`);
+        
+        if (!response.ok) {
+            throw new Error('Rule not found');
+        }
+        
+        loadedRule = await response.json();
+        
+        // Populate form
+        document.getElementById('name').value = loadedRule.name;
+        document.getElementById('trigger_type').value = loadedRule.trigger_type;
+        document.getElementById('action_type').value = loadedRule.action_type;
+        document.getElementById('priority').value = loadedRule.priority;
+        document.getElementById('enabled').checked = loadedRule.enabled;
+        
+        // Build dynamic fields with loaded config
+        buildTriggerFields(loadedRule.trigger_type, loadedRule.trigger_config);
+        buildActionFields(loadedRule.action_type, loadedRule.action_config);
+        
+        // Show form
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('edit-rule-form').style.display = 'block';
+        
+    } catch (error) {
+        document.getElementById('loading').innerHTML = `<div class="text-error">Error loading rule: ${error.message}</div>`;
+    }
+}
 
-document.getElementById('add-rule-form').addEventListener('submit', async (e) => {
+// Handle form submission
+document.getElementById('edit-rule-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     try {
@@ -461,11 +505,12 @@ document.getElementById('add-rule-form').addEventListener('submit', async (e) =>
             trigger_config: getTriggerConfig(triggerType),
             action_type: actionType,
             action_config: getActionConfig(actionType),
-            priority: parseInt(document.getElementById('priority').value)
+            priority: parseInt(document.getElementById('priority').value),
+            enabled: document.getElementById('enabled').checked
         };
         
-        const res = await fetch('/api/automation/', {
-            method: 'POST',
+        const res = await fetch(`/api/automation/${ruleId}`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
@@ -473,11 +518,15 @@ document.getElementById('add-rule-form').addEventListener('submit', async (e) =>
         if (res.ok) {
             window.location.href = '/automation';
         } else {
-            alert('Failed to create rule');
+            const error = await res.json();
+            alert('Failed to update rule: ' + (error.detail || 'Unknown error'));
         }
     } catch (error) {
         alert('Error: ' + error.message);
     }
 });
+
+// Load rule on page load
+loadRule();
 </script>
 {% endblock %}

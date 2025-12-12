@@ -16,8 +16,8 @@
         <div class="stat-value" id="energy-price">-- p/kWh</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">Active Rules</div>
-        <div class="stat-value" id="active-rules">0</div>
+        <div class="stat-label">24h Total Cost</div>
+        <div class="stat-value" id="total-cost-24h">£0.00</div>
     </div>
 </div>
 
@@ -25,7 +25,6 @@
 <div class="card">
     <div class="card-header">
         <h2 class="card-title">Miners Overview</h2>
-        <a href="/miners/add" class="btn btn-primary">+ Add Miner</a>
     </div>
     <div class="table-container" id="miners-table">
         <p class="text-muted">Loading miners...</p>
@@ -53,35 +52,105 @@ async function loadDashboard() {
         const stats = await statsRes.json();
         
         document.getElementById('total-miners').textContent = stats.total_miners;
-        document.getElementById('total-hashrate').textContent = formatHashrate(stats.total_hashrate_ghs);
         document.getElementById('energy-price').textContent = 
             stats.current_energy_price_pence ? stats.current_energy_price_pence.toFixed(2) + ' p/kWh' : '-- p/kWh';
+        document.getElementById('total-cost-24h').textContent = 
+            stats.total_cost_24h_pounds !== undefined ? '£' + stats.total_cost_24h_pounds.toFixed(2) : '£0.00';
         
         // Load miners
         const minersRes = await fetch('/api/miners/');
         const miners = await minersRes.json();
         
+        // Load pools for name mapping
+        const poolsRes = await fetch('/api/pools/');
+        const pools = await poolsRes.json();
+        
         const minersTable = document.getElementById('miners-table');
         if (miners.length === 0) {
             minersTable.innerHTML = '<p class="text-muted">No miners configured</p>';
         } else {
+            // Fetch telemetry and cost for each miner
+            const minersWithData = await Promise.all(miners.map(async (m) => {
+                try {
+                    const telemetryRes = await fetch(`/api/miners/${m.id}/telemetry`);
+                    const telemetry = await telemetryRes.json();
+                    
+                    const costRes = await fetch(`/api/miners/${m.id}/cost/24h`);
+                    const costData = await costRes.json();
+                    
+                    // Match pool URL to pool name
+                    let poolDisplay = telemetry?.pool_in_use || '--';
+                    if (poolDisplay !== '--') {
+                        // Extract hostname and port from pool_in_use
+                        // Formats: "stratum+tcp://host:port" or "host:port"
+                        let poolHost = poolDisplay;
+                        let poolPort = null;
+                        
+                        // Remove protocol if present
+                        if (poolHost.includes('://')) {
+                            poolHost = poolHost.split('://')[1];
+                        }
+                        
+                        // Extract port
+                        if (poolHost.includes(':')) {
+                            const parts = poolHost.split(':');
+                            poolHost = parts[0];
+                            poolPort = parseInt(parts[1]);
+                        }
+                        
+                        // Find matching pool by URL and port
+                        const matchedPool = pools.find(p => {
+                            const urlMatch = p.url === poolHost;
+                            const portMatch = poolPort ? p.port === poolPort : true;
+                            return urlMatch && portMatch;
+                        });
+                        
+                        if (matchedPool) {
+                            poolDisplay = matchedPool.name;
+                        }
+                    }
+                    
+                    return {
+                        ...m,
+                        hashrate: telemetry?.hashrate || 0,
+                        pool: poolDisplay,
+                        cost_24h: costData?.cost_pounds || 0
+                    };
+                } catch (e) {
+                    return {
+                        ...m,
+                        hashrate: 0,
+                        pool: '--',
+                        cost_24h: 0
+                    };
+                }
+            }));
+            
+            // Calculate total hashrate from live telemetry data
+            const totalHashrate = minersWithData.reduce((sum, m) => sum + (m.hashrate || 0), 0);
+            document.getElementById('total-hashrate').textContent = formatHashrate(totalHashrate);
+            
             minersTable.innerHTML = `
                 <table>
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Type</th>
-                            <th>IP Address</th>
+                            <th>Hashrate</th>
+                            <th>Stratum Name</th>
+                            <th>Cost per 24hr</th>
                             <th>Status</th>
                             <th>Mode</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${miners.map(m => `
+                        ${minersWithData.map(m => `
                             <tr>
-                                <td>${m.name}</td>
+                                <td><a href="/miners/${m.id}">${m.name}</a></td>
                                 <td>${m.miner_type}</td>
-                                <td>${m.ip_address}</td>
+                                <td>${formatHashrate(m.hashrate)}</td>
+                                <td>${m.pool}</td>
+                                <td>£${m.cost_24h.toFixed(2)}</td>
                                 <td><span class="badge ${m.enabled ? 'badge-success' : 'badge-error'}">${m.enabled ? 'Enabled' : 'Disabled'}</span></td>
                                 <td>${m.current_mode || '--'}</td>
                             </tr>

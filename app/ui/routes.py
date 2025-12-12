@@ -118,6 +118,30 @@ async def add_pool(request: Request):
     })
 
 
+@router.get("/pools/{pool_id}/edit", response_class=HTMLResponse)
+async def edit_pool(request: Request, pool_id: int, db: AsyncSession = Depends(get_db)):
+    """Edit pool page"""
+    result = await db.execute(select(Pool).where(Pool.id == pool_id))
+    pool = result.scalar_one_or_none()
+    
+    if not pool:
+        return templates.TemplateResponse("404.html", {
+            "request": request,
+            "page_title": "Pool Not Found"
+        }, status_code=404)
+    
+    return templates.TemplateResponse("pools/edit.html", {
+        "request": request,
+        "page_title": f"Edit Pool: {pool.name}",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Pools", "url": "/pools"},
+            {"label": f"Edit {pool.name}", "url": f"/pools/{pool_id}/edit"}
+        ],
+        "pool": pool
+    })
+
+
 @router.get("/automation", response_class=HTMLResponse)
 async def automation_list(request: Request, db: AsyncSession = Depends(get_db)):
     """Automation rules list page"""
@@ -146,6 +170,21 @@ async def add_rule(request: Request):
             {"label": "Automation", "url": "/automation"},
             {"label": "Add Rule", "url": "/automation/add"}
         ]
+    })
+
+
+@router.get("/automation/edit/{rule_id}", response_class=HTMLResponse)
+async def edit_rule(request: Request, rule_id: int):
+    """Edit automation rule"""
+    return templates.TemplateResponse("automation/edit.html", {
+        "request": request,
+        "page_title": "Edit Automation Rule",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Automation", "url": "/automation"},
+            {"label": "Edit Rule", "url": f"/automation/edit/{rule_id}"}
+        ],
+        "rule_id": rule_id
     })
 
 

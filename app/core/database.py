@@ -36,10 +36,10 @@ class Pool(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
-    url: Mapped[str] = mapped_column(String(255))
+    url: Mapped[str] = mapped_column(String(255))  # Hostname or IP address
+    port: Mapped[int] = mapped_column(Integer)
     user: Mapped[str] = mapped_column(String(255))
     password: Mapped[str] = mapped_column(String(255))
-    priority: Mapped[int] = mapped_column(Integer, default=0)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

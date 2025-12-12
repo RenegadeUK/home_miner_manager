@@ -20,6 +20,7 @@ ADAPTER_REGISTRY = {
 def create_adapter(
     miner_type: str,
     miner_id: int,
+    miner_name: str,
     ip_address: str,
     port: Optional[int] = None,
     config: Optional[Dict] = None
@@ -30,6 +31,7 @@ def create_adapter(
     Args:
         miner_type: Type of miner (avalon_nano, bitaxe, nerdqaxe, nmminer)
         miner_id: Database ID of the miner
+        miner_name: Name of the miner
         ip_address: IP address of the miner
         port: Optional port override
         config: Optional configuration dictionary
@@ -43,7 +45,7 @@ def create_adapter(
         print(f"❌ Unknown miner type: {miner_type}")
         return None
     
-    return adapter_class(miner_id, ip_address, port, config)
+    return adapter_class(miner_id, miner_name, ip_address, port, config)
 
 
 def get_supported_types() -> list:

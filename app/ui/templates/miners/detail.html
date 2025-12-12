@@ -48,7 +48,11 @@
             </tr>
             <tr>
                 <th>Current Mode</th>
-                <td>{{ miner.current_mode or '--' }}</td>
+                <td id="current-mode-display">{{ miner.current_mode or '--' }}</td>
+            </tr>
+            <tr>
+                <th>Current Pool</th>
+                <td id="current-pool-display">Loading...</td>
             </tr>
         </table>
     </div>
@@ -87,12 +91,10 @@
                     <div class="stat-value" id="shares-rejected">--</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">Pool</div>
-                    <div class="stat-value small-text" id="pool">--</div>
-                </div>                <div class="stat-card">
                     <div class="stat-label">24h Cost</div>
                     <div class="stat-value" id="cost-24h">--</div>
-                </div>            </div>
+                </div>
+            </div>
             
             <div style="margin-top: 20px;">
                 <strong>Last Updated:</strong> <span id="last-updated">--</span>
@@ -121,6 +123,16 @@
                 <option value="">-- Select Mode --</option>
             </select>
             <button class="btn btn-primary" onclick="setMode()" style="margin-top: 10px;">Apply Mode</button>
+        </div>
+        
+        <div class="form-group" style="margin-top: 20px;">
+            <label>Change Pool</label>
+            <div id="pool-radio-group" class="radio-group">
+                <div class="radio-option">
+                    <div class="loading">Loading pools...</div>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="switchPool()" style="margin-top: 10px;">Switch Pool</button>
         </div>
         
         <div class="form-group" style="margin-top: 20px;">
@@ -188,12 +200,71 @@
     font-size: 16px;
     padding: 8px 16px;
 }
+
+.radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 500px;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.radio-option:hover {
+    border-color: var(--primary-color);
+    background-color: var(--card-bg);
+}
+
+.radio-option input[type="radio"] {
+    margin-right: 12px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.radio-option label {
+    flex: 1;
+    cursor: pointer;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.radio-option .pool-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 15px;
+}
+
+.radio-option .pool-details {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.radio-option input[type="radio"]:checked + label {
+    color: var(--primary-color);
+}
+
+.radio-option:has(input[type="radio"]:checked) {
+    border-color: var(--primary-color);
+    background-color: rgba(59, 130, 246, 0.05);
+}
 </style>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
 const minerId = {{ miner.id }};
+let currentPoolInfo = null; // Store current pool hostname and port
 
 // Load telemetry
 async function loadTelemetry() {
@@ -223,8 +294,21 @@ async function loadTelemetry() {
             : '--';
         document.getElementById('shares-accepted').textContent = telemetry.shares_accepted || 0;
         document.getElementById('shares-rejected').textContent = telemetry.shares_rejected || 0;
-        document.getElementById('pool').textContent = telemetry.pool_in_use || '--';
         document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        
+        // Store current pool info for radio button selection
+        if (telemetry.pool_in_use) {
+            const match = telemetry.pool_in_use.match(/^(?:stratum\+tcp:\/\/)?([^:]+):(\d+)/);
+            if (match) {
+                currentPoolInfo = {
+                    hostname: match[1],
+                    port: parseInt(match[2])
+                };
+            }
+        }
+        
+        // Update current pool display
+        await updateCurrentPoolDisplay(telemetry.pool_in_use);
         
         // Load 24h cost
         await load24hCost();
@@ -374,9 +458,183 @@ function refreshTelemetry() {
     loadTelemetry();
 }
 
+// Update current pool display with pool name
+async function updateCurrentPoolDisplay(poolInUse) {
+    try {
+        if (!poolInUse) {
+            document.getElementById('current-pool-display').textContent = 'Not connected';
+            return;
+        }
+        
+        // Fetch pools to match name
+        const poolsResponse = await fetch('/api/pools/');
+        if (!poolsResponse.ok) {
+            document.getElementById('current-pool-display').textContent = poolInUse;
+            return;
+        }
+        
+        const pools = await poolsResponse.json();
+        
+        // Extract hostname and port from pool_in_use
+        const match = poolInUse.match(/^(?:stratum\+tcp:\/\/)?([^:]+):(\d+)/);
+        if (!match) {
+            document.getElementById('current-pool-display').textContent = poolInUse;
+            return;
+        }
+        
+        const [, hostname, port] = match;
+        const portNum = parseInt(port);
+        
+        // Find matching pool
+        const matchedPool = pools.find(p => 
+            p.url === hostname && p.port === portNum
+        );
+        
+        if (matchedPool) {
+            document.getElementById('current-pool-display').textContent = matchedPool.name;
+        } else {
+            document.getElementById('current-pool-display').textContent = poolInUse;
+        }
+    } catch (error) {
+        console.error('Failed to update current pool display:', error);
+        document.getElementById('current-pool-display').textContent = poolInUse || '--';
+    }
+}
+
+// Load pools for radio buttons
+async function loadPools() {
+    try {
+        // Get device-specific pools (or all pools for miners that support dynamic switching)
+        const response = await fetch(`/api/miners/{{ miner.id }}/device-pools`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch pools');
+        }
+        
+        const data = await response.json();
+        const pools = data.pools;
+        const isDevicePools = data.type === 'device';
+        const radioGroup = document.getElementById('pool-radio-group');
+        
+        if (!pools || pools.length === 0) {
+            radioGroup.innerHTML = '<div class="radio-option"><div>No pools available</div></div>';
+            return;
+        }
+        
+        // Clear loading message
+        radioGroup.innerHTML = '';
+        
+        // Add radio button for each pool
+        pools.forEach((pool, index) => {
+            const radioOption = document.createElement('div');
+            radioOption.className = 'radio-option';
+            
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = 'pool';
+            
+            if (isDevicePools) {
+                // For device pools (Avalon Nano)
+                input.id = `pool-slot-${pool.slot}`;
+                input.value = pool.slot;
+                input.dataset.url = pool.url;
+                input.dataset.port = pool.port;
+                
+                // Check if this is the active pool
+                if (pool.active || (currentPoolInfo && pool.url === currentPoolInfo.hostname && pool.port === currentPoolInfo.port)) {
+                    input.checked = true;
+                }
+            } else {
+                // For database pools (Bitaxe, etc)
+                input.id = `pool-${pool.id}`;
+                input.value = pool.id;
+                
+                // Check if this pool matches the current pool
+                if (currentPoolInfo && pool.url === currentPoolInfo.hostname && pool.port === currentPoolInfo.port) {
+                    input.checked = true;
+                }
+            }
+            
+            const label = document.createElement('label');
+            label.htmlFor = input.id;
+            
+            const poolName = document.createElement('div');
+            poolName.className = 'pool-name';
+            
+            if (isDevicePools) {
+                poolName.textContent = `Slot ${pool.slot}`;
+                if (pool.active) {
+                    poolName.innerHTML += ' <span style="color: #10b981;">● ACTIVE</span>';
+                }
+            } else {
+                poolName.textContent = pool.name;
+            }
+            
+            const poolDetails = document.createElement('div');
+            poolDetails.className = 'pool-details';
+            poolDetails.textContent = `${pool.url}:${pool.port}`;
+            
+            label.appendChild(poolName);
+            label.appendChild(poolDetails);
+            
+            radioOption.appendChild(input);
+            radioOption.appendChild(label);
+            
+            radioGroup.appendChild(radioOption);
+        });
+        
+        // Show info message for device pools
+        if (isDevicePools) {
+            const info = document.createElement('div');
+            info.style.marginTop = '10px';
+            info.style.padding = '8px 12px';
+            info.style.backgroundColor = '#eff6ff';
+            info.style.border = '1px solid #bfdbfe';
+            info.style.borderRadius = '4px';
+            info.style.fontSize = '0.875rem';
+            info.style.color = '#1e40af';
+            info.innerHTML = '<strong>ℹ️ Note:</strong> This miner has 3 fixed pool slots. Pools must be pre-configured on the device.';
+            radioGroup.appendChild(info);
+        }
+        
+    } catch (error) {
+        console.error('Failed to load pools:', error);
+        const radioGroup = document.getElementById('pool-radio-group');
+        radioGroup.innerHTML = '<div class="radio-option"><div class="text-error">Error loading pools</div></div>';
+    }
+}
+
+// Switch pool
+async function switchPool() {
+    const selectedRadio = document.querySelector('input[name="pool"]:checked');
+    if (!selectedRadio) {
+        alert('Please select a pool');
+        return;
+    }
+    
+    const poolId = selectedRadio.value;
+    
+    try {
+        const response = await fetch(`/api/miners/${minerId}/pool?pool_id=${poolId}`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to switch pool');
+        }
+        
+        alert('Pool switched successfully');
+        window.location.reload();
+    } catch (error) {
+        alert('Error switching pool: ' + error.message);
+    }
+}
+
 // Initialize
 loadTelemetry();
 loadModes();
+loadPools();
 
 // Auto-refresh every 30 seconds
 setInterval(loadTelemetry, 30000);

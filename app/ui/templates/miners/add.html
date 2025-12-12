@@ -21,6 +21,7 @@
                 <option value="nerdqaxe">NerdQaxe++</option>
                 <option value="nmminer">NMMiner ESP32</option>
             </select>
+            <div id="miner-type-info" style="margin-top: 10px; display: none;"></div>
         </div>
         
         <div class="form-group">
@@ -43,6 +44,51 @@
 
 {% block extra_scripts %}
 <script>
+// Show miner-specific information when type is selected
+document.getElementById('miner_type').addEventListener('change', function() {
+    const infoDiv = document.getElementById('miner-type-info');
+    const minerType = this.value;
+    
+    if (minerType === 'avalon_nano') {
+        infoDiv.style.display = 'block';
+        infoDiv.className = 'alert alert-warning';
+        infoDiv.innerHTML = `
+            <strong>⚠️ Important - Avalon Nano Pool Configuration:</strong>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+                <li>The Avalon Nano has <strong>3 fixed pool slots</strong> (Slot 0, 1, 2)</li>
+                <li>Pools <strong>cannot be added/removed</strong> dynamically via the app</li>
+                <li>Before adding this miner, configure your 3 desired pools on the device's web interface</li>
+                <li>The app can only <strong>switch between</strong> the 3 pre-configured pools</li>
+                <li>Access the miner's web interface at: <code>http://[IP_ADDRESS]</code></li>
+            </ul>
+        `;
+    } else if (minerType === 'nmminer') {
+        infoDiv.style.display = 'block';
+        infoDiv.className = 'alert alert-info';
+        infoDiv.innerHTML = `
+            <strong>ℹ️ NMMiner Configuration:</strong>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+                <li>NMMiner uses UDP broadcast for telemetry</li>
+                <li>Pool configuration is sent via UDP (port 12347)</li>
+                <li>Limited automation - no power metrics or tuning available</li>
+            </ul>
+        `;
+    } else if (minerType === 'bitaxe' || minerType === 'nerdqaxe') {
+        infoDiv.style.display = 'block';
+        infoDiv.className = 'alert alert-success';
+        infoDiv.innerHTML = `
+            <strong>✅ Full Dynamic Control:</strong>
+            <ul style="margin: 8px 0 0 0; padding-left: 20px;">
+                <li>Supports dynamic pool switching to any configured pool</li>
+                <li>Power and frequency tuning available</li>
+                <li>Multiple operating modes supported</li>
+            </ul>
+        `;
+    } else {
+        infoDiv.style.display = 'none';
+    }
+});
+
 document.getElementById('add-miner-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     

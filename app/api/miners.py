@@ -146,7 +146,7 @@ async def get_miner_telemetry(miner_id: int, db: AsyncSession = Depends(get_db))
     if not miner:
         raise HTTPException(status_code=404, detail="Miner not found")
     
-    adapter = create_adapter(miner.miner_type, miner.id, miner.ip_address, miner.port, miner.config)
+    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
     if not adapter:
         raise HTTPException(status_code=500, detail="Failed to create miner adapter")
     
@@ -166,7 +166,7 @@ async def set_miner_mode(miner_id: int, mode: str, db: AsyncSession = Depends(ge
     if not miner:
         raise HTTPException(status_code=404, detail="Miner not found")
     
-    adapter = create_adapter(miner.miner_type, miner.id, miner.ip_address, miner.port, miner.config)
+    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
     if not adapter:
         raise HTTPException(status_code=500, detail="Failed to create miner adapter")
     
@@ -181,6 +181,90 @@ async def set_miner_mode(miner_id: int, mode: str, db: AsyncSession = Depends(ge
     return {"status": "success", "mode": mode}
 
 
+@router.post("/{miner_id}/pool")
+async def switch_miner_pool(miner_id: int, pool_id: int, db: AsyncSession = Depends(get_db)):
+    """Switch miner to a different pool"""
+    from core.database import Pool
+    
+    # Get miner
+    result = await db.execute(select(Miner).where(Miner.id == miner_id))
+    miner = result.scalar_one_or_none()
+    
+    if not miner:
+        raise HTTPException(status_code=404, detail="Miner not found")
+    
+    # Get pool
+    result = await db.execute(select(Pool).where(Pool.id == pool_id))
+    pool = result.scalar_one_or_none()
+    
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    
+    if not pool.enabled:
+        raise HTTPException(status_code=400, detail="Pool is disabled")
+    
+    # Create adapter and switch pool
+    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
+    if not adapter:
+        raise HTTPException(status_code=500, detail="Failed to create miner adapter")
+    
+    success = await adapter.switch_pool(pool.url, pool.port, pool.user, pool.password)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to switch pool")
+    
+    return {"status": "success", "pool": pool.name}
+
+
+@router.get("/{miner_id}/device-pools")
+async def get_device_pools(miner_id: int, db: AsyncSession = Depends(get_db)):
+    """Get the actual pools configured on the device (for Avalon Nano 3-slot limitation)"""
+    result = await db.execute(select(Miner).where(Miner.id == miner_id))
+    miner = result.scalar_one_or_none()
+    
+    if not miner:
+        raise HTTPException(status_code=404, detail="Miner not found")
+    
+    # For Avalon Nano, get device pools via cgminer API
+    if miner.miner_type == "avalon_nano":
+        adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
+        if adapter:
+            from adapters.avalon_nano import AvalonNanoAdapter
+            if isinstance(adapter, AvalonNanoAdapter):
+                pools_result = await adapter._cgminer_command("pools")
+                if pools_result and "POOLS" in pools_result:
+                    device_pools = []
+                    for pool in pools_result["POOLS"]:
+                        # Parse URL to extract host and port
+                        url = pool["URL"].replace("stratum+tcp://", "").replace("stratum://", "")
+                        if ":" in url:
+                            host, port = url.rsplit(":", 1)
+                            device_pools.append({
+                                "slot": pool["POOL"],
+                                "url": host,
+                                "port": int(port),
+                                "user": pool["User"],
+                                "active": pool.get("Stratum Active", False)
+                            })
+                    return {"pools": device_pools, "type": "device"}
+    
+    # For other miners (Bitaxe, etc), return all database pools
+    result = await db.execute(select(Pool).where(Pool.enabled == True).order_by(Pool.name))
+    pools = result.scalars().all()
+    
+    return {
+        "pools": [
+            {
+                "id": p.id,
+                "name": p.name,
+                "url": p.url,
+                "port": p.port,
+                "user": p.user
+            } for p in pools
+        ],
+        "type": "database"
+    }
+
+
 @router.post("/{miner_id}/restart")
 async def restart_miner(miner_id: int, db: AsyncSession = Depends(get_db)):
     """Restart miner"""
@@ -190,7 +274,7 @@ async def restart_miner(miner_id: int, db: AsyncSession = Depends(get_db)):
     if not miner:
         raise HTTPException(status_code=404, detail="Miner not found")
     
-    adapter = create_adapter(miner.miner_type, miner.id, miner.ip_address, miner.port, miner.config)
+    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
     if not adapter:
         raise HTTPException(status_code=500, detail="Failed to create miner adapter")
     
@@ -210,7 +294,7 @@ async def get_miner_modes(miner_id: int, db: AsyncSession = Depends(get_db)):
     if not miner:
         raise HTTPException(status_code=404, detail="Miner not found")
     
-    adapter = create_adapter(miner.miner_type, miner.id, miner.ip_address, miner.port, miner.config)
+    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
     if not adapter:
         raise HTTPException(status_code=500, detail="Failed to create miner adapter")
     

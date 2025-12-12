@@ -19,8 +19,8 @@ class NMMinerAdapter(MinerAdapter):
     TELEMETRY_PORT = 12345
     CONFIG_PORT = 12347
     
-    def __init__(self, miner_id: int, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
-        super().__init__(miner_id, ip_address, port, config)
+    def __init__(self, miner_id: int, miner_name: str, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
+        super().__init__(miner_id, miner_name, ip_address, port, config)
         self.last_telemetry: Optional[Dict] = None
     
     async def get_telemetry(self) -> Optional[MinerTelemetry]:
@@ -66,15 +66,21 @@ class NMMinerAdapter(MinerAdapter):
         """NMMiner has no configurable modes"""
         return []
     
-    async def switch_pool(self, pool_url: str, pool_user: str, pool_password: str) -> bool:
+    async def switch_pool(self, pool_url: str, pool_port: int, pool_user: str, pool_password: str) -> bool:
         """
         Switch pool via UDP config message.
         Sends to specific IP or "0.0.0.0" for all devices.
         """
         try:
+            # Construct username as pool_user.miner_name
+            full_username = f"{pool_user}.{self.miner_name}"
+            
+            # Construct full pool URL with port
+            full_pool_url = f"{pool_url}:{pool_port}"
+            
             config = {
-                "PrimaryPool": pool_url,
-                "PrimaryAddress": pool_user,
+                "PrimaryPool": full_pool_url,
+                "PrimaryAddress": full_username,
                 "PrimaryPassword": pool_password
             }
             

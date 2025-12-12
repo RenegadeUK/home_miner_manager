@@ -168,6 +168,7 @@ class SchedulerService:
                         adapter = create_adapter(
                             miner.miner_type,
                             miner.id,
+                            miner.name,
                             miner.ip_address,
                             miner.port,
                             miner.config
@@ -398,7 +399,7 @@ class SchedulerService:
                 miner = result.scalar_one_or_none()
                 
                 if miner:
-                    adapter = create_adapter(miner.miner_type, miner.id, miner.ip_address, miner.port, miner.config)
+                    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
                     if adapter:
                         success = await adapter.set_mode(mode)
                         if success:
@@ -423,7 +424,7 @@ class SchedulerService:
                 pool = result.scalar_one_or_none()
                 
                 if miner and pool:
-                    adapter = create_adapter(miner.miner_type, miner.id, miner.ip_address, miner.port, miner.config)
+                    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
                     if adapter:
                         success = await adapter.switch_pool(pool.url, pool.user, pool.password)
                         if success:
@@ -478,7 +479,7 @@ class SchedulerService:
                 # Create adapter registry
                 adapters = {}
                 for miner in nmminers:
-                    adapter = NMMinerAdapter(miner.id, miner.ip_address, miner.port, miner.config)
+                    adapter = NMMinerAdapter(miner.id, miner.name, miner.ip_address, miner.port, miner.config)
                     adapters[miner.ip_address] = adapter
                 
                 # Start UDP listener

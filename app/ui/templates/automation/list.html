@@ -33,7 +33,11 @@
                     </td>
                     <td>{{ rule.priority }}</td>
                     <td>
-                        <button class="btn btn-secondary" onclick="editRule({{ rule.id }})">Edit</button>
+                        <button class="btn btn-secondary btn-sm" onclick="window.location.href='/automation/edit/{{ rule.id }}'">Edit</button>
+                        <button class="btn btn-warning btn-sm" onclick="toggleRule({{ rule.id }}, {{ 'false' if rule.enabled else 'true' }})">
+                            {{ 'Pause' if rule.enabled else 'Enable' }}
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteRule({{ rule.id }}, '{{ rule.name }}')">Delete</button>
                     </td>
                 </tr>
                 {% endfor %}
@@ -44,4 +48,51 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+async function toggleRule(ruleId, enabled) {
+    const action = enabled ? 'enable' : 'pause';
+    if (!confirm(`Are you sure you want to ${action} this rule?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/automation/${ruleId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ enabled: enabled })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to toggle rule');
+        }
+        
+        window.location.reload();
+    } catch (error) {
+        alert('Error toggling rule: ' + error.message);
+    }
+}
+
+async function deleteRule(ruleId, ruleName) {
+    if (!confirm(`Are you sure you want to delete "${ruleName}"? This cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/automation/${ruleId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete rule');
+        }
+        
+        window.location.reload();
+    } catch (error) {
+        alert('Error deleting rule: ' + error.message);
+    }
+}
+</script>
 {% endblock %}
