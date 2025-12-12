@@ -148,18 +148,18 @@ async function loadPricing() {
         
         // Helper function to get color based on price (green to red gradient)
         function getPriceColor(price) {
-            if (price < 0) return 'linear-gradient(135deg, #4ade80, #22c55e)'; // bright green for negative
-            if (price < 12) return 'linear-gradient(135deg, #10b981, #059669)'; // dark green
+            if (price <= 0) return 'linear-gradient(135deg, #60a5fa, #3b82f6)'; // blue for 0 and negative
+            if (price < 10) return 'linear-gradient(135deg, #10b981, #059669)'; // dark green
             if (price < 15) return 'linear-gradient(135deg, #34d399, #10b981)'; // green
-            if (price < 17) return 'linear-gradient(135deg, #6ee7b7, #34d399)'; // light green
-            if (price < 20) return 'linear-gradient(135deg, #fbbf24, #f59e0b)'; // yellow/amber
-            if (price < 25) return 'linear-gradient(135deg, #fb923c, #f97316)'; // orange
+            if (price < 20) return 'linear-gradient(135deg, #6ee7b7, #34d399)'; // light green
+            if (price < 25) return 'linear-gradient(135deg, #fbbf24, #f59e0b)'; // yellow/amber
+            if (price < 30) return 'linear-gradient(135deg, #fb923c, #f97316)'; // orange
             return 'linear-gradient(135deg, #f87171, #ef4444)'; // red
         }
         
         // Helper function to get text color based on price
         function getTextColor(price) {
-            if (price < 17) return '#000000'; // black text for green backgrounds
+            if (price < 20) return '#000000'; // black text for blue and green backgrounds
             return '#ffffff'; // white text for yellow/orange/red
         }
         
