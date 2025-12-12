@@ -25,18 +25,28 @@ class BitaxeAdapter(MinerAdapter):
                     
                     data = await response.json()
                     
+                    # Bitaxe returns hashRate already in GH/s
+                    hashrate_ghs = data.get("hashRate", 0)
+                    
+                    # Build pool info from stratum settings
+                    pool_url = data.get("stratumURL", "")
+                    pool_port = data.get("stratumPort", "")
+                    pool_info = f"{pool_url}:{pool_port}" if pool_url and pool_port else pool_url
+                    
                     return MinerTelemetry(
                         miner_id=self.miner_id,
-                        hashrate=data.get("hashRate", 0) / 1_000_000_000,  # Convert to GH/s
+                        hashrate=hashrate_ghs,
                         temperature=data.get("temp", 0),
                         power_watts=data.get("power", 0),
                         shares_accepted=data.get("sharesAccepted", 0),
                         shares_rejected=data.get("sharesRejected", 0),
-                        pool_in_use=data.get("poolURL"),
+                        pool_in_use=pool_info,
                         extra_data={
                             "frequency": data.get("frequency"),
                             "voltage": data.get("voltage"),
-                            "uptime": data.get("uptimeSeconds")
+                            "uptime": data.get("uptimeSeconds"),
+                            "asic_model": data.get("ASICModel"),
+                            "version": data.get("version")
                         }
                     )
         except Exception as e:
