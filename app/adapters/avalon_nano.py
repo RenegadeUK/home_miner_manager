@@ -33,12 +33,13 @@ class AvalonNanoAdapter(MinerAdapter):
             # Parse telemetry
             summary_data = summary.get("SUMMARY", [{}])[0]
             
-            hashrate = summary_data.get("GHS 5s", 0)  # GH/s
-            temperature = summary_data.get("Temperature", 0)
+            # Hashrate is in MH/s, convert to GH/s
+            hashrate = summary_data.get("MHS 5s", 0) / 1000.0  # GH/s
             shares_accepted = summary_data.get("Accepted", 0)
             shares_rejected = summary_data.get("Rejected", 0)
             
-            # Calculate power from estats
+            # Get temperature and power from estats
+            temperature = self._get_temperature(estats)
             power_watts = self._calculate_power(estats)
             
             # Get active pool
@@ -63,26 +64,49 @@ class AvalonNanoAdapter(MinerAdapter):
             print(f"❌ Failed to get telemetry from Avalon Nano {self.ip_address}: {e}")
             return None
     
-    def _calculate_power(self, estats: Optional[Dict]) -> Optional[float]:
-        """Calculate power from PS[] fields: watts = raw_power_code / (millivolts / 1000)"""
-        if not estats or "ESTATS" not in estats:
+    def _get_temperature(self, estats: Optional[Dict]) -> Optional[float]:
+        """Get temperature from estats MM ID string"""
+        if not estats or "STATS" not in estats:
             return None
         
         try:
-            estats_data = estats["ESTATS"][0]
+            stats_data = estats["STATS"][0]
+            mm_id = stats_data.get("MM ID0", "")
             
-            # Find PS fields (e.g., PS[0 0 0 1200 1000])
-            for key, value in estats_data.items():
-                if key.startswith("PS["):
-                    # Parse PS array
-                    ps_values = [int(x) for x in value.strip("[]").split()]
-                    if len(ps_values) >= 5:
-                        raw_power_code = ps_values[3]  # 4th value
-                        millivolts = ps_values[4]      # 5th value
-                        
-                        if millivolts > 0:
-                            watts = raw_power_code / (millivolts / 1000.0)
-                            return watts
+            # Parse TAvg from MM ID0 string (e.g., TAvg[89])
+            if "TAvg[" in mm_id:
+                start = mm_id.index("TAvg[") + 5
+                end = mm_id.index("]", start)
+                return float(mm_id[start:end])
+            
+            return None
+        except Exception as e:
+            print(f"⚠️ Failed to get temperature: {e}")
+            return None
+    
+    def _calculate_power(self, estats: Optional[Dict]) -> Optional[float]:
+        """Calculate power from PS[] fields in MM ID string"""
+        if not estats or "STATS" not in estats:
+            return None
+        
+        try:
+            stats_data = estats["STATS"][0]
+            mm_id = stats_data.get("MM ID0", "")
+            
+            # Parse PS array from MM ID0 string (e.g., PS[0 0 27445 4 0 3782 133])
+            if "PS[" in mm_id:
+                start = mm_id.index("PS[") + 3
+                end = mm_id.index("]", start)
+                ps_str = mm_id[start:end]
+                ps_values = [int(x) for x in ps_str.split()]
+                
+                if len(ps_values) >= 7:
+                    raw_power_code = ps_values[5]  # 6th value (index 5) = 3782
+                    millivolts = ps_values[2]      # 3rd value (index 2) = 27445
+                    
+                    if millivolts > 0:
+                        watts = raw_power_code / (millivolts / 1000.0)
+                        return watts
             
             return None
         except Exception as e:
