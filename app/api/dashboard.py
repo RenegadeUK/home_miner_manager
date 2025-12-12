@@ -180,15 +180,6 @@ async def get_energy_timeline(db: AsyncSession = Depends(get_db)):
             ]
         }
     }
-        "prices": [
-            {
-                "price_pence": p.price_pence,
-                "valid_from": p.valid_from.isoformat(),
-                "valid_to": p.valid_to.isoformat()
-            }
-            for p in prices
-        ]
-    }
 
 
 @router.get("/energy/config")
