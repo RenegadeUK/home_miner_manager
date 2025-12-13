@@ -175,6 +175,14 @@ body {
     margin-bottom: 2rem;
 }
 
+/* Pricing Grid */
+.pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
 .stat-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
@@ -518,6 +526,11 @@ tr:hover {
     
     /* Stack stats grid */
     .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Stack pricing grid */
+    .pricing-grid {
         grid-template-columns: 1fr;
     }
     
