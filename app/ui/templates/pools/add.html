@@ -11,6 +11,9 @@
             <label class="form-label">Quick Setup <button type="button" class="btn-icon" onclick="showPoolHelp()" title="Help">ℹ️</button></label>
             <select class="form-input" id="preset-pool" onchange="applyPreset()">
                 <option value="">-- Manual Setup (fill all fields below) --</option>
+                <optgroup label="Braiins Pool - Bitcoin (BTC)">
+                    <option value="braiins-btc">Braiins Pool BTC</option>
+                </optgroup>
                 <optgroup label="Solopool.org - Bitcoin Cash (BCH)">
                     <option value="bch-eu2">Solopool.org BCH (EU2)</option>
                     <option value="bch-us1">Solopool.org BCH (US1)</option>
@@ -83,6 +86,7 @@
         <div style="margin-bottom: 1.5rem;">
             <h4 style="color: var(--primary); margin-bottom: 0.5rem;">Supported Preset Pools</h4>
             <ul style="line-height: 1.8;">
+                <li><strong>Braiins Pool BTC:</strong> Bitcoin pool mining with FPPS (port 3333)</li>
                 <li><strong>Solopool.org BCH:</strong> Bitcoin Cash solo mining (ports 8002)</li>
                 <li><strong>Solopool.org DGB:</strong> DigiByte SHA256 solo mining (ports 8004)</li>
                 <li><strong>Solopool.org BTC:</strong> Bitcoin solo mining (port 8005)</li>
@@ -112,6 +116,11 @@
 <script>
 // Pool presets
 const POOL_PRESETS = {
+    'braiins-btc': {
+        name: 'Braiins Pool BTC',
+        url: 'stratum.braiins.com',
+        port: 3333
+    },
     'bch-eu2': {
         name: 'Solopool.org BCH (EU2)',
         url: 'eu2.solopool.org',
@@ -135,12 +144,12 @@ const POOL_PRESETS = {
     'btc-eu3': {
         name: 'Solopool.org BTC (EU3)',
         url: 'eu3.solopool.org',
-    'btc-eu3': {
-        name: 'Solopool.org BTC (EU3)',
-        url: 'eu3.solopool.org',
         port: 8005
     }
-};nction applyPreset() {
+};
+
+// Apply preset pool configuration
+function applyPreset() {
     const presetKey = document.getElementById('preset-pool').value;
     
     if (!presetKey) {

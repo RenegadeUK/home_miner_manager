@@ -38,6 +38,93 @@ async def save_solopool_settings(settings: SolopoolSettings):
     }
 
 
+class BraiinsSettings(BaseModel):
+    enabled: bool
+    api_token: Optional[str] = None
+
+
+@router.get("/braiins")
+async def get_braiins_settings():
+    """Get Braiins Pool integration settings"""
+    return {
+        "enabled": app_config.get("braiins_enabled", False),
+        "api_token": app_config.get("braiins_api_token", "")
+    }
+
+
+@router.post("/braiins")
+async def save_braiins_settings(settings: BraiinsSettings):
+    """Save Braiins Pool integration settings"""
+    if settings.enabled and not settings.api_token:
+        return {
+            "message": "API token is required when integration is enabled",
+            "enabled": False
+        }
+    
+    app_config.set("braiins_enabled", settings.enabled)
+    app_config.set("braiins_api_token", settings.api_token or "")
+    app_config.save()
+    
+    return {
+        "message": "Braiins Pool settings saved",
+        "enabled": settings.enabled
+    }
+
+
+@router.get("/braiins/stats")
+async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
+    """Get Braiins Pool stats for miners using Braiins Pool"""
+    from core.braiins import BraiinsPoolService
+    
+    # Check if Braiins integration is enabled
+    if not app_config.get("braiins_enabled", False):
+        return {"enabled": False, "stats": None}
+    
+    api_token = app_config.get("braiins_api_token", "")
+    if not api_token:
+        return {"enabled": False, "stats": None, "error": "No API token configured"}
+    
+    # Check if any miners are using Braiins Pool
+    pool_result = await db.execute(select(Pool))
+    all_pools = pool_result.scalars().all()
+    
+    braiins_pools = [p for p in all_pools if BraiinsPoolService.is_braiins_pool(p.url, p.port)]
+    
+    if not braiins_pools:
+        return {"enabled": True, "stats": None, "miners_using": 0}
+    
+    # Get miners using Braiins pools
+    miner_result = await db.execute(select(Miner).where(Miner.enabled == True))
+    miners = miner_result.scalars().all()
+    
+    miners_using_braiins = 0
+    for miner in miners:
+        telemetry_result = await db.execute(
+            select(Telemetry)
+            .where(Telemetry.miner_id == miner.id)
+            .order_by(Telemetry.timestamp.desc())
+            .limit(1)
+        )
+        latest_telemetry = telemetry_result.scalar_one_or_none()
+        
+        if latest_telemetry and latest_telemetry.pool_in_use:
+            if "braiins.com" in latest_telemetry.pool_in_use.lower():
+                miners_using_braiins += 1
+    
+    # Fetch data from Braiins API
+    workers_data = await BraiinsPoolService.get_workers(api_token)
+    rewards_data = await BraiinsPoolService.get_rewards(api_token)
+    payouts_data = await BraiinsPoolService.get_payouts(api_token)
+    
+    stats = BraiinsPoolService.format_stats_summary(workers_data, rewards_data, payouts_data)
+    
+    return {
+        "enabled": True,
+        "miners_using": miners_using_braiins,
+        "stats": stats
+    }
+
+
 @router.get("/solopool/stats")
 async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     """Get Solopool stats for all miners using Solopool pools (BCH, DGB, and BTC)"""

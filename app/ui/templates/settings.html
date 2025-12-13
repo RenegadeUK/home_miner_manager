@@ -59,6 +59,90 @@
     <button class="btn btn-primary mt-4" onclick="saveSolopoolSettings()">Save Settings</button>
 </div>
 
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">⛏️ Braiins Pool Integration</h2>
+    </div>
+    
+    <h3 style="margin-bottom: 1rem;">
+        Braiins Pool (Slush Pool)
+        <button class="btn btn-secondary btn-sm" onclick="showBraiinsHelp()" style="margin-left: 1rem;">
+            <span style="font-size: 1.2rem;">ℹ️</span> Help
+        </button>
+    </h3>
+    
+    <div class="form-group">
+        <label class="form-label">
+            <input type="checkbox" id="braiins_enabled" style="margin-right: 0.5rem;">
+            Enable Braiins Pool Integration
+        </label>
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem;">
+            Track your workers and statistics via Braiins Pool API
+        </p>
+    </div>
+    
+    <div class="form-group">
+        <label class="form-label">API Token</label>
+        <input type="password" class="form-input" id="braiins_api_token" placeholder="Enter your Braiins Pool API token">
+        <small>Get your API token from Braiins Pool account settings</small>
+    </div>
+    
+    <button class="btn btn-primary mt-4" onclick="saveBraiinsSettings()">Save Settings</button>
+</div>
+
+<!-- Braiins Help Modal -->
+<div id="braiinsHelpModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-primary); border-radius: 8px; padding: 2rem; max-width: 600px; margin: 2rem; max-height: 80vh; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="margin: 0;">Braiins Pool Integration</h2>
+            <button class="btn btn-secondary btn-sm" onclick="closeBraiinsHelp()" style="padding: 0.25rem 0.75rem;">✕</button>
+        </div>
+        
+        <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+            Braiins Pool (formerly Slush Pool) is the world's longest-running Bitcoin mining pool since 2010. 
+            This integration allows you to monitor your workers and view detailed statistics.
+        </p>
+        
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">Getting Your API Token</h3>
+        <ol style="color: var(--text-secondary); line-height: 1.8; margin-bottom: 1.5rem;">
+            <li>Log in to your Braiins Pool account at <a href="https://pool.braiins.com" target="_blank" style="color: var(--accent);">pool.braiins.com</a></li>
+            <li>Navigate to <strong>Settings</strong> → <strong>Access Management</strong></li>
+            <li>Click <strong>Create New Access Profile</strong></li>
+            <li>Select permissions (read-only for monitoring)</li>
+            <li>Generate the API token and copy it</li>
+            <li>Paste the token in the field above</li>
+        </ol>
+        
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">Pool Information</h3>
+        <div style="background: var(--bg-secondary); padding: 1rem; border-radius: 6px; margin-bottom: 1.5rem;">
+            <p style="margin: 0.5rem 0; font-family: monospace; color: var(--text-secondary);">
+                <strong>Pool URL:</strong> stratum+tcp://stratum.braiins.com<br>
+                <strong>Ports:</strong> 3333 (standard), 3334 (SSL)<br>
+                <strong>Coin:</strong> Bitcoin (BTC)<br>
+                <strong>Reward:</strong> FPPS (Full Pay Per Share)<br>
+                <strong>Fees:</strong> 0%
+            </p>
+        </div>
+        
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">API Authentication</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+            All API calls require authentication using Bearer token:
+        </p>
+        <pre style="background: var(--bg-secondary); padding: 1rem; border-radius: 6px; overflow-x: auto; margin-bottom: 1.5rem; color: var(--text-primary); font-family: monospace; font-size: 0.875rem;">Authorization: Bearer YOUR_API_TOKEN</pre>
+        
+        <h3 style="margin-bottom: 1rem; color: var(--primary);">What Will Be Displayed</h3>
+        <ul style="color: var(--text-secondary); line-height: 1.8;">
+            <li>Active workers and their status</li>
+            <li>Hashrate (5min, 1hr, 24hr averages)</li>
+            <li>Shares submitted and accepted</li>
+            <li>Estimated earnings</li>
+            <li>Recent blocks found by the pool</li>
+        </ul>
+        
+        <button class="btn btn-primary" onclick="closeBraiinsHelp()" style="width: 100%; margin-top: 1rem;">Got It!</button>
+    </div>
+</div>
+
 <!-- Solopool Help Modal -->
 <div id="solopoolHelpModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
     <div style="background: var(--bg-primary); border-radius: 8px; padding: 2rem; max-width: 600px; margin: 2rem; max-height: 80vh; overflow-y: auto;">
@@ -189,6 +273,49 @@ async function saveSolopoolSettings() {
     }
 }
 
+async function loadBraiinsSettings() {
+    try {
+        const response = await fetch('/api/settings/braiins');
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('braiins_enabled').checked = data.enabled || false;
+            document.getElementById('braiins_api_token').value = data.api_token || '';
+        }
+    } catch (error) {
+        console.error('Failed to load Braiins settings:', error);
+    }
+}
+
+async function saveBraiinsSettings() {
+    const enabled = document.getElementById('braiins_enabled').checked;
+    const apiToken = document.getElementById('braiins_api_token').value.trim();
+    
+    if (enabled && !apiToken) {
+        alert('Please enter an API token to enable Braiins Pool integration');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/braiins', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                enabled: enabled,
+                api_token: apiToken
+            })
+        });
+        
+        if (response.ok) {
+            alert('Braiins Pool settings saved successfully!');
+        } else {
+            const error = await response.json();
+            alert('Failed to save Braiins settings: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
 function saveSettings() {
     alert('Settings saved successfully!\n\nRestart the container for changes to take effect.');
 }
@@ -203,15 +330,31 @@ function closeSolopoolHelp() {
     modal.style.display = 'none';
 }
 
-// Close modal when clicking outside
+function showBraiinsHelp() {
+    const modal = document.getElementById('braiinsHelpModal');
+    modal.style.display = 'flex';
+}
+
+function closeBraiinsHelp() {
+    const modal = document.getElementById('braiinsHelpModal');
+    modal.style.display = 'none';
+}
+
+// Close modals when clicking outside
 document.addEventListener('click', function(event) {
-    const modal = document.getElementById('solopoolHelpModal');
-    if (event.target === modal) {
+    const solopoolModal = document.getElementById('solopoolHelpModal');
+    const braiinsModal = document.getElementById('braiinsHelpModal');
+    
+    if (event.target === solopoolModal) {
         closeSolopoolHelp();
+    }
+    if (event.target === braiinsModal) {
+        closeBraiinsHelp();
     }
 });
 
 // Load settings on page load
 loadSolopoolSettings();
+loadBraiinsSettings();
 </script>
 {% endblock %}
