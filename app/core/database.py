@@ -84,6 +84,8 @@ class AutomationRule(Base):
     action_type: Mapped[str] = mapped_column(String(50))  # apply_mode, switch_pool, alert, etc.
     action_config: Mapped[dict] = mapped_column(JSON)
     priority: Mapped[int] = mapped_column(Integer, default=0)
+    last_executed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_execution_context: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

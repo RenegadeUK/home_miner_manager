@@ -258,10 +258,11 @@ class SchedulerService:
                 for rule in rules:
                     try:
                         triggered = False
+                        execution_context = {}
                         
                         # Evaluate trigger
                         if rule.trigger_type == "price_threshold":
-                            triggered = await self._check_price_threshold(db, rule.trigger_config)
+                            triggered, execution_context = await self._check_price_threshold(db, rule.trigger_config, rule)
                         
                         elif rule.trigger_type == "time_window":
                             triggered = self._check_time_window(rule.trigger_config)
@@ -278,6 +279,10 @@ class SchedulerService:
                         # Execute action if triggered
                         if triggered:
                             await self._execute_action(db, rule)
+                            # Update execution tracking
+                            rule.last_executed_at = datetime.utcnow()
+                            if execution_context:
+                                rule.last_execution_context = execution_context
                     
                     except Exception as e:
                         print(f"⚠️ Error evaluating rule {rule.id}: {e}")
@@ -287,8 +292,10 @@ class SchedulerService:
         except Exception as e:
             print(f"❌ Error in automation rule evaluation: {e}")
     
-    async def _check_price_threshold(self, db, config: dict) -> bool:
-        """Check if current energy price meets threshold"""
+    async def _check_price_threshold(self, db, config: dict, rule: "AutomationRule" = None) -> tuple[bool, dict]:
+        """Check if current energy price meets threshold
+        Returns: (triggered, context_dict)
+        """
         condition = config.get("condition", "below")  # below, above, between, outside
         
         from core.database import EnergyPrice
@@ -303,24 +310,40 @@ class SchedulerService:
         price = result.scalar_one_or_none()
         
         if not price:
-            return False
+            return False, {}
         
+        # Create execution context with price slot info
+        context = {
+            "price_id": price.id,
+            "valid_from": price.valid_from.isoformat(),
+            "valid_to": price.valid_to.isoformat(),
+            "price_pence": price.price_pence
+        }
+        
+        # Check if we already executed for this price slot
+        if rule and rule.last_execution_context:
+            last_price_id = rule.last_execution_context.get("price_id")
+            if last_price_id == price.id:
+                # Already executed for this price slot, don't trigger again
+                return False, context
+        
+        triggered = False
         if condition == "below":
             threshold = config.get("threshold", 0)
-            return price.price_pence < threshold
+            triggered = price.price_pence < threshold
         elif condition == "above":
             threshold = config.get("threshold", 0)
-            return price.price_pence > threshold
+            triggered = price.price_pence > threshold
         elif condition == "between":
             threshold_min = config.get("threshold_min", 0)
             threshold_max = config.get("threshold_max", 999)
-            return threshold_min <= price.price_pence <= threshold_max
+            triggered = threshold_min <= price.price_pence <= threshold_max
         elif condition == "outside":
             threshold_min = config.get("threshold_min", 0)
             threshold_max = config.get("threshold_max", 999)
-            return price.price_pence < threshold_min or price.price_pence > threshold_max
+            triggered = price.price_pence < threshold_min or price.price_pence > threshold_max
         
-        return False
+        return triggered, context
     
     def _check_time_window(self, config: dict) -> bool:
         """Check if current time is within window"""
