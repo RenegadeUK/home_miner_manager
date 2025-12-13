@@ -163,6 +163,44 @@ async function loadDashboard() {
                 </table>
             `;
         }
+        
+        // Load recent events
+        const eventsRes = await fetch('/api/dashboard/events/recent?limit=20');
+        const eventsData = await eventsRes.json();
+        
+        const eventsList = document.getElementById('events-list');
+        if (!eventsData.events || eventsData.events.length === 0) {
+            eventsList.innerHTML = '<p class="text-muted">No recent events</p>';
+        } else {
+            eventsList.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Source</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${eventsData.events.map(e => {
+                            const date = new Date(e.timestamp);
+                            const typeClass = e.event_type === 'error' ? 'badge-error' : 
+                                            e.event_type === 'warning' ? 'badge-warning' :
+                                            e.event_type === 'alert' ? 'badge-warning' : 'badge-info';
+                            return `
+                                <tr>
+                                    <td>${date.toLocaleString()}</td>
+                                    <td><span class="badge ${typeClass}">${e.event_type}</span></td>
+                                    <td>${e.source}</td>
+                                    <td>${e.message}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
     } catch (error) {
         console.error('Failed to load dashboard:', error);
     }
