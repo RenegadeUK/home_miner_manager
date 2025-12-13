@@ -442,6 +442,17 @@ tr:hover {
 }
 
 /* Mobile Card Layout */
+/* Desktop: show tables, hide cards */
+@media (min-width: 769px) {
+    .mobile-cards {
+        display: none !important;
+    }
+    
+    .desktop-only {
+        display: table !important;
+    }
+}
+
 .mobile-cards {
     display: none;
 }
