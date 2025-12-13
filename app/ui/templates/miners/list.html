@@ -7,87 +7,117 @@
         <a href="/miners/add" class="btn btn-primary">+ Add Miner</a>
     </div>
     
-    <div class="table-container">
-        {% if miners %}
-        <div class="desktop-only">
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>IP Address</th>
-                    <th>Port</th>
-                    <th>Status</th>
-                    <th>Mode</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for miner in miners %}
-                <tr>
-                    <td><a href="/miners/{{ miner.id }}">{{ miner.name }}</a></td>
-                    <td>{{ miner.miner_type }}</td>
-                    <td>{{ miner.ip_address }}</td>
-                    <td>{{ miner.port or '--' }}</td>
-                    <td>
-                        <span class="badge {% if miner.enabled %}badge-success{% else %}badge-error{% endif %}">
-                            {{ 'Enabled' if miner.enabled else 'Disabled' }}
-                        </span>
-                    </td>
-                    <td>{{ miner.current_mode or '--' }}</td>
-                    <td>
-                        <button class="btn btn-secondary btn-sm" onclick="viewMiner({{ miner.id }})">View</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteMiner({{ miner.id }}, '{{ miner.name }}')">Delete</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
-        
-        <div class="mobile-cards">
-            {% for miner in miners %}
-            <div class="mobile-card">
-                <div class="mobile-card-header">
-                    <a href="/miners/{{ miner.id }}" class="mobile-card-title">{{ miner.name }}</a>
-                    <span class="badge {% if miner.enabled %}badge-success{% else %}badge-error{% endif %}">
-                        {{ 'Enabled' if miner.enabled else 'Disabled' }}
-                    </span>
-                </div>
-                <div class="mobile-card-body">
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">Type:</span>
-                        <span>{{ miner.miner_type }}</span>
-                    </div>
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">IP Address:</span>
-                        <span>{{ miner.ip_address }}</span>
-                    </div>
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">Port:</span>
-                        <span>{{ miner.port or '--' }}</span>
-                    </div>
-                    <div class="mobile-card-row">
-                        <span class="mobile-card-label">Mode:</span>
-                        <span>{{ miner.current_mode or '--' }}</span>
-                    </div>
-                    <div class="mobile-card-row" style="margin-top: 0.5rem; gap: 0.5rem;">
-                        <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="viewMiner({{ miner.id }})">View</button>
-                        <button class="btn btn-danger btn-sm" style="flex: 1;" onclick="deleteMiner({{ miner.id }}, '{{ miner.name }}')">Delete</button>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-muted">No miners configured. Add your first miner to get started.</p>
-        {% endif %}
+    <div class="table-container" id="miners-table">
+        <p class="text-muted">Loading miners...</p>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
+async function loadMiners() {
+    try {
+        const response = await fetch('/api/dashboard/all');
+        const data = await response.json();
+        
+        const miners = data.miners;
+        const minersTable = document.getElementById('miners-table');
+        
+        if (miners.length === 0) {
+            minersTable.innerHTML = '<p class="text-muted">No miners configured. <a href="/miners/add">Add your first miner</a></p>';
+            return;
+        }
+        
+        // Desktop table view
+        const tableHTML = `
+            <div class="desktop-only">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Hashrate</th>
+                        <th>Power</th>
+                        <th>Pool</th>
+                        <th>24h Cost</th>
+                        <th>Status</th>
+                        <th>Mode</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${miners.map(m => `
+                        <tr>
+                            <td><a href="/miners/${m.id}">${m.name}</a></td>
+                            <td>${m.miner_type}</td>
+                            <td>${formatHashrate(m.hashrate)}</td>
+                            <td>${m.power > 0 ? m.power.toFixed(1) + ' W' : '--'}</td>
+                            <td>${m.pool}</td>
+                            <td>£${m.cost_24h.toFixed(2)}</td>
+                            <td><span class="badge ${m.enabled ? 'badge-success' : 'badge-error'}">${m.enabled ? 'Enabled' : 'Disabled'}</span></td>
+                            <td>${m.current_mode || '--'}</td>
+                            <td>
+                                <button class="btn btn-secondary btn-sm" onclick="viewMiner(${m.id})">View</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteMiner(${m.id}, '${m.name}')">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            </div>
+        `;
+        
+        // Mobile card view
+        const cardsHTML = `
+            <div class="mobile-cards">
+                ${miners.map(m => `
+                    <div class="mobile-card">
+                        <div class="mobile-card-header">
+                            <a href="/miners/${m.id}" class="mobile-card-title">${m.name}</a>
+                            <span class="badge ${m.enabled ? 'badge-success' : 'badge-error'}">${m.enabled ? 'Enabled' : 'Disabled'}</span>
+                        </div>
+                        <div class="mobile-card-body">
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">Type:</span>
+                                <span>${m.miner_type}</span>
+                            </div>
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">Hashrate:</span>
+                                <span>${formatHashrate(m.hashrate)}</span>
+                            </div>
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">Power:</span>
+                                <span>${m.power > 0 ? m.power.toFixed(1) + ' W' : '--'}</span>
+                            </div>
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">Pool:</span>
+                                <span>${m.pool}</span>
+                            </div>
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">24h Cost:</span>
+                                <span>£${m.cost_24h.toFixed(2)}</span>
+                            </div>
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">Mode:</span>
+                                <span>${m.current_mode || '--'}</span>
+                            </div>
+                            <div class="mobile-card-row" style="margin-top: 0.5rem; gap: 0.5rem;">
+                                <button class="btn btn-secondary btn-sm" style="flex: 1;" onclick="viewMiner(${m.id})">View</button>
+                                <button class="btn btn-danger btn-sm" style="flex: 1;" onclick="deleteMiner(${m.id}, '${m.name}')">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        minersTable.innerHTML = tableHTML + cardsHTML;
+    } catch (error) {
+        console.error('Failed to load miners:', error);
+        document.getElementById('miners-table').innerHTML = '<p class="text-muted">Failed to load miners</p>';
+    }
+}
+
 function viewMiner(id) {
     window.location.href = `/miners/${id}`;
 }
@@ -106,11 +136,13 @@ async function deleteMiner(id, name) {
             throw new Error('Failed to delete miner');
         }
         
-        // Reload page to show updated list
-        window.location.reload();
+        await loadMiners(); // Reload the list
     } catch (error) {
         alert('Error deleting miner: ' + error.message);
     }
 }
+
+loadMiners();
+setInterval(loadMiners, 30000); // Refresh every 30s
 </script>
 {% endblock %}

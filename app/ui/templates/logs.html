@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Recent Events -->
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Recent Events</h2>
+        <button class="btn btn-secondary btn-sm" onclick="clearEvents()">Clear All</button>
+    </div>
+    <div id="events-list">
+        <p class="text-muted">Loading events...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Load events
+async function loadEvents() {
+    try {
+        const response = await fetch('/api/dashboard/all');
+        const data = await response.json();
+        
+        const events = data.events || [];
+        const eventsList = document.getElementById('events-list');
+        
+        if (events.length === 0) {
+            eventsList.innerHTML = '<p class="text-muted">No recent events</p>';
+            return;
+        }
+        
+        // Desktop table view
+        const tableHTML = `
+            <div class="desktop-only">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Miner</th>
+                        <th>Event</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${events.map(e => `
+                        <tr>
+                            <td>${new Date(e.timestamp).toLocaleString()}</td>
+                            <td>${e.miner_name || 'System'}</td>
+                            <td><span class="badge badge-${e.severity || 'success'}">${e.event_type}</span></td>
+                            <td>${e.message}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            </div>
+        `;
+        
+        // Mobile cards view
+        const cardsHTML = `
+            <div class="mobile-cards">
+                ${events.map(e => `
+                    <div class="mobile-card">
+                        <div class="mobile-card-header">
+                            <span class="mobile-card-title">${e.miner_name || 'System'}</span>
+                            <span class="badge badge-${e.severity || 'success'}">${e.event_type}</span>
+                        </div>
+                        <div class="mobile-card-body">
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">Time:</span>
+                                <span>${new Date(e.timestamp).toLocaleString()}</span>
+                            </div>
+                            <div class="mobile-card-row">
+                                <span class="mobile-card-label">Details:</span>
+                                <span>${e.message}</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        
+        eventsList.innerHTML = tableHTML + cardsHTML;
+    } catch (error) {
+        console.error('Failed to load events:', error);
+        document.getElementById('events-list').innerHTML = '<p class="text-muted">Failed to load events</p>';
+    }
+}
+
+async function clearEvents() {
+    if (!confirm('Clear all events? This cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/dashboard/events', {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            await loadEvents(); // Reload to show empty events
+        } else {
+            alert('Failed to clear events');
+        }
+    } catch (error) {
+        console.error('Failed to clear events:', error);
+        alert('Failed to clear events');
+    }
+}
+
+loadEvents();
+
+// Auto-refresh every 30 seconds
+setInterval(loadEvents, 30000);
+</script>
+{% endblock %}

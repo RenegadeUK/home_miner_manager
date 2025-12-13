@@ -201,6 +201,19 @@ async def energy_pricing(request: Request):
     })
 
 
+@router.get("/logs", response_class=HTMLResponse)
+async def logs(request: Request):
+    """System logs page"""
+    return templates.TemplateResponse("logs.html", {
+        "request": request,
+        "page_title": "System Logs",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Logs", "url": "/logs"}
+        ]
+    })
+
+
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request):
     """Settings page"""

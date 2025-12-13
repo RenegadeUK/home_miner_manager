@@ -29,26 +29,6 @@
 <div id="solopool-stats" style="display: none;">
 </div>
 
-<!-- Miners Overview -->
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">Miners Overview</h2>
-    </div>
-    <div class="table-container" id="miners-table">
-        <p class="text-muted">Loading miners...</p>
-    </div>
-</div>
-
-<!-- Recent Events -->
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">Recent Events</h2>
-        <button class="btn btn-secondary btn-sm" onclick="clearEvents()">Clear All</button>
-    </div>
-    <div id="events-list">
-        <p class="text-muted">No recent events</p>
-    </div>
-</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -80,12 +60,12 @@ async function loadBraiinsStats() {
                     <div class="stat-value" style="font-size: 1.5rem;">${stats.workers_online || 0} / ${stats.workers_offline || 0}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">${btcLogo}Current Balance</div>
-                    <div class="stat-value" style="font-size: 1.25rem;">${(stats.current_balance / 100000000).toFixed(8)} BTC</div>
-                </div>
-                <div class="stat-card">
                     <div class="stat-label">${btcLogo}Today's Reward</div>
                     <div class="stat-value" style="font-size: 1.25rem;">${(stats.today_reward / 100000000).toFixed(8)} BTC</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">${btcLogo}Current Balance</div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${(stats.current_balance / 100000000).toFixed(8)} BTC</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">${btcLogo}All Time Reward</div>
@@ -225,161 +205,7 @@ async function loadDashboard() {
         document.getElementById('total-cost-24h').textContent = 
             stats.total_cost_24h_pounds !== undefined ? '£' + stats.total_cost_24h_pounds.toFixed(2) : '£0.00';
         
-        // Update miners table
-        const miners = data.miners;
-        const minersTable = document.getElementById('miners-table');
-        if (miners.length === 0) {
-            minersTable.innerHTML = '<p class="text-muted">No miners configured</p>';
-        } else {
-            // Desktop table view
-            const tableHTML = `
-                <div class="desktop-only">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Hashrate</th>
-                            <th>Power</th>
-                            <th>Pool</th>
-                            <th>24h Cost</th>
-                            <th>Status</th>
-                            <th>Mode</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${miners.map(m => `
-                            <tr>
-                                <td><a href="/miners/${m.id}">${m.name}</a></td>
-                                <td>${m.miner_type}</td>
-                                <td>${formatHashrate(m.hashrate)}</td>
-                                <td>${m.power > 0 ? m.power.toFixed(1) + ' W' : '--'}</td>
-                                <td>${m.pool}</td>
-                                <td>£${m.cost_24h.toFixed(2)}</td>
-                                <td><span class="badge ${m.enabled ? 'badge-success' : 'badge-error'}">${m.enabled ? 'Enabled' : 'Disabled'}</span></td>
-                                <td>${m.current_mode || '--'}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                </div>
-            `;
-            
-            // Mobile card view
-            const cardsHTML = `
-                <div class="mobile-cards">
-                    ${miners.map(m => `
-                        <div class="mobile-card">
-                            <div class="mobile-card-header">
-                                <a href="/miners/${m.id}" class="mobile-card-title">${m.name}</a>
-                                <span class="badge ${m.enabled ? 'badge-success' : 'badge-error'}">${m.enabled ? 'Enabled' : 'Disabled'}</span>
-                            </div>
-                            <div class="mobile-card-body">
-                                <div class="mobile-card-row">
-                                    <span class="mobile-card-label">Type:</span>
-                                    <span>${m.miner_type}</span>
-                                </div>
-                                <div class="mobile-card-row">
-                                    <span class="mobile-card-label">Hashrate:</span>
-                                    <span>${formatHashrate(m.hashrate)}</span>
-                                </div>
-                                <div class="mobile-card-row">
-                                    <span class="mobile-card-label">Power:</span>
-                                    <span>${m.power > 0 ? m.power.toFixed(1) + ' W' : '--'}</span>
-                                </div>
-                                <div class="mobile-card-row">
-                                    <span class="mobile-card-label">Pool:</span>
-                                    <span>${m.pool}</span>
-                                </div>
-                                <div class="mobile-card-row">
-                                    <span class="mobile-card-label">24h Cost:</span>
-                                    <span>£${m.cost_24h.toFixed(2)}</span>
-                                </div>
-                                <div class="mobile-card-row">
-                                    <span class="mobile-card-label">Mode:</span>
-                                    <span>${m.current_mode || '--'}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            
-            minersTable.innerHTML = tableHTML + cardsHTML;
-        }
-        
-        // Update recent events
-        const events = data.events;
-        
-        const eventsList = document.getElementById('events-list');
-        if (!events || events.length === 0) {
-            eventsList.innerHTML = '<p class="text-muted">No recent events</p>';
-        } else {
-            // Desktop table view
-            const tableHTML = `
-                <div class="desktop-only">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Type</th>
-                            <th>Source</th>
-                            <th>Message</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${events.map(e => {
-                            const date = new Date(e.timestamp);
-                            const typeClass = e.event_type === 'error' ? 'badge-error' : 
-                                            e.event_type === 'warning' ? 'badge-warning' :
-                                            e.event_type === 'alert' ? 'badge-warning' : 'badge-info';
-                            return `
-                                <tr>
-                                    <td>${date.toLocaleString()}</td>
-                                    <td><span class="badge ${typeClass}">${e.event_type}</span></td>
-                                    <td>${e.source}</td>
-                                    <td>${e.message}</td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-                </div>
-            `;
-            
-            // Mobile card view
-            const cardsHTML = `
-                <div class="mobile-cards">
-                    ${events.map(e => {
-                        const date = new Date(e.timestamp);
-                        const typeClass = e.event_type === 'error' ? 'badge-error' : 
-                                        e.event_type === 'warning' ? 'badge-warning' :
-                                        e.event_type === 'alert' ? 'badge-warning' : 'badge-info';
-                        return `
-                            <div class="mobile-card">
-                                <div class="mobile-card-header">
-                                    <span class="mobile-card-title">${date.toLocaleString()}</span>
-                                    <span class="badge ${typeClass}">${e.event_type}</span>
-                                </div>
-                                <div class="mobile-card-body">
-                                    <div class="mobile-card-row">
-                                        <span class="mobile-card-label">Source:</span>
-                                        <span>${e.source}</span>
-                                    </div>
-                                    <div class="mobile-card-row">
-                                        <span class="mobile-card-label">Message:</span>
-                                        <span>${e.message}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            `;
-            
-            eventsList.innerHTML = tableHTML + cardsHTML;
-        }
-        
+
         // Load pool integration stats
         await loadBraiinsStats();
         await loadSolopoolStats();
@@ -388,26 +214,7 @@ async function loadDashboard() {
     }
 }
 
-async function clearEvents() {
-    if (!confirm('Clear all events? This cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch('/api/dashboard/events', {
-            method: 'DELETE'
-        });
-        
-        if (response.ok) {
-            await loadDashboard(); // Reload to show empty events
-        } else {
-            alert('Failed to clear events');
-        }
-    } catch (error) {
-        console.error('Failed to clear events:', error);
-        alert('Failed to clear events');
-    }
-}
+
 
 loadDashboard();
 setInterval(loadDashboard, 30000); // Refresh every 30s
