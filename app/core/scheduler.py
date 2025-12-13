@@ -289,8 +289,7 @@ class SchedulerService:
     
     async def _check_price_threshold(self, db, config: dict) -> bool:
         """Check if current energy price meets threshold"""
-        threshold = config.get("threshold", 0)
-        comparison = config.get("comparison", "below")  # below or above
+        condition = config.get("condition", "below")  # below, above, between, outside
         
         from core.database import EnergyPrice
         
@@ -306,10 +305,22 @@ class SchedulerService:
         if not price:
             return False
         
-        if comparison == "below":
+        if condition == "below":
+            threshold = config.get("threshold", 0)
             return price.price_pence < threshold
-        else:
+        elif condition == "above":
+            threshold = config.get("threshold", 0)
             return price.price_pence > threshold
+        elif condition == "between":
+            threshold_min = config.get("threshold_min", 0)
+            threshold_max = config.get("threshold_max", 999)
+            return threshold_min <= price.price_pence <= threshold_max
+        elif condition == "outside":
+            threshold_min = config.get("threshold_min", 0)
+            threshold_max = config.get("threshold_max", 999)
+            return price.price_pence < threshold_min or price.price_pence > threshold_max
+        
+        return False
     
     def _check_time_window(self, config: dict) -> bool:
         """Check if current time is within window"""
