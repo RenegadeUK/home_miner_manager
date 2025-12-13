@@ -53,6 +53,12 @@ async def startup_event():
         await init_db()
         logger.info("✅ Database initialized")
         
+        # Run migrations
+        logger.info("🔄 Running database migrations...")
+        from core.migrations import run_migrations
+        await run_migrations()
+        logger.info("✅ Migrations completed")
+        
         # Start MQTT client
         logger.info("📡 Starting MQTT client...")
         await mqtt_client.start()
