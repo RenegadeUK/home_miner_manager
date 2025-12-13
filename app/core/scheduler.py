@@ -260,32 +260,44 @@ class SchedulerService:
                         triggered = False
                         execution_context = {}
                         
+                        print(f"🔍 Evaluating rule '{rule.name}' (ID: {rule.id}, Type: {rule.trigger_type})")
+                        
                         # Evaluate trigger
                         if rule.trigger_type == "price_threshold":
                             triggered, execution_context = await self._check_price_threshold(db, rule.trigger_config, rule)
+                            print(f"  💰 Price threshold check: triggered={triggered}, config={rule.trigger_config}")
                         
                         elif rule.trigger_type == "time_window":
                             triggered = self._check_time_window(rule.trigger_config)
+                            print(f"  ⏰ Time window check: triggered={triggered}")
                         
                         elif rule.trigger_type == "miner_offline":
                             triggered = await self._check_miner_offline(db, rule.trigger_config)
+                            print(f"  📴 Miner offline check: triggered={triggered}")
                         
                         elif rule.trigger_type == "miner_overheat":
                             triggered = await self._check_miner_overheat(db, rule.trigger_config)
+                            print(f"  🔥 Miner overheat check: triggered={triggered}")
                         
                         elif rule.trigger_type == "pool_failure":
                             triggered = await self._check_pool_failure(db, rule.trigger_config)
+                            print(f"  ⚠️ Pool failure check: triggered={triggered}")
                         
                         # Execute action if triggered
                         if triggered:
+                            print(f"✅ Rule '{rule.name}' triggered, executing action: {rule.action_type}")
                             await self._execute_action(db, rule)
                             # Update execution tracking
                             rule.last_executed_at = datetime.utcnow()
                             if execution_context:
                                 rule.last_execution_context = execution_context
+                        else:
+                            print(f"⏭️ Rule '{rule.name}' not triggered, skipping")
                     
                     except Exception as e:
                         print(f"⚠️ Error evaluating rule {rule.id}: {e}")
+                        import traceback
+                        traceback.print_exc()
                 
                 await db.commit()
         
@@ -325,23 +337,28 @@ class SchedulerService:
             last_price_id = rule.last_execution_context.get("price_id")
             if last_price_id == price.id:
                 # Already executed for this price slot, don't trigger again
+                print(f"    ⏭️ Already executed for price slot {price.id}, skipping")
                 return False, context
         
         triggered = False
         if condition == "below":
             threshold = config.get("threshold", 0)
             triggered = price.price_pence < threshold
+            print(f"    📊 Price {price.price_pence}p < {threshold}p? {triggered}")
         elif condition == "above":
             threshold = config.get("threshold", 0)
             triggered = price.price_pence > threshold
+            print(f"    📊 Price {price.price_pence}p > {threshold}p? {triggered}")
         elif condition == "between":
             threshold_min = config.get("threshold_min", 0)
             threshold_max = config.get("threshold_max", 999)
             triggered = threshold_min <= price.price_pence <= threshold_max
+            print(f"    📊 Price {price.price_pence}p between {threshold_min}p and {threshold_max}p? {triggered}")
         elif condition == "outside":
             threshold_min = config.get("threshold_min", 0)
             threshold_max = config.get("threshold_max", 999)
             triggered = price.price_pence < threshold_min or price.price_pence > threshold_max
+            print(f"    📊 Price {price.price_pence}p outside {threshold_min}p-{threshold_max}p? {triggered}")
         
         return triggered, context
     
@@ -437,32 +454,56 @@ class SchedulerService:
         action_config = rule.action_config
         
         if action_type == "apply_mode":
-            miner_id = action_config.get("miner_id")
             mode = action_config.get("mode")
+            miner_id = action_config.get("miner_id")
             
-            if miner_id and mode:
+            print(f"🎯 Automation: Action config miner_id={miner_id}, mode={mode}")
+            
+            if not miner_id or not mode:
+                print(f"❌ Automation: Missing miner_id or mode in action config")
+                return
+            
+            # Resolve miner(s) to apply mode to
+            miners_to_update = []
+            
+            if isinstance(miner_id, str) and miner_id.startswith("type:"):
+                # Apply to all miners of this type
+                miner_type = miner_id[5:]  # Remove "type:" prefix
+                print(f"🔍 Automation: Applying to all miners of type '{miner_type}'")
+                result = await db.execute(
+                    select(Miner).where(Miner.miner_type == miner_type).where(Miner.enabled == True)
+                )
+                miners_to_update = result.scalars().all()
+                print(f"📋 Found {len(miners_to_update)} enabled miners of type '{miner_type}'")
+            else:
+                # Single miner by ID
                 result = await db.execute(select(Miner).where(Miner.id == miner_id))
                 miner = result.scalar_one_or_none()
-                
                 if miner:
-                    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
-                    if adapter:
-                        print(f"🎯 Automation: Applying mode '{mode}' to {miner.name} ({miner.miner_type})")
-                        success = await adapter.set_mode(mode)
-                        if success:
-                            miner.current_mode = mode
-                            event = Event(
-                                event_type="info",
-                                source=f"automation_rule_{rule.id}",
-                                message=f"Applied mode '{mode}' to {miner.name}",
-                                data={"rule": rule.name, "miner": miner.name, "mode": mode}
-                            )
-                            db.add(event)
-                            print(f"✅ Automation: Successfully applied mode '{mode}' to {miner.name}")
-                        else:
-                            print(f"❌ Automation: Failed to apply mode '{mode}' to {miner.name}")
+                    miners_to_update = [miner]
+                else:
+                    print(f"❌ Automation: Miner ID {miner_id} not found")
+            
+            # Apply mode to all resolved miners
+            for miner in miners_to_update:
+                adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
+                if adapter:
+                    print(f"🎯 Automation: Applying mode '{mode}' to {miner.name} ({miner.miner_type})")
+                    success = await adapter.set_mode(mode)
+                    if success:
+                        miner.current_mode = mode
+                        event = Event(
+                            event_type="info",
+                            source=f"automation_rule_{rule.id}",
+                            message=f"Applied mode '{mode}' to {miner.name}",
+                            data={"rule": rule.name, "miner": miner.name, "mode": mode}
+                        )
+                        db.add(event)
+                        print(f"✅ Automation: Successfully applied mode '{mode}' to {miner.name}")
                     else:
-                        print(f"❌ Automation: Failed to create adapter for {miner.name}")
+                        print(f"❌ Automation: Failed to apply mode '{mode}' to {miner.name}")
+                else:
+                    print(f"❌ Automation: Failed to create adapter for {miner.name}")
         
         elif action_type == "switch_pool":
             miner_id = action_config.get("miner_id")
