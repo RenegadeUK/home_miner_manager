@@ -306,3 +306,127 @@ async def get_recent_events(limit: int = 50, db: AsyncSession = Depends(get_db))
             for e in events
         ]
     }
+
+
+@router.get("/all")
+async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
+    """
+    Optimized bulk endpoint - returns all dashboard data in one call
+    Uses cached telemetry from database instead of live polling
+    """
+    from core.database import Pool
+    
+    # Get all miners
+    result = await db.execute(select(Miner))
+    miners = result.scalars().all()
+    
+    # Get all pools for name mapping
+    result = await db.execute(select(Pool))
+    pools = result.scalars().all()
+    pools_dict = {(p.url, p.port): p.name for p in pools}
+    
+    # Get current energy price
+    now = datetime.utcnow()
+    result = await db.execute(
+        select(EnergyPrice.price_pence)
+        .where(EnergyPrice.valid_from <= now)
+        .where(EnergyPrice.valid_to > now)
+        .limit(1)
+    )
+    current_energy_price = result.scalar()
+    
+    # Get recent events (limit 20)
+    result = await db.execute(
+        select(Event)
+        .order_by(Event.timestamp.desc())
+        .limit(20)
+    )
+    events = result.scalars().all()
+    
+    # Get latest telemetry and calculate costs for each miner
+    cutoff_5min = datetime.utcnow() - timedelta(minutes=5)
+    cutoff_24h = datetime.utcnow() - timedelta(hours=24)
+    
+    miners_data = []
+    total_hashrate = 0.0
+    total_cost_24h_pence = 0.0
+    
+    for miner in miners:
+        # Get latest telemetry (last 5 minutes)
+        result = await db.execute(
+            select(Telemetry)
+            .where(Telemetry.miner_id == miner.id)
+            .where(Telemetry.timestamp > cutoff_5min)
+            .order_by(Telemetry.timestamp.desc())
+            .limit(1)
+        )
+        latest_telemetry = result.scalar_one_or_none()
+        
+        hashrate = 0.0
+        power = 0.0
+        pool_display = '--'
+        
+        if latest_telemetry:
+            hashrate = latest_telemetry.hashrate or 0.0
+            power = latest_telemetry.power_watts or 0.0
+            
+            # Map pool URL to name
+            if latest_telemetry.pool_in_use:
+                pool_str = latest_telemetry.pool_in_use
+                # Remove protocol
+                if '://' in pool_str:
+                    pool_str = pool_str.split('://')[1]
+                # Extract host and port
+                if ':' in pool_str:
+                    parts = pool_str.split(':')
+                    host = parts[0]
+                    port = int(parts[1])
+                    pool_display = pools_dict.get((host, port), latest_telemetry.pool_in_use)
+                else:
+                    pool_display = latest_telemetry.pool_in_use
+            
+            if miner.enabled:
+                total_hashrate += hashrate
+        
+        # Quick 24h cost estimate using average power
+        miner_cost_24h = 0.0
+        if power > 0 and current_energy_price:
+            # Simple estimate: current_power * 24 hours * current_price
+            kwh_24h = (power / 1000.0) * 24
+            miner_cost_24h = kwh_24h * current_energy_price
+            if miner.enabled:
+                total_cost_24h_pence += miner_cost_24h
+        
+        miners_data.append({
+            "id": miner.id,
+            "name": miner.name,
+            "miner_type": miner.miner_type,
+            "enabled": miner.enabled,
+            "current_mode": miner.current_mode,
+            "hashrate": hashrate,
+            "power": power,
+            "pool": pool_display,
+            "cost_24h": round(miner_cost_24h / 100, 2)  # Convert to pounds
+        })
+    
+    return {
+        "stats": {
+            "total_miners": len(miners),
+            "active_miners": sum(1 for m in miners if m.enabled),
+            "total_hashrate_ghs": round(total_hashrate, 2),
+            "current_energy_price_pence": current_energy_price,
+            "total_cost_24h_pence": round(total_cost_24h_pence, 2),
+            "total_cost_24h_pounds": round(total_cost_24h_pence / 100, 2)
+        },
+        "miners": miners_data,
+        "events": [
+            {
+                "id": e.id,
+                "timestamp": e.timestamp.isoformat(),
+                "event_type": e.event_type,
+                "source": e.source,
+                "message": e.message
+            }
+            for e in events
+        ]
+    }
