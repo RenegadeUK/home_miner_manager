@@ -447,6 +447,7 @@ class SchedulerService:
                 if miner:
                     adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
                     if adapter:
+                        print(f"🎯 Automation: Applying mode '{mode}' to {miner.name} ({miner.miner_type})")
                         success = await adapter.set_mode(mode)
                         if success:
                             miner.current_mode = mode
@@ -457,6 +458,11 @@ class SchedulerService:
                                 data={"rule": rule.name, "miner": miner.name, "mode": mode}
                             )
                             db.add(event)
+                            print(f"✅ Automation: Successfully applied mode '{mode}' to {miner.name}")
+                        else:
+                            print(f"❌ Automation: Failed to apply mode '{mode}' to {miner.name}")
+                    else:
+                        print(f"❌ Automation: Failed to create adapter for {miner.name}")
         
         elif action_type == "switch_pool":
             miner_id = action_config.get("miner_id")
@@ -472,7 +478,7 @@ class SchedulerService:
                 if miner and pool:
                     adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
                     if adapter:
-                        success = await adapter.switch_pool(pool.url, pool.user, pool.password)
+                        success = await adapter.switch_pool(pool.url, pool.port, pool.user, pool.password)
                         if success:
                             event = Event(
                                 event_type="info",
