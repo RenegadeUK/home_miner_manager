@@ -441,6 +441,73 @@ tr:hover {
     }
 }
 
+/* Mobile Card Layout */
+.mobile-cards {
+    display: none;
+}
+
+.mobile-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.mobile-card-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.mobile-card-title a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.mobile-card-title a:visited {
+    color: var(--accent);
+}
+
+.mobile-card-title a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+.mobile-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.mobile-card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+}
+
+.mobile-card-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.mobile-card-row > span:last-child {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    text-align: right;
+}
+
 /* Responsive Design - Mobile */
 @media (max-width: 768px) {
     /* Adjust main content */
@@ -459,14 +526,15 @@ tr:hover {
         padding: 1rem;
     }
     
-    /* Make tables scrollable horizontally */
-    .table-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+    /* Hide desktop table, show mobile cards */
+    table.desktop-only,
+    .desktop-only {
+        display: none;
     }
     
-    table {
-        min-width: 600px;
+    .mobile-cards {
+        display: flex;
+        flex-direction: column;
     }
     
     /* Adjust page header */

@@ -66,16 +66,17 @@ async function loadDashboard() {
         if (miners.length === 0) {
             minersTable.innerHTML = '<p class="text-muted">No miners configured</p>';
         } else {
-            minersTable.innerHTML = `
-                <table>
+            // Desktop table view
+            const tableHTML = `
+                <table class="desktop-only">
                     <thead>
                         <tr>
                             <th>Name</th>
                             <th>Type</th>
                             <th>Hashrate</th>
                             <th>Power</th>
-                            <th>Stratum Name</th>
-                            <th>Cost per 24hr</th>
+                            <th>Pool</th>
+                            <th>24h Cost</th>
                             <th>Status</th>
                             <th>Mode</th>
                         </tr>
@@ -96,6 +97,48 @@ async function loadDashboard() {
                     </tbody>
                 </table>
             `;
+            
+            // Mobile card view
+            const cardsHTML = `
+                <div class="mobile-cards">
+                    ${miners.map(m => `
+                        <div class="mobile-card">
+                            <div class="mobile-card-header">
+                                <a href="/miners/${m.id}" class="mobile-card-title">${m.name}</a>
+                                <span class="badge ${m.enabled ? 'badge-success' : 'badge-error'}">${m.enabled ? 'Enabled' : 'Disabled'}</span>
+                            </div>
+                            <div class="mobile-card-body">
+                                <div class="mobile-card-row">
+                                    <span class="mobile-card-label">Type:</span>
+                                    <span>${m.miner_type}</span>
+                                </div>
+                                <div class="mobile-card-row">
+                                    <span class="mobile-card-label">Hashrate:</span>
+                                    <span>${formatHashrate(m.hashrate)}</span>
+                                </div>
+                                <div class="mobile-card-row">
+                                    <span class="mobile-card-label">Power:</span>
+                                    <span>${m.power > 0 ? m.power.toFixed(1) + ' W' : '--'}</span>
+                                </div>
+                                <div class="mobile-card-row">
+                                    <span class="mobile-card-label">Pool:</span>
+                                    <span>${m.pool}</span>
+                                </div>
+                                <div class="mobile-card-row">
+                                    <span class="mobile-card-label">24h Cost:</span>
+                                    <span>£${m.cost_24h.toFixed(2)}</span>
+                                </div>
+                                <div class="mobile-card-row">
+                                    <span class="mobile-card-label">Mode:</span>
+                                    <span>${m.current_mode || '--'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            minersTable.innerHTML = tableHTML + cardsHTML;
         }
         
         // Update recent events
@@ -105,8 +148,9 @@ async function loadDashboard() {
         if (!events || events.length === 0) {
             eventsList.innerHTML = '<p class="text-muted">No recent events</p>';
         } else {
-            eventsList.innerHTML = `
-                <table>
+            // Desktop table view
+            const tableHTML = `
+                <table class="desktop-only">
                     <thead>
                         <tr>
                             <th>Time</th>
@@ -133,6 +177,38 @@ async function loadDashboard() {
                     </tbody>
                 </table>
             `;
+            
+            // Mobile card view
+            const cardsHTML = `
+                <div class="mobile-cards">
+                    ${events.map(e => {
+                        const date = new Date(e.timestamp);
+                        const typeClass = e.event_type === 'error' ? 'badge-error' : 
+                                        e.event_type === 'warning' ? 'badge-warning' :
+                                        e.event_type === 'alert' ? 'badge-warning' : 'badge-info';
+                        return `
+                            <div class="mobile-card">
+                                <div class="mobile-card-header">
+                                    <span class="mobile-card-title">${date.toLocaleString()}</span>
+                                    <span class="badge ${typeClass}">${e.event_type}</span>
+                                </div>
+                                <div class="mobile-card-body">
+                                    <div class="mobile-card-row">
+                                        <span class="mobile-card-label">Source:</span>
+                                        <span>${e.source}</span>
+                                    </div>
+                                    <div class="mobile-card-row">
+                                        <span class="mobile-card-label">Message:</span>
+                                        <span>${e.message}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            
+            eventsList.innerHTML = tableHTML + cardsHTML;
         }
     } catch (error) {
         console.error('Failed to load dashboard:', error);
