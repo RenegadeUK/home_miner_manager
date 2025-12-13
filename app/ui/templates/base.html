@@ -9,9 +9,21 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+    
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobile-overlay"></div>
+    
     <div class="app-container">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-logo">
                 <h1>⛏️ Miner Controller</h1>
             </div>
@@ -86,6 +98,30 @@
     </div>
 
     <script src="/static/app.js"></script>
+    <script>
+        // Mobile menu functionality
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const sidebar = document.getElementById('sidebar');
+        const mobileOverlay = document.getElementById('mobile-overlay');
+        
+        function toggleMobileMenu() {
+            sidebar.classList.toggle('active');
+            mobileOverlay.classList.toggle('active');
+        }
+        
+        mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+        mobileOverlay.addEventListener('click', toggleMobileMenu);
+        
+        // Close menu when clicking a link
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    toggleMobileMenu();
+                }
+            });
+        });
+    </script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
