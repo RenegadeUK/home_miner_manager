@@ -107,11 +107,16 @@
         // Initialize sidebar as open on desktop
         if (window.innerWidth > 768) {
             sidebar.classList.add('active');
+            document.body.classList.add('sidebar-open');
         }
         
         function toggleMobileMenu() {
             sidebar.classList.toggle('active');
-            if (window.innerWidth <= 768) {
+            
+            // Update body class for desktop layout
+            if (window.innerWidth > 768) {
+                document.body.classList.toggle('sidebar-open');
+            } else {
                 mobileOverlay.classList.toggle('active');
             }
         }
