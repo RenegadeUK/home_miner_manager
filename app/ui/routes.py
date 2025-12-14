@@ -225,3 +225,16 @@ async def settings(request: Request):
             {"label": "Settings", "url": "/settings"}
         ]
     })
+
+
+@router.get("/faq", response_class=HTMLResponse)
+async def faq(request: Request):
+    """FAQ page"""
+    return templates.TemplateResponse("faq.html", {
+        "request": request,
+        "page_title": "FAQ",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "FAQ", "url": "/faq"}
+        ]
+    })
