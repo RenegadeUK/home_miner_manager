@@ -62,6 +62,21 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     )
     recent_events = result.scalar()
     
+    # Pre-fetch all energy prices for the last 24 hours (avoid N queries per telemetry record)
+    result = await db.execute(
+        select(EnergyPrice)
+        .where(EnergyPrice.valid_from >= cutoff_24h)
+        .order_by(EnergyPrice.valid_from)
+    )
+    energy_prices = result.scalars().all()
+    
+    # Create a lookup function for energy prices
+    def get_price_for_timestamp(ts):
+        for price in energy_prices:
+            if price.valid_from <= ts < price.valid_to:
+                return price.price_pence
+        return None
+    
     # Calculate total 24h cost across all miners using actual telemetry + energy prices
     total_cost_pence = 0.0
     for miner in miners:
@@ -83,13 +98,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                 continue
             
             # Find the energy price that was active when this telemetry was recorded
-            result = await db.execute(
-                select(EnergyPrice.price_pence)
-                .where(EnergyPrice.valid_from <= timestamp)
-                .where(EnergyPrice.valid_to > timestamp)
-                .limit(1)
-            )
-            price_pence = result.scalar()
+            price_pence = get_price_for_timestamp(timestamp)
             
             if price_pence is None:
                 # No price data for this timestamp, skip
@@ -354,6 +363,21 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
     cutoff_5min = datetime.utcnow() - timedelta(minutes=5)
     cutoff_24h = datetime.utcnow() - timedelta(hours=24)
     
+    # Pre-fetch all energy prices for the last 24 hours (optimization)
+    result = await db.execute(
+        select(EnergyPrice)
+        .where(EnergyPrice.valid_from >= cutoff_24h)
+        .order_by(EnergyPrice.valid_from)
+    )
+    energy_prices = result.scalars().all()
+    
+    # Create a lookup function for energy prices
+    def get_price_for_timestamp(ts):
+        for price in energy_prices:
+            if price.valid_from <= ts < price.valid_to:
+                return price.price_pence
+        return None
+    
     miners_data = []
     total_hashrate = 0.0
     total_cost_24h_pence = 0.0
@@ -395,7 +419,7 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
             if miner.enabled:
                 total_hashrate += hashrate
         
-        # Calculate accurate 24h cost using historical telemetry + energy prices
+        # Calculate accurate 24h cost using historical telemetry + energy prices (using cached prices)
         miner_cost_24h = 0.0
         result = await db.execute(
             select(Telemetry.power_watts, Telemetry.timestamp)
@@ -409,14 +433,8 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
             if tel_power is None or tel_power <= 0:
                 continue
             
-            # Find the energy price that was active at this telemetry timestamp
-            result = await db.execute(
-                select(EnergyPrice.price_pence)
-                .where(EnergyPrice.valid_from <= tel_timestamp)
-                .where(EnergyPrice.valid_to > tel_timestamp)
-                .limit(1)
-            )
-            price_pence = result.scalar()
+            # Find the energy price that was active at this telemetry timestamp (from cached prices)
+            price_pence = get_price_for_timestamp(tel_timestamp)
             
             if price_pence is None:
                 continue
