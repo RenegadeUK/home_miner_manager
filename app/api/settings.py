@@ -204,14 +204,12 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
                 bch_stats = await SolopoolService.get_bch_account_stats(username)
                 if bch_stats:
                     formatted_stats = SolopoolService.format_stats_summary(bch_stats)
-                    # Calculate ETTB and TC (BCH block time: 600 seconds)
+                    # Calculate ETTB (BCH block time: 600 seconds)
                     if bch_network_stats:
                         network_hashrate = bch_network_stats.get("stats", {}).get("hashrate", 0)
                         user_hashrate = formatted_stats.get("hashrate_raw", 0)
                         ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 600)
-                        tc = SolopoolService.calculate_ticket_count(network_hashrate, user_hashrate)
                         formatted_stats["ettb"] = ettb
-                        formatted_stats["tc"] = tc
                         formatted_stats["network_hashrate"] = network_hashrate
                     
                     bch_stats_list.append({
@@ -239,14 +237,12 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
                 dgb_stats = await SolopoolService.get_dgb_account_stats(username)
                 if dgb_stats:
                     formatted_stats = SolopoolService.format_stats_summary(dgb_stats)
-                    # Calculate ETTB and TC (DGB block time: 15 seconds)
+                    # Calculate ETTB (DGB block time: 15 seconds)
                     if dgb_network_stats:
                         network_hashrate = dgb_network_stats.get("stats", {}).get("hashrate", 0)
                         user_hashrate = formatted_stats.get("hashrate_raw", 0)
                         ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 15)
-                        tc = SolopoolService.calculate_ticket_count(network_hashrate, user_hashrate)
                         formatted_stats["ettb"] = ettb
-                        formatted_stats["tc"] = tc
                         formatted_stats["network_hashrate"] = network_hashrate
                     
                     dgb_stats_list.append({
@@ -272,14 +268,12 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
             if username not in btc_processed_usernames:
                 btc_processed_usernames.add(username)
                 formatted_stats = SolopoolService.format_stats_summary(btc_stats)
-                # Calculate ETTB and TC (BTC block time: 600 seconds)
+                # Calculate ETTB (BTC block time: 600 seconds)
                 if btc_network_stats:
                     network_hashrate = btc_network_stats.get("stats", {}).get("hashrate", 0)
                     user_hashrate = formatted_stats.get("hashrate_raw", 0)
                     ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 600)
-                    tc = SolopoolService.calculate_ticket_count(network_hashrate, user_hashrate)
                     formatted_stats["ettb"] = ettb
-                    formatted_stats["tc"] = tc
                     formatted_stats["network_hashrate"] = network_hashrate
                 
                 btc_stats_list.append({
