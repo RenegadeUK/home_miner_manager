@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Home Miner Manager{% endblock %}</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
-    <link rel="stylesheet" href="/static/style.css?v=7">
+    <link rel="stylesheet" href="/static/style.css?v=8">
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -93,6 +93,7 @@
             <!-- Page Header -->
             <div class="page-header">
                 <h1>{{ page_title }}</h1>
+                <div id="price-ticker" class="price-ticker"></div>
             </div>
 
             <!-- Page Content -->
@@ -102,6 +103,41 @@
 
     <script src="/static/app.js"></script>
     <script>
+        // Load crypto prices ticker
+        async function loadPriceTicker() {
+            try {
+                const response = await fetch('/api/settings/crypto-prices');
+                const data = await response.json();
+                
+                if (!data.success) return;
+                
+                const getCacheIndicator = (ageMinutes) => {
+                    if (!ageMinutes && ageMinutes !== 0) return '';
+                    let color = '#28a745';
+                    if (ageMinutes >= 120) color = '#dc3545';
+                    else if (ageMinutes >= 30) color = '#ffc107';
+                    return `<span style="font-size: 0.65rem; color: ${color}; margin-left: 2px;">●</span>`;
+                };
+                
+                const cacheIndicator = getCacheIndicator(data.age_minutes);
+                
+                const prices = [];
+                if (data.bitcoin > 0) prices.push(`BTC £${data.bitcoin.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}${cacheIndicator}`);
+                if (data['bitcoin-cash'] > 0) prices.push(`BCH £${data['bitcoin-cash'].toFixed(0)}${cacheIndicator}`);
+                if (data.digibyte > 0) prices.push(`DGB £${data.digibyte.toFixed(4)}${cacheIndicator}`);
+                
+                if (prices.length > 0) {
+                    document.getElementById('price-ticker').innerHTML = prices.join('<span style="margin: 0 8px; color: #666;">|</span>');
+                }
+            } catch (error) {
+                console.error('Failed to load price ticker:', error);
+            }
+        }
+        
+        // Load prices on page load and refresh every 30 seconds
+        loadPriceTicker();
+        setInterval(loadPriceTicker, 30000);
+        
         // Mobile menu functionality
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
         const sidebar = document.getElementById('sidebar');

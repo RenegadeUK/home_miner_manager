@@ -146,11 +146,29 @@ body {
 
 .page-header {
     margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
 }
 
 .page-header h1 {
     font-size: 2rem;
     margin-bottom: 0.5rem;
+}
+
+.price-ticker {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
 }
 
 /* Cards */
@@ -579,6 +597,11 @@ tr:hover {
     /* Improve card spacing */
     .card {
         padding: 1rem;
+    }
+    
+    /* Hide price ticker on mobile */
+    .price-ticker {
+        display: none;
     }
     
     /* Hide desktop table, show mobile cards */
