@@ -96,7 +96,7 @@ class SchedulerService:
     async def _update_energy_prices(self):
         """Update Octopus Agile energy prices"""
         from core.config import app_config
-        from core.database import AsyncSessionLocal, EnergyPrice
+        from core.database import AsyncSessionLocal, EnergyPrice, Event
         
         enabled = app_config.get("octopus_agile.enabled", False)
         print(f"🔍 Octopus Agile enabled: {enabled}")
@@ -116,6 +116,15 @@ class SchedulerService:
                 async with session.get(url, timeout=10) as response:
                     if response.status != 200:
                         print(f"⚠️ Failed to fetch Agile prices: HTTP {response.status}")
+                        # Log error event
+                        async with AsyncSessionLocal() as db:
+                            event = Event(
+                                event_type="error",
+                                source="octopus_agile",
+                                message=f"Failed to fetch energy prices: HTTP {response.status}"
+                            )
+                            db.add(event)
+                            await db.commit()
                         return
                     
                     data = await response.json()
@@ -123,6 +132,15 @@ class SchedulerService:
                     
                     if not results:
                         print("⚠️ No price data returned from Octopus API")
+                        # Log warning event
+                        async with AsyncSessionLocal() as db:
+                            event = Event(
+                                event_type="warning",
+                                source="octopus_agile",
+                                message="No price data returned from Octopus Agile API"
+                            )
+                            db.add(event)
+                            await db.commit()
                         return
                     
                     # Insert prices into database
@@ -155,6 +173,15 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to update energy prices: {e}")
+            # Log exception event
+            async with AsyncSessionLocal() as db:
+                event = Event(
+                    event_type="error",
+                    source="octopus_agile",
+                    message=f"Exception fetching energy prices: {str(e)}"
+                )
+                db.add(event)
+                await db.commit()
     
     async def _collect_telemetry(self):
         """Collect telemetry from all miners"""
@@ -234,11 +261,27 @@ class SchedulerService:
                     
                     except Exception as e:
                         print(f"⚠️ Error collecting telemetry from miner {miner.id}: {e}")
+                        # Log miner connection error
+                        event = Event(
+                            event_type="error",
+                            source=f"miner_{miner.id}",
+                            message=f"Error collecting telemetry from {miner.name}: {str(e)}"
+                        )
+                        db.add(event)
                 
                 await db.commit()
         
         except Exception as e:
             print(f"❌ Error in telemetry collection: {e}")
+            # Log system error
+            async with AsyncSessionLocal() as db:
+                event = Event(
+                    event_type="error",
+                    source="scheduler",
+                    message=f"Error in telemetry collection: {str(e)}"
+                )
+                db.add(event)
+                await db.commit()
     
     async def _evaluate_automation_rules(self):
         """Evaluate and execute automation rules"""
