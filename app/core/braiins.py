@@ -177,7 +177,8 @@ class BraiinsPoolService:
         summary["workers_online"] = workers_online
         summary["workers_offline"] = workers_offline
         summary["total_hashrate"] = total_hashrate_24h
-        summary["hashrate_5m"] = BraiinsPoolService._format_hashrate(total_hashrate_5m)
+        # Braiins returns hashrate in GH/s, convert to TH/s for formatting
+        summary["hashrate_5m"] = BraiinsPoolService._format_hashrate(total_hashrate_5m / 1000)
         summary["hashrate_24h"] = BraiinsPoolService._format_hashrate(total_hashrate_24h)
         
         # Parse profile data (has balance and reward info)
@@ -198,7 +199,7 @@ class BraiinsPoolService:
     
     @staticmethod
     def _format_hashrate(hashrate: float) -> str:
-        """Format hashrate with appropriate unit (Braiins returns TH/s)"""
+        """Format hashrate with appropriate unit (expects TH/s as input)"""
         if hashrate == 0:
             return "0 TH/s"
         elif hashrate >= 1000:
