@@ -52,11 +52,23 @@ async function loadBraiinsStats() {
         
         // Fetch BTC price in GBP from our backend
         let btcPriceGBP = 0;
+        let cacheAgeIndicator = '';
+        
+        // Helper function to get cache age indicator with color
+        const getCacheIndicator = (ageMinutes) => {
+            if (!ageMinutes && ageMinutes !== 0) return '';
+            let color = '#28a745'; // green
+            if (ageMinutes >= 120) color = '#dc3545'; // red
+            else if (ageMinutes >= 30) color = '#ffc107'; // amber
+            return `<span style="font-size: 0.7rem; color: ${color}; margin-left: 4px;">●</span>`;
+        };
+        
         try {
             const priceResponse = await fetch('/api/settings/crypto-prices');
             const priceData = await priceResponse.json();
             if (priceData.success) {
                 btcPriceGBP = priceData.bitcoin || 0;
+                cacheAgeIndicator = getCacheIndicator(priceData.age_minutes);
             } else {
                 console.error('Failed to fetch BTC price:', priceData.error);
             }
