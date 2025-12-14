@@ -183,6 +183,16 @@ async function loadSolopoolStats() {
         
         const luckFormat = (luck) => Math.round(luck || 0) + '%';
         
+        // Format time since last share
+        const formatTimeSince = (timestamp) => {
+            if (!timestamp) return 'Never';
+            const secondsAgo = Math.floor(Date.now() / 1000) - timestamp;
+            if (secondsAgo < 60) return `${secondsAgo}s ago`;
+            if (secondsAgo < 3600) return `${Math.floor(secondsAgo / 60)}m ago`;
+            if (secondsAgo < 86400) return `${Math.floor(secondsAgo / 3600)}h ago`;
+            return `${Math.floor(secondsAgo / 86400)}d ago`;
+        };
+        
         // Create stats tiles for BCH miners
         const bchTilesHTML = data.bch_miners.map(m => {
             const stats = m.stats;
@@ -208,6 +218,7 @@ async function loadSolopoolStats() {
                         <div class="stat-label">${bchLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">${stats.workers || 0} / ${stats.workersTotal || 0}</div>
                         ${stats.hashrate ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">${stats.hashrate}</div>` : ''}
+                        ${stats.lastShare ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">Last share: ${formatTimeSince(stats.lastShare)}</div>` : ''}
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">${bchLogo}Current Round Luck</div>
@@ -252,6 +263,7 @@ async function loadSolopoolStats() {
                         <div class="stat-label">${dgbLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">${stats.workers || 0} / ${stats.workersTotal || 0}</div>
                         ${stats.hashrate ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">${stats.hashrate}</div>` : ''}
+                        ${stats.lastShare ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">Last share: ${formatTimeSince(stats.lastShare)}</div>` : ''}
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">${dgbLogo}Current Round Luck</div>
@@ -296,6 +308,7 @@ async function loadSolopoolStats() {
                         <div class="stat-label">${btcLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">${stats.workers || 0} / ${stats.workersTotal || 0}</div>
                         ${stats.hashrate ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">${stats.hashrate}</div>` : ''}
+                        ${stats.lastShare ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">Last share: ${formatTimeSince(stats.lastShare)}</div>` : ''}
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">${btcLogo}Current Round Luck</div>
