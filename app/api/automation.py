@@ -70,6 +70,12 @@ async def get_rule(rule_id: int, db: AsyncSession = Depends(get_db)):
 @router.post("/", response_model=RuleResponse)
 async def create_rule(rule: RuleCreate, db: AsyncSession = Depends(get_db)):
     """Create new automation rule"""
+    # Check for duplicate name
+    result = await db.execute(select(AutomationRule).where(AutomationRule.name == rule.name))
+    existing_rule = result.scalar_one_or_none()
+    if existing_rule:
+        raise HTTPException(status_code=400, detail=f"Rule with name '{rule.name}' already exists")
+    
     db_rule = AutomationRule(
         name=rule.name,
         enabled=rule.enabled,
@@ -95,6 +101,13 @@ async def update_rule(rule_id: int, rule_update: RuleUpdate, db: AsyncSession = 
     
     if not rule:
         raise HTTPException(status_code=404, detail="Rule not found")
+    
+    # Check for duplicate name if name is being updated
+    if rule_update.name is not None and rule_update.name != rule.name:
+        name_check = await db.execute(select(AutomationRule).where(AutomationRule.name == rule_update.name))
+        existing_rule = name_check.scalar_one_or_none()
+        if existing_rule:
+            raise HTTPException(status_code=400, detail=f"Rule with name '{rule_update.name}' already exists")
     
     # Update fields
     if rule_update.name is not None:

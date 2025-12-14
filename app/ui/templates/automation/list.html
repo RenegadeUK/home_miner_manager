@@ -123,7 +123,8 @@ async function duplicateRule(ruleId, ruleName) {
             throw new Error('Failed to duplicate rule');
         }
         
-        window.location.reload();
+        const duplicatedRule = await response.json();
+        window.location.href = `/automation/edit/${duplicatedRule.id}`;
     } catch (error) {
         alert('Error duplicating rule: ' + error.message);
     }
