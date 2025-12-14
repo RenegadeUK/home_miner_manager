@@ -50,12 +50,16 @@ async function loadBraiinsStats() {
         
         const stats = data.stats;
         
-        // Fetch BTC price in GBP
+        // Fetch BTC price in GBP from our backend
         let btcPriceGBP = 0;
         try {
-            const priceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp');
+            const priceResponse = await fetch('/api/settings/crypto-prices');
             const priceData = await priceResponse.json();
-            btcPriceGBP = priceData.bitcoin?.gbp || 0;
+            if (priceData.success) {
+                btcPriceGBP = priceData.bitcoin || 0;
+            } else {
+                console.error('Failed to fetch BTC price:', priceData.error);
+            }
         } catch (error) {
             console.error('Failed to fetch BTC price:', error);
         }
@@ -115,16 +119,20 @@ async function loadSolopoolStats() {
         
         statsDiv.style.display = 'block';
         
-        // Fetch crypto prices in GBP
+        // Fetch crypto prices in GBP from our backend (which logs errors properly)
         let bchPriceGBP = 0;
         let dgbPriceGBP = 0;
         let btcPriceGBP = 0;
         try {
-            const priceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin-cash,digibyte,bitcoin&vs_currencies=gbp');
+            const priceResponse = await fetch('/api/settings/crypto-prices');
             const priceData = await priceResponse.json();
-            bchPriceGBP = priceData['bitcoin-cash']?.gbp || 0;
-            dgbPriceGBP = priceData.digibyte?.gbp || 0;
-            btcPriceGBP = priceData.bitcoin?.gbp || 0;
+            if (priceData.success) {
+                bchPriceGBP = priceData['bitcoin-cash'] || 0;
+                dgbPriceGBP = priceData.digibyte || 0;
+                btcPriceGBP = priceData.bitcoin || 0;
+            } else {
+                console.error('Failed to fetch crypto prices:', priceData.error);
+            }
         } catch (error) {
             console.error('Failed to fetch crypto prices:', error);
         }

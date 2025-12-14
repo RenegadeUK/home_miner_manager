@@ -6,10 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
+import httpx
+import logging
 
-from core.database import get_db, Miner, Pool, Telemetry
+from core.database import get_db, Miner, Pool, Telemetry, Event, AsyncSessionLocal
 from core.config import app_config
 from core.solopool import SolopoolService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -257,3 +261,82 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
         "dgb_miners": dgb_stats_list,
         "btc_miners": btc_stats_list
     }
+
+
+@router.get("/crypto-prices")
+async def get_crypto_prices():
+    """Fetch crypto prices in GBP from CoinGecko API with error logging"""
+    prices = {
+        "bitcoin-cash": 0,
+        "digibyte": 0,
+        "bitcoin": 0,
+        "success": False,
+        "error": None
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                'https://api.coingecko.com/api/v3/simple/price',
+                params={
+                    'ids': 'bitcoin-cash,digibyte,bitcoin',
+                    'vs_currencies': 'gbp'
+                }
+            )
+            
+            if response.status_code != 200:
+                error_msg = f"CoinGecko API returned status {response.status_code}"
+                logger.error(error_msg)
+                
+                # Log event to database
+                async with AsyncSessionLocal() as session:
+                    event = Event(
+                        event_type="api_error",
+                        source="coingecko",
+                        message=f"{error_msg}: {response.text[:200]}"
+                    )
+                    session.add(event)
+                    await session.commit()
+                
+                prices["error"] = error_msg
+                return prices
+            
+            data = response.json()
+            prices["bitcoin-cash"] = data.get("bitcoin-cash", {}).get("gbp", 0)
+            prices["digibyte"] = data.get("digibyte", {}).get("gbp", 0)
+            prices["bitcoin"] = data.get("bitcoin", {}).get("gbp", 0)
+            prices["success"] = True
+            
+            logger.info(f"Fetched crypto prices: BCH=£{prices['bitcoin-cash']}, DGB=£{prices['digibyte']}, BTC=£{prices['bitcoin']}")
+            
+    except httpx.TimeoutException as e:
+        error_msg = f"CoinGecko API timeout: {str(e)}"
+        logger.error(error_msg)
+        
+        async with AsyncSessionLocal() as session:
+            event = Event(
+                event_type="api_error",
+                source="coingecko",
+                message=error_msg
+            )
+            session.add(event)
+            await session.commit()
+        
+        prices["error"] = "Request timeout"
+        
+    except Exception as e:
+        error_msg = f"CoinGecko API error: {str(e)}"
+        logger.error(error_msg)
+        
+        async with AsyncSessionLocal() as session:
+            event = Event(
+                event_type="api_error",
+                source="coingecko",
+                message=error_msg
+            )
+            session.add(event)
+            await session.commit()
+        
+        prices["error"] = str(e)
+    
+    return prices
