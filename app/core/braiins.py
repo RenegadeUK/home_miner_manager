@@ -136,32 +136,40 @@ class BraiinsPoolService:
             "all_time_reward": 0
         }
         
-        # Parse workers data for hashrate
+        # Parse workers data for hashrate and counts
+        total_hashrate_5m = 0
+        total_hashrate_24h = 0
+        workers_online = 0
+        workers_offline = 0
+        
         if workers_data and "btc" in workers_data:
             workers_btc = workers_data["btc"]
-            # Calculate total hashrate from individual workers
-            total_hashrate_5m = 0
-            total_hashrate_24h = 0
-            workers_online = 0
-            workers_offline = 0
             
-            for worker_name, worker_data in workers_btc.items():
-                if isinstance(worker_data, dict):
-                    state = worker_data.get("state", "")
-                    if state == "active":
-                        workers_online += 1
-                    else:
-                        workers_offline += 1
-                    
-                    # Sum up hashrate from all workers
-                    total_hashrate_5m += worker_data.get("hash_rate_5m", 0)
-                    total_hashrate_24h += worker_data.get("hash_rate_24h", 0)
-            
-            summary["workers_online"] = workers_online
-            summary["workers_offline"] = workers_offline
-            summary["total_hashrate"] = total_hashrate_24h
-            summary["hashrate_5m"] = BraiinsPoolService._format_hashrate(total_hashrate_5m)
-            summary["hashrate_24h"] = BraiinsPoolService._format_hashrate(total_hashrate_24h)
+            # Workers data is a dict where keys are worker names and values are worker details
+            if isinstance(workers_btc, dict):
+                for worker_name, worker_data in workers_btc.items():
+                    if isinstance(worker_data, dict):
+                        state = worker_data.get("state", "")
+                        if state == "active":
+                            workers_online += 1
+                        elif state in ["off", "disabled", "dead"]:
+                            workers_offline += 1
+                        
+                        # Sum up hashrate from all workers
+                        total_hashrate_5m += float(worker_data.get("hash_rate_5m", 0))
+                        total_hashrate_24h += float(worker_data.get("hash_rate_24h", 0))
+        
+        # Fallback to profile data for worker counts if workers data didn't provide counts
+        if profile_data and "btc" in profile_data and (workers_online == 0 and workers_offline == 0):
+            btc_data = profile_data["btc"]
+            workers_online = btc_data.get("ok_workers", 0)
+            workers_offline = btc_data.get("off_workers", 0) + btc_data.get("low_workers", 0)
+        
+        summary["workers_online"] = workers_online
+        summary["workers_offline"] = workers_offline
+        summary["total_hashrate"] = total_hashrate_24h
+        summary["hashrate_5m"] = BraiinsPoolService._format_hashrate(total_hashrate_5m)
+        summary["hashrate_24h"] = BraiinsPoolService._format_hashrate(total_hashrate_24h)
         
         # Parse profile data (has balance and reward info)
         if profile_data and "btc" in profile_data:
