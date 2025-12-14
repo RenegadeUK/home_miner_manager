@@ -264,4 +264,33 @@ class SolopoolService:
         else:
             years = ettb_seconds / 31536000
             return {"value": round(years, 1), "unit": "years", "formatted": f"{round(years, 1)}y"}
+    
+    @staticmethod
+    def calculate_ticket_count(network_hashrate: float, user_hashrate: float) -> Optional[Dict[str, Any]]:
+        """
+        Calculate Ticket Count (TC) - your percentage of network hashrate
+        
+        Args:
+            network_hashrate: Network hashrate in H/s
+            user_hashrate: User's hashrate in H/s
+        
+        Returns:
+            Dict with percentage and formatted string or None if calculation not possible
+        """
+        if not network_hashrate or not user_hashrate or network_hashrate <= 0:
+            return None
+        
+        # TC = (Your Hashrate / Network Hashrate) × 100
+        percentage = (user_hashrate / network_hashrate) * 100
+        
+        # Format based on magnitude
+        if percentage >= 1:
+            return {"percentage": percentage, "formatted": f"{percentage:.2f}%"}
+        elif percentage >= 0.01:
+            return {"percentage": percentage, "formatted": f"{percentage:.4f}%"}
+        elif percentage >= 0.0001:
+            return {"percentage": percentage, "formatted": f"{percentage:.6f}%"}
+        else:
+            # For very small percentages, use scientific notation
+            return {"percentage": percentage, "formatted": f"{percentage:.2e}%"}
 
