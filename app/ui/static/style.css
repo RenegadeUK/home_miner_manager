@@ -42,6 +42,12 @@ body {
     height: 100vh;
     display: flex;
     flex-direction: column;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+}
+
+.sidebar.active {
+    transform: translateX(0);
 }
 
 .sidebar-logo {
@@ -116,8 +122,9 @@ body {
 /* Main Content */
 .main-content {
     flex: 1;
-    margin-left: 250px;
+    margin-left: 0;
     padding: 2rem;
+    transition: margin-left 0.3s ease;
 }
 
 .breadcrumbs {
@@ -448,21 +455,13 @@ tr:hover {
 
 /* Sidebar collapsible - defaults */
 .sidebar {
-    transition: transform 0.3s ease;
     z-index: 1000;
-}
-
-.sidebar.active {
-    transform: translateX(0);
-}
-
-.sidebar:not(.active) {
-    transform: translateX(-100%);
 }
 
 /* Desktop: Sidebar visible by default */
 @media (min-width: 769px) {
     .main-content {
+        margin-left: 0;
         transition: margin-left 0.3s ease;
     }
     
