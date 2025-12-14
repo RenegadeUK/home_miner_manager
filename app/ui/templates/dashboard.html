@@ -193,6 +193,16 @@ async function loadSolopoolStats() {
             return `${Math.floor(secondsAgo / 86400)}d ago`;
         };
         
+        // Get color based on time since last share
+        const getTimeSinceColor = (timestamp) => {
+            if (!timestamp) return '#999';
+            const secondsAgo = Math.floor(Date.now() / 1000) - timestamp;
+            const minutesAgo = secondsAgo / 60;
+            if (minutesAgo < 15) return '#28a745'; // green
+            if (minutesAgo < 30) return '#ff8c00'; // orange
+            return '#dc3545'; // red
+        };
+        
         // Create stats tiles for BCH miners
         const bchTilesHTML = data.bch_miners.map(m => {
             const stats = m.stats;
@@ -227,7 +237,7 @@ async function loadSolopoolStats() {
                     <div class="stat-card">
                         <div class="stat-label">${bchLogo}Blocks (24h/7d/30d)</div>
                         <div class="stat-value" style="font-size: 1.5rem;">${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}</div>
-                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()} ${shareChangeText}${stats.lastShare ? ` - ${formatTimeSince(stats.lastShare)}` : ''}</div>
+                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()} ${shareChangeText}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">${bchLogo}Total Paid</div>
@@ -271,7 +281,7 @@ async function loadSolopoolStats() {
                     <div class="stat-card">
                         <div class="stat-label">${dgbLogo}Blocks (24h/7d/30d)</div>
                         <div class="stat-value" style="font-size: 1.5rem;">${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}</div>
-                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()} ${shareChangeText}${stats.lastShare ? ` - ${formatTimeSince(stats.lastShare)}` : ''}</div>
+                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()} ${shareChangeText}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">${dgbLogo}Total Paid</div>
@@ -315,7 +325,7 @@ async function loadSolopoolStats() {
                     <div class="stat-card">
                         <div class="stat-label">${btcLogo}Blocks (24h/7d/30d)</div>
                         <div class="stat-value" style="font-size: 1.5rem;">${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}</div>
-                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()} ${shareChangeText}${stats.lastShare ? ` - ${formatTimeSince(stats.lastShare)}` : ''}</div>
+                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()} ${shareChangeText}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">${btcLogo}Total Paid</div>
