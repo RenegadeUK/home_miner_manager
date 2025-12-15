@@ -108,12 +108,16 @@ Rules stored in SQLite with JSON condition/action schema.
 - Future: Real-time dashboard widgets with drag-and-drop customization
 - Future: PDF export of performance reports
 
-11.2 Energy Optimization
-- Smart scheduling: auto-adjust modes based on Agile pricing thresholds
-- ROI calculator: real-time profitability (coin value - energy cost)
-- Break-even projections and mining profitability alerts
-- Carbon footprint tracking using UK grid mix data
-- Power consumption forecasting
+11.2 Energy Optimization ✅ COMPLETED
+- ✅ Smart scheduling: auto-adjust modes based on Agile pricing thresholds
+- ✅ ROI calculator: real-time profitability (coin value - energy cost)
+- ✅ Price forecast visualization with 24-hour ahead predictions
+- ✅ Auto-optimization toggle with configurable price threshold
+- ✅ Manual trigger button for immediate optimization
+- ✅ Conflict prevention with automation rules
+- Future: Break-even projections and mining profitability alerts
+- Future: Carbon footprint tracking using UK grid mix data
+- Future: Power consumption forecasting
 
 11.3 Pool Management
 - Intelligent failover: auto-switch on high reject rate or pool offline
