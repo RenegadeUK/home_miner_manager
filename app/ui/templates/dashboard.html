@@ -361,19 +361,24 @@ async function loadSolopoolStats() {
             xmrTilesHTML = xmrPools.map(p => {
                 return `
                     <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">${xmrLogo}Workers Online</div>
+                            <div class="stat-value" style="font-size: 1.5rem;">0 / 0</div>
+                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">No miners connected</div>
+                        </div>
                         <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${p.username}', '_blank')" style="cursor: pointer;">
-                            <div class="stat-label">${xmrLogo}XMR Pool Configured</div>
-                            <div class="stat-value" style="font-size: 1.25rem;">${p.username}</div>
-                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Click to view account stats</div>
+                            <div class="stat-label">${xmrLogo}Current Round Luck</div>
+                            <div class="stat-value" style="font-size: 1.5rem;">-</div>
+                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">Pool: ${p.pool_url}</div>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-label">${xmrLogo}Status</div>
-                            <div class="stat-value" style="font-size: 1.5rem; color: #666;">No Active Miners</div>
-                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Waiting for miner connection</div>
+                        <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${p.username}', '_blank')" style="cursor: pointer;">
+                            <div class="stat-label">${xmrLogo}Blocks (24h/7d/30d)</div>
+                            <div class="stat-value" style="font-size: 1.5rem;">0 / 0 / 0</div>
+                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: 0</div>
                         </div>
-                        <div class="stat-card">
-                            <div class="stat-label">${xmrLogo}Pool Server</div>
-                            <div class="stat-value" style="font-size: 1rem;">${p.pool_url}:${p.pool_port}</div>
+                        <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${p.username}', '_blank')" style="cursor: pointer;">
+                            <div class="stat-label">${xmrLogo}Total Paid</div>
+                            <div class="stat-value" style="font-size: 1.25rem;">0.000000000000 XMR<br><span style="font-size: 0.9rem; color: #666;">£0.00${cacheAgeIndicator}</span></div>
                         </div>
                     </div>
                 `;
