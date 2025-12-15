@@ -164,6 +164,22 @@ class HealthScore(Base):
     details: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
 
+class PoolHealth(Base):
+    """Pool health metrics and monitoring"""
+    __tablename__ = "pool_health"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pool_id: Mapped[int] = mapped_column(Integer, index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    response_time_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    is_reachable: Mapped[bool] = mapped_column(Boolean, default=True)
+    reject_rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Percentage
+    shares_accepted: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    shares_rejected: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    health_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0-100
+    error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+
+
 # Database engine and session
 DATABASE_URL = f"sqlite+aiosqlite:///{settings.DB_PATH}"
 engine = create_async_engine(DATABASE_URL, echo=False)

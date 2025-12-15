@@ -96,6 +96,20 @@ class SchedulerService:
             name="Optimize database (VACUUM)"
         )
         
+        self.scheduler.add_job(
+            self._monitor_pool_health,
+            IntervalTrigger(minutes=5),
+            id="monitor_pool_health",
+            name="Monitor pool health and connectivity"
+        )
+        
+        self.scheduler.add_job(
+            self._purge_old_pool_health,
+            IntervalTrigger(days=7),
+            id="purge_old_pool_health",
+            name="Purge pool health data older than 30 days"
+        )
+        
         # Start NMMiner UDP listener
         self.scheduler.add_job(
             self._start_nmminer_listener,
@@ -957,6 +971,47 @@ class SchedulerService:
             print(f"❌ Failed to auto-optimize miners: {e}")
             import traceback
             traceback.print_exc()
+    
+    async def _monitor_pool_health(self):
+        """Monitor health of all enabled pools"""
+        from core.database import AsyncSessionLocal, Pool
+        from core.pool_health import PoolHealthService
+        from sqlalchemy import select
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                # Get all enabled pools
+                result = await db.execute(select(Pool).where(Pool.enabled == True))
+                pools = result.scalars().all()
+                
+                for pool in pools:
+                    try:
+                        await PoolHealthService.monitor_pool(pool.id, db)
+                        print(f"🌊 Pool health check completed: {pool.name}")
+                    except Exception as e:
+                        print(f"❌ Failed to monitor pool {pool.name}: {e}")
+        
+        except Exception as e:
+            print(f"❌ Failed to monitor pool health: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _purge_old_pool_health(self):
+        """Purge pool health data older than 30 days"""
+        from core.database import AsyncSessionLocal, PoolHealth
+        from sqlalchemy import delete
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                cutoff = datetime.utcnow() - timedelta(days=30)
+                result = await db.execute(
+                    delete(PoolHealth).where(PoolHealth.timestamp < cutoff)
+                )
+                await db.commit()
+                print(f"🗑️ Purged {result.rowcount} old pool health records")
+        
+        except Exception as e:
+            print(f"❌ Failed to purge old pool health data: {e}")
 
 
 scheduler = SchedulerService()
