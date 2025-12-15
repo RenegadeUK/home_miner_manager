@@ -145,6 +145,13 @@ class SolopoolService:
         workers = stats.get("workers", {})
         total_shares = sum(worker.get("sharesValid", 0) for worker in workers.values() if isinstance(worker, dict))
         
+        # Get last block timestamp from payments array
+        last_block_timestamp = None
+        payments = stats.get("payments", [])
+        if payments and len(payments) > 0:
+            # Payments are ordered newest first
+            last_block_timestamp = payments[0].get("timestamp")
+        
         return {
             "hashrate": hashrate_formatted,
             "hashrate_raw": hashrate,
@@ -154,6 +161,7 @@ class SolopoolService:
             "shares": total_shares,
             "paid": stats.get("paymentsTotal", 0),  # In satoshis
             "lastShare": stats_obj.get("lastShare"),
+            "lastBlockTimestamp": last_block_timestamp,  # Timestamp of last block found
             "current_luck": current_luck,  # Current round luck (what UI shows)
             "blocks_24h": earnings_map.get("24h", {}).get("blocks", 0),
             "luck_24h": earnings_map.get("24h", {}).get("luck", 0),
