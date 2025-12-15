@@ -25,6 +25,10 @@
                 <optgroup label="Solopool.org - Bitcoin (BTC)">
                     <option value="btc-eu3">Solopool.org BTC (EU3)</option>
                 </optgroup>
+                <optgroup label="Solopool.org - Monero (XMR)">
+                    <option value="xmr-eu1">Solopool.org XMR (EU1)</option>
+                    <option value="xmr-us1">Solopool.org XMR (US1)</option>
+                </optgroup>
             </select>
         </div>
         
@@ -90,8 +94,12 @@
                 <li><strong>Solopool.org BCH:</strong> Bitcoin Cash solo mining (ports 8002)</li>
                 <li><strong>Solopool.org DGB:</strong> DigiByte SHA256 solo mining (ports 8004)</li>
                 <li><strong>Solopool.org BTC:</strong> Bitcoin solo mining (port 8005)</li>
+                <li><strong>Solopool.org XMR:</strong> Monero RandomX solo mining (port 8010)</li>
             </ul>
-        </div>4 style="color: var(--primary); margin-bottom: 0.5rem;">Manual Setup</h4>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="color: var(--primary); margin-bottom: 0.5rem;">Manual Setup</h4>
             <ol style="line-height: 1.8;">
                 <li>Select "Manual Setup" from the dropdown</li>
                 <li>Fill in all required fields:
@@ -145,6 +153,16 @@ const POOL_PRESETS = {
         name: 'Solopool.org BTC (EU3)',
         url: 'eu3.solopool.org',
         port: 8005
+    },
+    'xmr-eu1': {
+        name: 'Solopool.org XMR (EU1)',
+        url: 'eu1.solopool.org',
+        port: 8010
+    },
+    'xmr-us1': {
+        name: 'Solopool.org XMR (US1)',
+        url: 'us1.solopool.org',
+        port: 8010
     }
 };
 
