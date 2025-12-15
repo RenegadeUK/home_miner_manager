@@ -316,38 +316,62 @@ async function loadSolopoolStats() {
             `;
         }).join('');
         
-        // Create stats tiles for XMR - show if we have active miners OR just configured pools
-        const xmrDataList = data.xmr_miners.length > 0 ? data.xmr_miners : (data.xmr_pools || []);
-        const xmrTilesHTML = xmrDataList.map(m => {
-            const stats = m.stats || {};
-            const paidXMR = stats.paid ? (stats.paid / 1000000000000) : 0;
-            const paidGBP = xmrPriceGBP > 0 ? (paidXMR * xmrPriceGBP).toFixed(2) : '0.00';
-            const currentShares = stats.shares || 0;
-            
-            return `
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-label">${xmrLogo}Workers Online</div>
-                        <div class="stat-value" style="font-size: 1.5rem;">${stats.workers || 0} / ${stats.workersTotal || 0}</div>
-                        ${stats.hashrate ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">${stats.hashrate}</div>` : ''}
+        // Create stats tiles for XMR miners
+        let xmrTilesHTML = '';
+        if (data.xmr_miners.length > 0) {
+            xmrTilesHTML = data.xmr_miners.map(m => {
+                const stats = m.stats || {};
+                const paidXMR = stats.paid ? (stats.paid / 1000000000000) : 0;
+                const paidGBP = xmrPriceGBP > 0 ? (paidXMR * xmrPriceGBP).toFixed(2) : '0.00';
+                const currentShares = stats.shares || 0;
+                
+                return `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">${xmrLogo}Workers Online</div>
+                            <div class="stat-value" style="font-size: 1.5rem;">${stats.workers || 0} / ${stats.workersTotal || 0}</div>
+                            ${stats.hashrate ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">${stats.hashrate}</div>` : ''}
+                        </div>
+                        <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                            <div class="stat-label">${xmrLogo}Current Round Luck</div>
+                            <div class="stat-value" style="font-size: 1.5rem;">${luckFormat(stats.current_luck)}</div>
+                            ${stats.ettb ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">ETTB: ${stats.ettb.formatted} - ${stats.lastBlockTimestamp ? `<span style="color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: #999;">∞</span>`}</div>` : ''}
+                        </div>
+                        <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                            <div class="stat-label">${xmrLogo}Blocks (24h/7d/30d)</div>
+                            <div class="stat-value" style="font-size: 1.5rem;">${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}</div>
+                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</div>
+                        </div>
+                        <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                            <div class="stat-label">${xmrLogo}Total Paid</div>
+                            <div class="stat-value" style="font-size: 1.25rem;">${paidXMR.toFixed(12)} XMR<br><span style="font-size: 0.9rem; color: #666;">£${paidGBP}${cacheAgeIndicator}</span></div>
+                        </div>
                     </div>
-                    <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
-                        <div class="stat-label">${xmrLogo}Current Round Luck</div>
-                        <div class="stat-value" style="font-size: 1.5rem;">${luckFormat(stats.current_luck)}</div>
-                        ${stats.ettb ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">ETTB: ${stats.ettb.formatted} - ${stats.lastBlockTimestamp ? `<span style="color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: #999;">∞</span>`}</div>` : ''}
+                `;
+            }).join('');
+        } else if (data.xmr_pools && data.xmr_pools.length > 0) {
+            // Show placeholder tiles for configured XMR pools without active miners
+            xmrTilesHTML = data.xmr_pools.map(p => {
+                return `
+                    <div class="stats-grid">
+                        <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${p.username}', '_blank')" style="cursor: pointer;">
+                            <div class="stat-label">${xmrLogo}XMR Pool Configured</div>
+                            <div class="stat-value" style="font-size: 1.25rem;">${p.username}</div>
+                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Click to view account stats</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">${xmrLogo}Status</div>
+                            <div class="stat-value" style="font-size: 1.5rem; color: #666;">No Active Miners</div>
+                            <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Waiting for miner connection</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">${xmrLogo}Pool Server</div>
+                            <div class="stat-value" style="font-size: 1rem;">${p.pool_url}:${p.pool_port}</div>
+                        </div>
                     </div>
-                    <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
-                        <div class="stat-label">${xmrLogo}Blocks (24h/7d/30d)</div>
-                        <div class="stat-value" style="font-size: 1.5rem;">${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}</div>
-                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</div>
-                    </div>
-                    <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
-                        <div class="stat-label">${xmrLogo}Total Paid</div>
-                        <div class="stat-value" style="font-size: 1.25rem;">${paidXMR.toFixed(12)} XMR<br><span style="font-size: 0.9rem; color: #666;">£${paidGBP}${cacheAgeIndicator}</span></div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
+        }
         
         statsDiv.innerHTML = bchTilesHTML + dgbTilesHTML + btcTilesHTML + xmrTilesHTML;
     } catch (error) {
