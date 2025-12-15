@@ -905,6 +905,7 @@ class SchedulerService:
                 
                 mode_map = {
                     "avalon_nano_3": {"low": "low", "high": "high"},
+                    "avalon_nano": {"low": "low", "high": "high"},
                     "bitaxe": {"low": "eco", "high": "turbo"},
                     "nerdqaxe": {"low": "eco", "high": "turbo"}
                 }
@@ -924,16 +925,21 @@ class SchedulerService:
                     
                     if adapter:
                         try:
-                            # Get current telemetry to check mode
-                            telemetry = await adapter.get_telemetry()
-                            current_mode = telemetry.current_mode if telemetry else None
+                            # Get current mode from database
+                            current_mode = miner.current_mode
                             print(f"⚡ Current mode for {miner.name}: {current_mode}")
                             
                             # Only change if different
                             if current_mode != target_mode:
                                 print(f"⚡ Changing {miner.name} mode: {current_mode} → {target_mode}")
-                                await adapter.set_mode(target_mode)
-                                print(f"⚡ Auto-optimized {miner.name}: {current_mode} → {target_mode} (price: {current_price}p/kWh)")
+                                success = await adapter.set_mode(target_mode)
+                                if success:
+                                    # Update database
+                                    miner.current_mode = target_mode
+                                    await db.commit()
+                                    print(f"⚡ Auto-optimized {miner.name}: {current_mode} → {target_mode} (price: {current_price}p/kWh)")
+                                else:
+                                    print(f"❌ Failed to set mode for {miner.name}")
                             else:
                                 print(f"⚡ {miner.name} already in {target_mode} mode, skipping")
                         

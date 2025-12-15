@@ -100,11 +100,13 @@ async def get_energy_overview(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Miner).where(Miner.enabled == True))
     miners = result.scalars().all()
     
-    # Get coin prices
-    from api.settings import crypto_prices_cache
+    # Get coin prices from database
+    from core.database import CryptoPrice
     coin_prices = None
-    if crypto_prices_cache.get("data"):
-        prices = crypto_prices_cache["data"]
+    result_prices = await db.execute(select(CryptoPrice))
+    crypto_prices = result_prices.scalars().all()
+    if crypto_prices:
+        prices = {cp.coin_id: cp.price_gbp for cp in crypto_prices}
         coin_prices = {
             "BTC": prices.get("bitcoin", 0),
             "BCH": prices.get("bitcoin-cash", 0),
