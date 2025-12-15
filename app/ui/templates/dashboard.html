@@ -314,8 +314,28 @@ async function loadDashboard() {
         const stats = data.stats;
         document.getElementById('total-miners').textContent = stats.total_miners;
         document.getElementById('total-hashrate').textContent = formatHashrate(stats.total_hashrate_ghs);
-        document.getElementById('energy-price').textContent = 
-            stats.current_energy_price_pence ? stats.current_energy_price_pence.toFixed(2) + ' p/kWh' : '-- p/kWh';
+        
+        // Update energy price with color coding
+        const priceElement = document.getElementById('energy-price');
+        if (stats.current_energy_price_pence !== null && stats.current_energy_price_pence !== undefined) {
+            const price = stats.current_energy_price_pence;
+            priceElement.textContent = price.toFixed(2) + ' p/kWh';
+            
+            // Color code: blue (<0), green (0-20), orange (20-30), red (30+)
+            if (price < 0) {
+                priceElement.style.color = '#3b82f6'; // blue
+            } else if (price < 20) {
+                priceElement.style.color = '#10b981'; // green
+            } else if (price < 30) {
+                priceElement.style.color = '#f59e0b'; // orange
+            } else {
+                priceElement.style.color = '#ef4444'; // red
+            }
+        } else {
+            priceElement.textContent = '-- p/kWh';
+            priceElement.style.color = ''; // reset to default
+        }
+        
         document.getElementById('total-cost-24h').textContent = 
             stats.total_cost_24h_pounds !== undefined ? '£' + stats.total_cost_24h_pounds.toFixed(2) : '£0.00';
         
