@@ -186,7 +186,7 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     """Get Solopool stats for all miners using Solopool pools (BCH, DGB, BTC, and XMR)"""
     # Check if Solopool integration is enabled
     if not app_config.get("solopool_enabled", False):
-        return {"enabled": False, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "xmr_miners": []}
+        return {"enabled": False, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "xmr_pools": [], "xmr_miners": []}
     
     # Get all pools
     pool_result = await db.execute(select(Pool))
