@@ -183,10 +183,10 @@ async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
 
 @router.get("/solopool/stats")
 async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
-    """Get Solopool stats for all miners using Solopool pools (BCH, DGB, and BTC)"""
+    """Get Solopool stats for all miners using Solopool pools (BCH, DGB, BTC, and XMR)"""
     # Check if Solopool integration is enabled
     if not app_config.get("solopool_enabled", False):
-        return {"enabled": False, "bch_miners": [], "dgb_miners": [], "btc_miners": []}
+        return {"enabled": False, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "xmr_miners": []}
     
     # Get all pools
     pool_result = await db.execute(select(Pool))
@@ -195,6 +195,7 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     bch_pools = {}
     dgb_pools = {}
     btc_pools = {}
+    xmr_pools = {}
     for pool in all_pools:
         if SolopoolService.is_solopool_bch_pool(pool.url, pool.port):
             bch_pools[pool.url] = pool
@@ -202,14 +203,17 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
             dgb_pools[pool.url] = pool
         elif SolopoolService.is_solopool_btc_pool(pool.url, pool.port):
             btc_pools[pool.url] = pool
+        elif SolopoolService.is_solopool_xmr_pool(pool.url, pool.port):
+            xmr_pools[pool.url] = pool
     
-    if not bch_pools and not dgb_pools and not btc_pools:
-        return {"enabled": True, "bch_miners": [], "dgb_miners": [], "btc_miners": []}
+    if not bch_pools and not dgb_pools and not btc_pools and not xmr_pools:
+        return {"enabled": True, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "xmr_miners": []}
     
     # Fetch network/pool stats for ETTB calculation
     bch_network_stats = await SolopoolService.get_bch_pool_stats() if bch_pools else None
     dgb_network_stats = await SolopoolService.get_dgb_pool_stats() if dgb_pools else None
     btc_network_stats = await SolopoolService.get_btc_pool_stats() if btc_pools else None
+    xmr_network_stats = await SolopoolService.get_xmr_pool_stats() if xmr_pools else None
     
     # Get all enabled miners
     miner_result = await db.execute(select(Miner).where(Miner.enabled == True))
@@ -218,9 +222,11 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     bch_stats_list = []
     dgb_stats_list = []
     btc_stats_list = []
+    xmr_stats_list = []
     bch_processed_usernames = set()
     dgb_processed_usernames = set()
     btc_processed_usernames = set()
+    xmr_processed_usernames = set()
     
     for miner in miners:
         # Get latest telemetry to see which pool they're using
@@ -334,12 +340,46 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
                         "coin": "BTC",
                         "stats": formatted_stats
                     })
+            continue
+        
+        # Check XMR pools
+        matching_pool = None
+        for pool_url, pool_obj in xmr_pools.items():
+            if pool_url in pool_in_use:
+                matching_pool = pool_obj
+                break
+        
+        if matching_pool:
+            username = SolopoolService.extract_username(matching_pool.user)
+            if username not in xmr_processed_usernames:
+                xmr_processed_usernames.add(username)
+                xmr_stats = await SolopoolService.get_xmr_account_stats(username)
+                if xmr_stats:
+                    formatted_stats = SolopoolService.format_stats_summary(xmr_stats)
+                    # Calculate ETTB (XMR block time: 120 seconds)
+                    if xmr_network_stats:
+                        network_hashrate = xmr_network_stats.get("stats", {}).get("hashrate", 0)
+                        user_hashrate = formatted_stats.get("hashrate_raw", 0)
+                        ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 120)
+                        formatted_stats["ettb"] = ettb
+                        formatted_stats["network_hashrate"] = network_hashrate
+                    
+                    xmr_stats_list.append({
+                        "miner_id": miner.id,
+                        "miner_name": miner.name,
+                        "pool_url": matching_pool.url,
+                        "pool_port": matching_pool.port,
+                        "username": username,
+                        "coin": "XMR",
+                        "stats": formatted_stats
+                    })
     
     return {
         "enabled": True,
         "bch_miners": bch_stats_list,
         "dgb_miners": dgb_stats_list,
-        "btc_miners": btc_stats_list
+        "btc_miners": btc_stats_list,
+        "xmr_miners": xmr_stats_list
     }
 
 

@@ -21,6 +21,10 @@ class SolopoolService:
     BTC_POOLS = ["eu3.solopool.org"]
     BTC_PORT = 8005
     
+    XMR_API_BASE = "https://xmr.solopool.org/api"
+    XMR_POOLS = ["eu1.solopool.org"]
+    XMR_PORT = 8010
+    
     @staticmethod
     def is_solopool_bch_pool(pool_url: str, pool_port: int) -> bool:
         """Check if pool is a Solopool BCH pool"""
@@ -35,6 +39,11 @@ class SolopoolService:
     def is_solopool_btc_pool(pool_url: str, pool_port: int) -> bool:
         """Check if pool is a Solopool BTC pool"""
         return pool_url in SolopoolService.BTC_POOLS and pool_port == SolopoolService.BTC_PORT
+    
+    @staticmethod
+    def is_solopool_xmr_pool(pool_url: str, pool_port: int) -> bool:
+        """Check if pool is a Solopool XMR pool"""
+        return pool_url in SolopoolService.XMR_POOLS and pool_port == SolopoolService.XMR_PORT
     
     @staticmethod
     def extract_username(pool_user: str) -> str:
@@ -100,6 +109,26 @@ class SolopoolService:
                         return None
         except Exception as e:
             print(f"❌ Failed to fetch Solopool BTC stats for {username}: {e}")
+            return None
+    
+    @staticmethod
+    async def get_xmr_account_stats(username: str) -> Optional[Dict[str, Any]]:
+        """Fetch XMR account stats from Solopool API"""
+        if not username:
+            return None
+        
+        try:
+            url = f"{SolopoolService.XMR_API_BASE}/accounts/{username}"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data
+                    else:
+                        print(f"⚠️ Solopool XMR API returned status {response.status} for user {username}")
+                        return None
+        except Exception as e:
+            print(f"❌ Failed to fetch Solopool XMR stats for {username}: {e}")
             return None
     
     @staticmethod
@@ -242,8 +271,23 @@ class SolopoolService:
             print(f"❌ Failed to fetch Solopool BTC pool stats: {e}")
             return None
     
-    @staticmethod
-    def calculate_ettb(network_hashrate: float, user_hashrate: float, block_time_seconds: int) -> Optional[Dict[str, Any]]:
+    @staticmethod    async def get_xmr_pool_stats() -> Optional[Dict[str, Any]]:
+        \"\"\"Fetch XMR pool/network stats from Solopool API\"\"\"
+        try:
+            url = f\"{SolopoolService.XMR_API_BASE}/stats\"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data
+                    else:
+                        print(f\"⚠️ Solopool XMR pool stats API returned status {response.status}\")
+                        return None
+        except Exception as e:
+            print(f\"❌ Failed to fetch Solopool XMR pool stats: {e}\")
+            return None
+    
+    @staticmethod    def calculate_ettb(network_hashrate: float, user_hashrate: float, block_time_seconds: int) -> Optional[Dict[str, Any]]:
         """
         Calculate Expected Time To Block (ETTB)
         

@@ -137,7 +137,7 @@ async function loadSolopoolStats() {
         
         const statsDiv = document.getElementById('solopool-stats');
         
-        if (!data.enabled || (data.bch_miners.length === 0 && data.dgb_miners.length === 0 && data.btc_miners.length === 0)) {
+        if (!data.enabled || (data.bch_miners.length === 0 && data.dgb_miners.length === 0 && data.btc_miners.length === 0 && data.xmr_miners.length === 0)) {
             statsDiv.style.display = 'none';
             return;
         }
@@ -148,6 +148,7 @@ async function loadSolopoolStats() {
         let bchPriceGBP = 0;
         let dgbPriceGBP = 0;
         let btcPriceGBP = 0;
+        let xmrPriceGBP = 0;
         let cacheAgeIndicator = '';
         
         // Helper function to get cache age indicator with color
@@ -166,6 +167,7 @@ async function loadSolopoolStats() {
                 bchPriceGBP = priceData['bitcoin-cash'] || 0;
                 dgbPriceGBP = priceData.digibyte || 0;
                 btcPriceGBP = priceData.bitcoin || 0;
+                xmrPriceGBP = priceData.monero || 0;
                 cacheAgeIndicator = getCacheIndicator(priceData.age_minutes);
             } else {
                 console.error('Failed to fetch crypto prices:', priceData.error);
@@ -176,6 +178,9 @@ async function loadSolopoolStats() {
         
         // BCH logo SVG
         const bchLogo = `<svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;"><circle cx="16" cy="16" r="16" fill="#8dc351"/><path fill="#fff" d="M21.207 10.534c-.776-1.93-2.84-2.535-4.684-2.191l-.455-2.316-1.48.292.447 2.27c-.392.078-.794.159-1.19.239l-.451-2.282-1.479.292.455 2.317c-.323.064-.64.127-.95.19l-.002-.008-2.04.403.322 1.672s1.097-.223 1.077-.211c.599-.118.948.062 1.119.476l.546 2.78c.035-.009.08-.02.13-.031l-.132.033.767 3.896c-.024.172-.11.417-.439.49.024.02-1.076.212-1.076.212l-.087 1.791 1.925-.379c.357-.07.712-.143 1.06-.212l.462 2.345 1.479-.291-.455-2.311c.396-.085.783-.164 1.161-.247l.452 2.297 1.48-.291-.461-2.343c1.872-.397 3.301-1.187 3.598-3.168.239-1.59-.318-2.405-1.398-2.868.805-.464 1.346-1.193 1.141-2.433zm-1.018 4.388c.318 2.034-2.764 2.55-3.96 2.843l-.718-3.651c1.197-.296 4.363-1.322 4.678.808zm-1.18-3.365c.29 1.854-2.373 2.305-3.408 2.565l-.651-3.314c1.035-.257 3.724-1.03 4.059.749z"/></svg>`;
+        
+        // XMR logo SVG
+        const xmrLogo = `<svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;"><circle cx="16" cy="16" r="16" fill="#ff6600"/><path fill="#fff" d="M16 5L6 15v6h3v-6l7-7 7 7v6h3v-6l-10-10z"/><path fill="#fff" d="M13 18v8h6v-8l-3-3-3 3z"/></svg>`;
         
         // DGB logo SVG
         const dgbLogo = `<svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;"><circle cx="16" cy="16" r="16" fill="#006ad2"/><path fill="#fff" d="M16 4L7 9v7l9 5 9-5V9l-9-5zm6 11.3l-6 3.3-6-3.3V10l6-3.3L22 10v5.3z"/><path fill="#fff" d="M16 11l-3 1.7v3.5l3 1.7 3-1.7v-3.5L16 11z"/></svg>`;
@@ -311,7 +316,39 @@ async function loadSolopoolStats() {
             `;
         }).join('');
         
-        statsDiv.innerHTML = bchTilesHTML + dgbTilesHTML + btcTilesHTML;
+        // Create stats tiles for XMR miners
+        const xmrTilesHTML = data.xmr_miners.map(m => {
+            const stats = m.stats;
+            const paidXMR = stats.paid ? (stats.paid / 1000000000000) : 0;
+            const paidGBP = xmrPriceGBP > 0 ? (paidXMR * xmrPriceGBP).toFixed(2) : '0.00';
+            const currentShares = stats.shares || 0;
+            
+            return `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">${xmrLogo}Workers Online</div>
+                        <div class="stat-value" style="font-size: 1.5rem;">${stats.workers || 0} / ${stats.workersTotal || 0}</div>
+                        ${stats.hashrate ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">${stats.hashrate}</div>` : ''}
+                    </div>
+                    <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                        <div class="stat-label">${xmrLogo}Current Round Luck</div>
+                        <div class="stat-value" style="font-size: 1.5rem;">${luckFormat(stats.current_luck)}</div>
+                        ${stats.ettb ? `<div style="font-size: 0.875rem; color: #666; margin-top: 0.25rem;">ETTB: ${stats.ettb.formatted} - ${stats.lastBlockTimestamp ? `<span style="color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: #999;">∞</span>`}</div>` : ''}
+                    </div>
+                    <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                        <div class="stat-label">${xmrLogo}Blocks (24h/7d/30d)</div>
+                        <div class="stat-value" style="font-size: 1.5rem;">${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}</div>
+                        <div style="font-size: 0.875rem; color: #666; margin-top: 0.5rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</div>
+                    </div>
+                    <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                        <div class="stat-label">${xmrLogo}Total Paid</div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${paidXMR.toFixed(12)} XMR<br><span style="font-size: 0.9rem; color: #666;">£${paidGBP}${cacheAgeIndicator}</span></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        statsDiv.innerHTML = bchTilesHTML + dgbTilesHTML + btcTilesHTML + xmrTilesHTML;
     } catch (error) {
         console.error('Failed to load Solopool stats:', error);
         document.getElementById('solopool-stats').style.display = 'none';
