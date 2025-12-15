@@ -271,7 +271,8 @@ class SolopoolService:
             print(f"❌ Failed to fetch Solopool BTC pool stats: {e}")
             return None
     
-    @staticmethod    async def get_xmr_pool_stats() -> Optional[Dict[str, Any]]:
+    @staticmethod
+    async def get_xmr_pool_stats() -> Optional[Dict[str, Any]]:
         \"\"\"Fetch XMR pool/network stats from Solopool API\"\"\"
         try:
             url = f\"{SolopoolService.XMR_API_BASE}/stats\"
