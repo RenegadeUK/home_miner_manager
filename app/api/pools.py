@@ -242,6 +242,7 @@ async def list_strategies(db: AsyncSession = Depends(get_db)):
             "strategy_type": s.strategy_type,
             "enabled": s.enabled,
             "pool_ids": s.pool_ids,
+            "miner_ids": s.miner_ids if s.miner_ids else [],
             "config": s.config,
             "current_pool_index": s.current_pool_index,
             "last_switch": s.last_switch.isoformat() if s.last_switch else None
@@ -305,6 +306,7 @@ async def create_strategy(strategy: PoolStrategyCreate, db: AsyncSession = Depen
         "strategy_type": new_strategy.strategy_type,
         "enabled": new_strategy.enabled,
         "pool_ids": new_strategy.pool_ids,
+        "miner_ids": new_strategy.miner_ids if new_strategy.miner_ids else [],
         "config": new_strategy.config,
         "current_pool_index": new_strategy.current_pool_index,
         "last_switch": new_strategy.last_switch.isoformat() if new_strategy.last_switch else None
@@ -328,6 +330,7 @@ async def get_strategy(strategy_id: int, db: AsyncSession = Depends(get_db)):
         "strategy_type": strategy.strategy_type,
         "enabled": strategy.enabled,
         "pool_ids": strategy.pool_ids,
+        "miner_ids": strategy.miner_ids if strategy.miner_ids else [],
         "config": strategy.config,
         "current_pool_index": strategy.current_pool_index,
         "last_switch": strategy.last_switch.isoformat() if strategy.last_switch else None
@@ -404,6 +407,7 @@ async def update_strategy(
         "strategy_type": strategy.strategy_type,
         "enabled": strategy.enabled,
         "pool_ids": strategy.pool_ids,
+        "miner_ids": strategy.miner_ids if strategy.miner_ids else [],
         "config": strategy.config,
         "current_pool_index": strategy.current_pool_index,
         "last_switch": strategy.last_switch.isoformat() if strategy.last_switch else None
