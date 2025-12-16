@@ -154,8 +154,13 @@
 
 {% block content %}
 <div class="pools-container">
-    <div style="display: flex; justify-content: flex-end; margin-bottom: 1.5rem;">
-        <a href="/pools/performance" class="btn btn-primary">📊 Compare Performance</a>
+    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 1.5rem;">
+        <a href="/pools/strategies" class="btn btn-secondary">
+            <i class="fas fa-random"></i> Strategies
+        </a>
+        <a href="/pools/performance" class="btn btn-primary">
+            <i class="fas fa-chart-line"></i> Compare Performance
+        </a>
     </div>
     <div class="pools-grid">
         {% for pool in pools %}

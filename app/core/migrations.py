@@ -98,3 +98,51 @@ async def run_migrations():
         except Exception:
             # Column already exists
             pass
+        
+        # Migration 7: Create pool_strategies table
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS pool_strategies (
+                    id INTEGER PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    strategy_type VARCHAR(50) NOT NULL,
+                    enabled BOOLEAN DEFAULT 0,
+                    pool_ids JSON NOT NULL,
+                    config JSON NOT NULL,
+                    current_pool_index INTEGER DEFAULT 0,
+                    last_switch DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created pool_strategies table")
+        except Exception:
+            pass
+        
+        # Migration 8: Create pool_strategy_logs table
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS pool_strategy_logs (
+                    id INTEGER PRIMARY KEY,
+                    strategy_id INTEGER NOT NULL,
+                    from_pool_id INTEGER,
+                    to_pool_id INTEGER,
+                    reason VARCHAR(255) NOT NULL,
+                    miners_affected INTEGER DEFAULT 0,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created pool_strategy_logs table")
+        except Exception:
+            pass
+        
+        # Migration 9: Add priority column to pools
+        try:
+            await conn.execute(text("""
+                ALTER TABLE pools 
+                ADD COLUMN priority INTEGER DEFAULT 0
+            """))
+            print("✓ Added priority column to pools")
+        except Exception:
+            # Column already exists
+            pass

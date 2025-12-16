@@ -121,6 +121,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._execute_pool_strategies,
+            IntervalTrigger(minutes=1),
+            id="execute_pool_strategies",
+            name="Execute active pool strategies"
+        )
+        
+        self.scheduler.add_job(
             self._purge_old_pool_health,
             IntervalTrigger(days=7),
             id="purge_old_pool_health",
@@ -1359,6 +1366,23 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to check pool failover: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _execute_pool_strategies(self):
+        """Execute active pool strategies"""
+        try:
+            from core.database import AsyncSessionLocal
+            from core.pool_strategy import execute_active_strategy
+            
+            async with AsyncSessionLocal() as db:
+                result = await execute_active_strategy(db)
+                
+                if result:
+                    logger.info(f"Pool strategy executed: {result}")
+        
+        except Exception as e:
+            logger.error(f"Failed to execute pool strategies: {e}")
             import traceback
             traceback.print_exc()
 

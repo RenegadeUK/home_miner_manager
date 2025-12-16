@@ -190,3 +190,221 @@ async def delete_pool(pool_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
     
     return {"status": "deleted"}
+
+
+# Pool Strategy Endpoints
+
+class PoolStrategyCreate(BaseModel):
+    name: str
+    strategy_type: str  # round_robin, load_balance
+    pool_ids: List[int]
+    config: dict = {}
+    enabled: bool = False
+
+
+class PoolStrategyUpdate(BaseModel):
+    name: str | None = None
+    strategy_type: str | None = None
+    pool_ids: List[int] | None = None
+    config: dict | None = None
+    enabled: bool | None = None
+
+
+class PoolStrategyResponse(BaseModel):
+    id: int
+    name: str
+    strategy_type: str
+    enabled: bool
+    pool_ids: List[int]
+    config: dict
+    current_pool_index: int
+    last_switch: str | None
+    
+    class Config:
+        from_attributes = True
+
+
+@router.get("/strategies", response_model=List[PoolStrategyResponse])
+async def list_strategies(db: AsyncSession = Depends(get_db)):
+    """List all pool strategies"""
+    from core.database import PoolStrategy
+    
+    result = await db.execute(select(PoolStrategy).order_by(PoolStrategy.id))
+    strategies = result.scalars().all()
+    
+    return [
+        {
+            "id": s.id,
+            "name": s.name,
+            "strategy_type": s.strategy_type,
+            "enabled": s.enabled,
+            "pool_ids": s.pool_ids,
+            "config": s.config,
+            "current_pool_index": s.current_pool_index,
+            "last_switch": s.last_switch.isoformat() if s.last_switch else None
+        }
+        for s in strategies
+    ]
+
+
+@router.post("/strategies", response_model=PoolStrategyResponse)
+async def create_strategy(strategy: PoolStrategyCreate, db: AsyncSession = Depends(get_db)):
+    """Create a new pool strategy"""
+    from core.database import PoolStrategy
+    
+    # Validate pool IDs exist
+    result = await db.execute(select(Pool).where(Pool.id.in_(strategy.pool_ids)))
+    pools = result.scalars().all()
+    
+    if len(pools) != len(strategy.pool_ids):
+        raise HTTPException(status_code=400, detail="One or more pool IDs not found")
+    
+    # If enabling this strategy, disable all others
+    if strategy.enabled:
+        result = await db.execute(select(PoolStrategy))
+        existing_strategies = result.scalars().all()
+        for existing in existing_strategies:
+            existing.enabled = False
+    
+    new_strategy = PoolStrategy(
+        name=strategy.name,
+        strategy_type=strategy.strategy_type,
+        pool_ids=strategy.pool_ids,
+        config=strategy.config,
+        enabled=strategy.enabled,
+        current_pool_index=0
+    )
+    
+    db.add(new_strategy)
+    await db.commit()
+    await db.refresh(new_strategy)
+    
+    return {
+        "id": new_strategy.id,
+        "name": new_strategy.name,
+        "strategy_type": new_strategy.strategy_type,
+        "enabled": new_strategy.enabled,
+        "pool_ids": new_strategy.pool_ids,
+        "config": new_strategy.config,
+        "current_pool_index": new_strategy.current_pool_index,
+        "last_switch": new_strategy.last_switch.isoformat() if new_strategy.last_switch else None
+    }
+
+
+@router.get("/strategies/{strategy_id}", response_model=PoolStrategyResponse)
+async def get_strategy(strategy_id: int, db: AsyncSession = Depends(get_db)):
+    """Get strategy details"""
+    from core.database import PoolStrategy
+    
+    result = await db.execute(select(PoolStrategy).where(PoolStrategy.id == strategy_id))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    return {
+        "id": strategy.id,
+        "name": strategy.name,
+        "strategy_type": strategy.strategy_type,
+        "enabled": strategy.enabled,
+        "pool_ids": strategy.pool_ids,
+        "config": strategy.config,
+        "current_pool_index": strategy.current_pool_index,
+        "last_switch": strategy.last_switch.isoformat() if strategy.last_switch else None
+    }
+
+
+@router.put("/strategies/{strategy_id}", response_model=PoolStrategyResponse)
+async def update_strategy(
+    strategy_id: int,
+    strategy_update: PoolStrategyUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update strategy"""
+    from core.database import PoolStrategy
+    
+    result = await db.execute(select(PoolStrategy).where(PoolStrategy.id == strategy_id))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    # If enabling this strategy, disable all others
+    if strategy_update.enabled is not None and strategy_update.enabled:
+        result = await db.execute(select(PoolStrategy))
+        existing_strategies = result.scalars().all()
+        for existing in existing_strategies:
+            if existing.id != strategy_id:
+                existing.enabled = False
+    
+    if strategy_update.name is not None:
+        strategy.name = strategy_update.name
+    if strategy_update.strategy_type is not None:
+        strategy.strategy_type = strategy_update.strategy_type
+    if strategy_update.pool_ids is not None:
+        # Validate pool IDs
+        result = await db.execute(select(Pool).where(Pool.id.in_(strategy_update.pool_ids)))
+        pools = result.scalars().all()
+        if len(pools) != len(strategy_update.pool_ids):
+            raise HTTPException(status_code=400, detail="One or more pool IDs not found")
+        strategy.pool_ids = strategy_update.pool_ids
+        strategy.current_pool_index = 0  # Reset index when pools change
+    if strategy_update.config is not None:
+        strategy.config = strategy_update.config
+    if strategy_update.enabled is not None:
+        strategy.enabled = strategy_update.enabled
+    
+    await db.commit()
+    await db.refresh(strategy)
+    
+    return {
+        "id": strategy.id,
+        "name": strategy.name,
+        "strategy_type": strategy.strategy_type,
+        "enabled": strategy.enabled,
+        "pool_ids": strategy.pool_ids,
+        "config": strategy.config,
+        "current_pool_index": strategy.current_pool_index,
+        "last_switch": strategy.last_switch.isoformat() if strategy.last_switch else None
+    }
+
+
+@router.delete("/strategies/{strategy_id}")
+async def delete_strategy(strategy_id: int, db: AsyncSession = Depends(get_db)):
+    """Delete strategy"""
+    from core.database import PoolStrategy
+    
+    result = await db.execute(select(PoolStrategy).where(PoolStrategy.id == strategy_id))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    await db.delete(strategy)
+    await db.commit()
+    
+    return {"status": "deleted"}
+
+
+@router.post("/strategies/{strategy_id}/execute")
+async def execute_strategy(strategy_id: int, db: AsyncSession = Depends(get_db)):
+    """Manually execute a strategy (immediate switch/rebalance)"""
+    from core.database import PoolStrategy
+    from core.pool_strategy import PoolStrategyService
+    
+    result = await db.execute(select(PoolStrategy).where(PoolStrategy.id == strategy_id))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    service = PoolStrategyService(db)
+    
+    if strategy.strategy_type == "round_robin":
+        result = await service.execute_round_robin(strategy)
+    elif strategy.strategy_type == "load_balance":
+        result = await service.execute_load_balance(strategy)
+    else:
+        raise HTTPException(status_code=400, detail="Unknown strategy type")
+    
+    return result

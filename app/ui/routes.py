@@ -188,6 +188,80 @@ async def pools_performance(request: Request):
     })
 
 
+@router.get("/pools/strategies", response_class=HTMLResponse)
+async def pools_strategies(request: Request, db: AsyncSession = Depends(get_db)):
+    """Pool strategies list page"""
+    from core.database import PoolStrategy
+    
+    result = await db.execute(select(PoolStrategy).order_by(PoolStrategy.id))
+    strategies = result.scalars().all()
+    
+    result = await db.execute(select(Pool).order_by(Pool.id))
+    pools = result.scalars().all()
+    
+    return templates.TemplateResponse("pools/strategies.html", {
+        "request": request,
+        "page_title": "Pool Strategies",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Pools", "url": "/pools"},
+            {"label": "Strategies", "url": "/pools/strategies"}
+        ],
+        "strategies": strategies,
+        "pools": pools
+    })
+
+
+@router.get("/pools/strategies/add", response_class=HTMLResponse)
+async def pools_strategies_add(request: Request, db: AsyncSession = Depends(get_db)):
+    """Add pool strategy page"""
+    result = await db.execute(select(Pool).where(Pool.enabled == True).order_by(Pool.name))
+    pools = result.scalars().all()
+    
+    return templates.TemplateResponse("pools/strategy_add.html", {
+        "request": request,
+        "page_title": "Add Pool Strategy",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Pools", "url": "/pools"},
+            {"label": "Strategies", "url": "/pools/strategies"},
+            {"label": "Add", "url": "/pools/strategies/add"}
+        ],
+        "pools": pools
+    })
+
+
+@router.get("/pools/strategies/{strategy_id}/edit", response_class=HTMLResponse)
+async def pools_strategies_edit(request: Request, strategy_id: int, db: AsyncSession = Depends(get_db)):
+    """Edit pool strategy page"""
+    from core.database import PoolStrategy
+    
+    result = await db.execute(select(PoolStrategy).where(PoolStrategy.id == strategy_id))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        return templates.TemplateResponse("error.html", {
+            "request": request,
+            "error": "Strategy not found"
+        }, status_code=404)
+    
+    result = await db.execute(select(Pool).where(Pool.enabled == True).order_by(Pool.name))
+    pools = result.scalars().all()
+    
+    return templates.TemplateResponse("pools/strategy_edit.html", {
+        "request": request,
+        "page_title": f"Edit Strategy: {strategy.name}",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Pools", "url": "/pools"},
+            {"label": "Strategies", "url": "/pools/strategies"},
+            {"label": strategy.name, "url": f"/pools/strategies/{strategy_id}/edit"}
+        ],
+        "strategy": strategy,
+        "pools": pools
+    })
+
+
 @router.get("/automation", response_class=HTMLResponse)
 async def automation_list(request: Request, db: AsyncSession = Depends(get_db)):
     """Automation rules list page"""

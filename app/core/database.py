@@ -42,6 +42,7 @@ class Pool(Base):
     user: Mapped[str] = mapped_column(String(255))
     password: Mapped[str] = mapped_column(String(255))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    priority: Mapped[int] = mapped_column(Integer, default=0)  # For load balancing weight
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -204,6 +205,35 @@ class TuningProfile(Base):
     settings: Mapped[dict] = mapped_column(JSON)  # frequency, voltage, mode, etc
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)  # System presets vs user-created
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class PoolStrategy(Base):
+    """Pool switching strategy configuration"""
+    __tablename__ = "pool_strategies"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    strategy_type: Mapped[str] = mapped_column(String(50))  # round_robin, load_balance, failover
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    pool_ids: Mapped[list] = mapped_column(JSON)  # List of pool IDs in strategy
+    config: Mapped[dict] = mapped_column(JSON)  # Strategy-specific config
+    current_pool_index: Mapped[int] = mapped_column(Integer, default=0)  # For round-robin
+    last_switch: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PoolStrategyLog(Base):
+    """Log of pool strategy switches"""
+    __tablename__ = "pool_strategy_logs"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    strategy_id: Mapped[int] = mapped_column(Integer, index=True)
+    from_pool_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    to_pool_id: Mapped[int] = mapped_column(Integer)
+    reason: Mapped[str] = mapped_column(String(255))
+    miners_affected: Mapped[int] = mapped_column(Integer, default=0)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
 
 # Database engine and session

@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <p class="page-description">Create a new pool switching strategy</p>
+</div>
+
+<div class="card">
+    <form id="strategyForm">
+        <div class="form-section">
+            <h3>Basic Information</h3>
+            
+            <div class="form-group">
+                <label for="name">Strategy Name *</label>
+                <input type="text" id="name" name="name" class="form-control" required 
+                       placeholder="e.g., Daily Pool Rotation">
+            </div>
+            
+            <div class="form-group">
+                <label for="strategy_type">Strategy Type *</label>
+                <select id="strategy_type" name="strategy_type" class="form-control" required onchange="updateConfigFields()">
+                    <option value="">Select a strategy type...</option>
+                    <option value="round_robin">Round Robin - Rotate pools at fixed intervals</option>
+                    <option value="load_balance">Load Balance - Distribute by health & performance</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <h3>Pool Selection</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Select the pools to include in this strategy. Order matters for round-robin.
+            </p>
+            
+            {% if pools %}
+            <div id="poolSelection">
+                {% for pool in pools %}
+                <div class="checkbox-group">
+                    <input type="checkbox" id="pool_{{ pool.id }}" name="pool_ids" value="{{ pool.id }}"
+                           onchange="updateSelectedPools()">
+                    <label for="pool_{{ pool.id }}">
+                        <strong>{{ pool.name }}</strong> - {{ pool.url }}:{{ pool.port }}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                No enabled pools available. Please add pools first.
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="form-section" id="configSection" style="display: none;">
+            <h3>Strategy Configuration</h3>
+            
+            <!-- Round Robin Config -->
+            <div id="roundRobinConfig" style="display: none;">
+                <div class="form-group">
+                    <label for="interval_minutes">Switch Interval (minutes)</label>
+                    <input type="number" id="interval_minutes" name="interval_minutes" 
+                           class="form-control" min="1" value="60">
+                    <small class="form-text">How often to switch to the next pool</small>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="apply_to_all" name="apply_to_all" checked>
+                    <label for="apply_to_all">
+                        Apply to all miners (if unchecked, only affects new connections)
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Load Balance Config -->
+            <div id="loadBalanceConfig" style="display: none;">
+                <div class="form-group">
+                    <label for="rebalance_interval">Rebalance Interval (minutes)</label>
+                    <input type="number" id="rebalance_interval" name="rebalance_interval" 
+                           class="form-control" min="1" value="30">
+                    <small class="form-text">How often to recalculate miner distribution</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Scoring Weights (must sum to 1.0)</label>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                        <div>
+                            <label for="health_weight">Health</label>
+                            <input type="number" id="health_weight" name="health_weight" 
+                                   class="form-control" min="0" max="1" step="0.1" value="0.4">
+                        </div>
+                        <div>
+                            <label for="latency_weight">Latency</label>
+                            <input type="number" id="latency_weight" name="latency_weight" 
+                                   class="form-control" min="0" max="1" step="0.1" value="0.3">
+                        </div>
+                        <div>
+                            <label for="reject_weight">Reject Rate</label>
+                            <input type="number" id="reject_weight" name="reject_weight" 
+                                   class="form-control" min="0" max="1" step="0.1" value="0.3">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="min_health_threshold">Minimum Health Threshold</label>
+                    <input type="number" id="min_health_threshold" name="min_health_threshold" 
+                           class="form-control" min="0" max="100" value="50">
+                    <small class="form-text">Pools below this health score won't be used</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <div class="checkbox-group">
+                <input type="checkbox" id="enabled" name="enabled">
+                <label for="enabled">
+                    <strong>Enable strategy immediately</strong>
+                    <small style="display: block; color: var(--text-secondary);">
+                        Only one strategy can be active at a time
+                    </small>
+                </label>
+            </div>
+        </div>
+        
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Create Strategy
+            </button>
+            <a href="/pools/strategies" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function updateConfigFields() {
+    const strategyType = document.getElementById('strategy_type').value;
+    const configSection = document.getElementById('configSection');
+    const roundRobinConfig = document.getElementById('roundRobinConfig');
+    const loadBalanceConfig = document.getElementById('loadBalanceConfig');
+    
+    if (strategyType === 'round_robin') {
+        configSection.style.display = 'block';
+        roundRobinConfig.style.display = 'block';
+        loadBalanceConfig.style.display = 'none';
+    } else if (strategyType === 'load_balance') {
+        configSection.style.display = 'block';
+        roundRobinConfig.style.display = 'none';
+        loadBalanceConfig.style.display = 'block';
+    } else {
+        configSection.style.display = 'none';
+    }
+}
+
+function updateSelectedPools() {
+    const checkboxes = document.querySelectorAll('input[name="pool_ids"]:checked');
+    console.log(`Selected ${checkboxes.length} pools`);
+}
+
+document.getElementById('strategyForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const strategyType = formData.get('strategy_type');
+    
+    // Get selected pool IDs
+    const poolIds = Array.from(document.querySelectorAll('input[name="pool_ids"]:checked'))
+        .map(cb => parseInt(cb.value));
+    
+    if (poolIds.length < 2) {
+        alert('Please select at least 2 pools for the strategy');
+        return;
+    }
+    
+    // Build config object based on strategy type
+    let config = {};
+    if (strategyType === 'round_robin') {
+        config = {
+            interval_minutes: parseInt(formData.get('interval_minutes') || 60),
+            apply_to_all: formData.get('apply_to_all') === 'on'
+        };
+    } else if (strategyType === 'load_balance') {
+        config = {
+            rebalance_interval_minutes: parseInt(formData.get('rebalance_interval') || 30),
+            health_weight: parseFloat(formData.get('health_weight') || 0.4),
+            latency_weight: parseFloat(formData.get('latency_weight') || 0.3),
+            reject_weight: parseFloat(formData.get('reject_weight') || 0.3),
+            min_health_threshold: parseInt(formData.get('min_health_threshold') || 50)
+        };
+        
+        // Validate weights sum to 1.0
+        const weightSum = config.health_weight + config.latency_weight + config.reject_weight;
+        if (Math.abs(weightSum - 1.0) > 0.01) {
+            alert(`Weights must sum to 1.0 (current sum: ${weightSum.toFixed(2)})`);
+            return;
+        }
+    }
+    
+    const data = {
+        name: formData.get('name'),
+        strategy_type: strategyType,
+        pool_ids: poolIds,
+        config: config,
+        enabled: formData.get('enabled') === 'on'
+    };
+    
+    try {
+        const response = await fetch('/api/pools/strategies', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            window.location.href = '/pools/strategies';
+        } else {
+            const error = await response.json();
+            alert(`Failed to create strategy: ${error.detail}`);
+        }
+    } catch (error) {
+        console.error('Error creating strategy:', error);
+        alert('Failed to create strategy');
+    }
+});
+</script>
+
+<style>
+.form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.form-section:last-of-type {
+    border-bottom: none;
+}
+
+.form-section h3 {
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    background: var(--card-header);
+    border-radius: 6px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    margin-top: 0.25rem;
+}
+
+.checkbox-group label {
+    margin-bottom: 0;
+    color: var(--text-primary);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <p class="page-description">Manage round-robin and load balancing strategies</p>
+        </div>
+        <a href="/pools/strategies/add" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Strategy
+        </a>
+    </div>
+</div>
+
+{% if strategies %}
+<div class="card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Pools</th>
+                <th>Last Switch</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for strategy in strategies %}
+            <tr>
+                <td>
+                    <strong>{{ strategy.name }}</strong>
+                </td>
+                <td>
+                    {% if strategy.strategy_type == 'round_robin' %}
+                        <span class="badge badge-info">
+                            <i class="fas fa-sync"></i> Round Robin
+                        </span>
+                    {% elif strategy.strategy_type == 'load_balance' %}
+                        <span class="badge badge-primary">
+                            <i class="fas fa-balance-scale"></i> Load Balance
+                        </span>
+                    {% else %}
+                        <span class="badge badge-secondary">{{ strategy.strategy_type }}</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if strategy.enabled %}
+                        <span class="badge badge-success">
+                            <i class="fas fa-check-circle"></i> Active
+                        </span>
+                    {% else %}
+                        <span class="badge badge-secondary">
+                            <i class="fas fa-pause-circle"></i> Inactive
+                        </span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge badge-light">{{ strategy.pool_ids|length }} pools</span>
+                </td>
+                <td>
+                    {% if strategy.last_switch %}
+                        <span class="text-muted">{{ strategy.last_switch }}</span>
+                    {% else %}
+                        <span class="text-muted">Never</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="btn-group">
+                        {% if strategy.enabled %}
+                        <button class="btn btn-sm btn-primary" onclick="executeStrategy({{ strategy.id }})">
+                            <i class="fas fa-play"></i> Execute Now
+                        </button>
+                        {% endif %}
+                        <a href="/pools/strategies/{{ strategy.id }}/edit" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                        <button class="btn btn-sm btn-danger" onclick="deleteStrategy({{ strategy.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <div style="text-align: center; padding: 3rem;">
+        <i class="fas fa-random" style="font-size: 4rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
+        <p style="font-size: 1.2rem; margin-bottom: 0.5rem; color: var(--text-primary);">No Pool Strategies</p>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Create a strategy to automatically manage pool switching</p>
+        <a href="/pools/strategies/add" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Your First Strategy
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3>Strategy Types</h3>
+    </div>
+    <div class="card-body">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+            <div>
+                <h4 style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-sync" style="color: var(--info);"></i>
+                    Round Robin
+                </h4>
+                <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    Rotates through pools at fixed intervals. All miners switch to the same pool simultaneously.
+                </p>
+                <ul style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    <li>Equal distribution over time</li>
+                    <li>Configurable switch interval</li>
+                    <li>Predictable rotation</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-balance-scale" style="color: var(--primary);"></i>
+                    Load Balance
+                </h4>
+                <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    Distributes miners across pools based on health, latency, and reject rates.
+                </p>
+                <ul style="color: var(--text-secondary); margin-top: 0.5rem;">
+                    <li>Dynamic miner distribution</li>
+                    <li>Health-based allocation</li>
+                    <li>Automatic rebalancing</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function executeStrategy(strategyId) {
+    if (!confirm('Execute this strategy now? This will switch miners immediately.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/pools/strategies/${strategyId}/execute`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            alert(`Strategy executed successfully!\n\n${JSON.stringify(result, null, 2)}`);
+            window.location.reload();
+        } else {
+            const error = await response.json();
+            alert(`Failed to execute strategy: ${error.detail}`);
+        }
+    } catch (error) {
+        console.error('Error executing strategy:', error);
+        alert('Failed to execute strategy');
+    }
+}
+
+async function deleteStrategy(strategyId) {
+    if (!confirm('Are you sure you want to delete this strategy?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/pools/strategies/${strategyId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to delete strategy');
+        }
+    } catch (error) {
+        console.error('Error deleting strategy:', error);
+        alert('Failed to delete strategy');
+    }
+}
+</script>
+{% endblock %}
