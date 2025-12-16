@@ -93,6 +93,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._auto_discover_miners,
+            IntervalTrigger(hours=24),
+            id="auto_discover_miners",
+            name="Auto-discover miners on configured networks"
+        )
+        
+        self.scheduler.add_job(
             self._purge_old_energy_prices,
             IntervalTrigger(days=7),
             id="purge_old_energy_prices",
@@ -151,6 +158,32 @@ class SchedulerService:
             id="update_crypto_prices_immediate",
             name="Immediate crypto price fetch"
         )
+        
+        # Update auto-discovery job interval based on config
+        self._update_discovery_schedule()
+    
+    def _update_discovery_schedule(self):
+        """Update auto-discovery job interval based on config"""
+        try:
+            discovery_config = app_config.get("network_discovery", {})
+            scan_interval_hours = discovery_config.get("scan_interval_hours", 24)
+            
+            # Remove existing job
+            try:
+                self.scheduler.remove_job("auto_discover_miners")
+            except:
+                pass
+            
+            # Re-add with new interval
+            self.scheduler.add_job(
+                self._auto_discover_miners,
+                IntervalTrigger(hours=scan_interval_hours),
+                id="auto_discover_miners",
+                name=f"Auto-discover miners every {scan_interval_hours}h"
+            )
+            print(f"⏰ Updated auto-discovery interval to {scan_interval_hours} hours")
+        except Exception as e:
+            print(f"❌ Failed to update discovery schedule: {e}")
     
     def shutdown(self):
         """Shutdown scheduler"""
@@ -798,6 +831,88 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to log system summary: {e}")
+    
+    async def _auto_discover_miners(self):
+        """Auto-discover miners on configured networks"""
+        from core.database import AsyncSessionLocal, Miner, Event
+        from core.discovery import MinerDiscoveryService
+        from sqlalchemy import select
+        
+        try:
+            # Check if discovery is enabled
+            discovery_config = app_config.get("network_discovery", {})
+            if not discovery_config.get("enabled", False):
+                print("🔍 Auto-discovery is disabled, skipping scan")
+                return
+            
+            # Get configured networks
+            networks = discovery_config.get("networks", [])
+            if not networks:
+                print("🔍 No networks configured for auto-discovery")
+                return
+            
+            auto_add = discovery_config.get("auto_add", False)
+            total_found = 0
+            total_added = 0
+            
+            print(f"🔍 Starting auto-discovery on {len(networks)} network(s)")
+            
+            async with AsyncSessionLocal() as db:
+                # Get existing miners
+                result = await db.execute(select(Miner))
+                existing_miners = result.scalars().all()
+                existing_ips = {m.ip_address for m in existing_miners}
+                
+                # Scan each network
+                for network in networks:
+                    network_cidr = network.get("cidr") if isinstance(network, dict) else network
+                    network_name = network.get("name", network_cidr) if isinstance(network, dict) else network_cidr
+                    
+                    print(f"🔍 Scanning network: {network_name}")
+                    
+                    discovered = await MinerDiscoveryService.discover_miners(
+                        network_cidr=network_cidr,
+                        timeout=2.0
+                    )
+                    
+                    total_found += len(discovered)
+                    
+                    # Add new miners if auto-add is enabled
+                    if auto_add:
+                        for miner_info in discovered:
+                            if miner_info['ip'] not in existing_ips:
+                                # Create new miner
+                                new_miner = Miner(
+                                    name=miner_info['name'],
+                                    miner_type=miner_info['type'],
+                                    ip_address=miner_info['ip'],
+                                    port=miner_info['port'],
+                                    enabled=True
+                                )
+                                db.add(new_miner)
+                                existing_ips.add(miner_info['ip'])
+                                total_added += 1
+                                print(f"➕ Auto-added: {miner_info['name']} ({miner_info['ip']})")
+                
+                # Commit changes
+                if total_added > 0:
+                    await db.commit()
+                    
+                    # Log event
+                    event = Event(
+                        event_type="info",
+                        source="scheduler",
+                        message=f"Auto-discovery: Found {total_found} miner(s), added {total_added} new miner(s)"
+                    )
+                    db.add(event)
+                    await db.commit()
+                
+                print(f"✅ Auto-discovery complete: {total_found} found, {total_added} added")
+        
+        except Exception as e:
+            print(f"❌ Auto-discovery failed: {e}")
+            import traceback
+            traceback.print_exc()
     
     async def _purge_old_events(self):
         """Purge events older than 30 days"""

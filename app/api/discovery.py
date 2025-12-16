@@ -182,6 +182,7 @@ async def get_discovery_config():
 @router.post("/discovery/config")
 async def update_discovery_config(config: DiscoveryConfig):
     """Update discovery configuration"""
+    from core.scheduler import scheduler
     
     # Convert NetworkRange objects to dicts
     networks_data = [
@@ -194,7 +195,11 @@ async def update_discovery_config(config: DiscoveryConfig):
     app_config.set("network_discovery.networks", networks_data)
     app_config.set("network_discovery.scan_interval_hours", config.scan_interval_hours)
     
-    logger.info(f"Discovery config updated: enabled={config.enabled}, auto_add={config.auto_add}, networks={len(config.networks)}")
+    # Update scheduler interval
+    if scheduler:
+        scheduler._update_discovery_schedule()
+    
+    logger.info(f"Discovery config updated: enabled={config.enabled}, auto_add={config.auto_add}, networks={len(config.networks)}, interval={config.scan_interval_hours}h")
     
     return {"message": "Configuration updated successfully"}
 

@@ -1,12 +1,73 @@
 {% extends "base.html" %}
 
+{% block extra_head %}
+<style>
+.settings-card {
+    display: block;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.settings-card:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.settings-card-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.settings-card-title {
+    font-weight: 600;
+    font-size: 1.125rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+}
+
+.settings-card-desc {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
+<div class="card" style="margin-bottom: 1.5rem;">
     <div class="card-header">
-        <h2 class="card-title">System Settings</h2>
+        <h2 class="card-title">Settings</h2>
     </div>
     
-    <h3 style="margin-bottom: 1rem;">MQTT Configuration</h3>
+    <div style="padding: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+            <a href="/settings/discovery" class="settings-card">
+                <div class="settings-card-icon">🔍</div>
+                <div class="settings-card-title">Network Discovery</div>
+                <div class="settings-card-desc">Configure automatic miner discovery and network scanning</div>
+            </a>
+            <a href="#mqtt-settings" class="settings-card" onclick="event.preventDefault(); document.getElementById('mqtt-settings').scrollIntoView({behavior: 'smooth'});">
+                <div class="settings-card-icon">📡</div>
+                <div class="settings-card-title">MQTT Configuration</div>
+                <div class="settings-card-desc">Configure MQTT broker for telemetry export</div>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="card" id="mqtt-settings">
+    <div class="card-header">
+        <h2 class="card-title">MQTT Configuration</h2>
+    </div>
+    
+    <h3 style="margin-bottom: 1rem;">MQTT Broker Settings</h3>
     
     <div class="form-group">
         <label class="form-label">Enable MQTT</label>
