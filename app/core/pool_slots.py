@@ -35,7 +35,13 @@ async def sync_avalon_nano_pool_slots(db: AsyncSession):
     
     for miner in miners:
         try:
-            adapter = AvalonNanoAdapter(miner.ip_address, miner.port or 4028)
+            adapter = AvalonNanoAdapter(
+                miner_id=miner.id,
+                miner_name=miner.name,
+                ip_address=miner.ip_address,
+                port=miner.port or 4028,
+                config=miner.config
+            )
             
             # Query pool configuration from miner
             pools_response = await adapter._cgminer_command("pools")

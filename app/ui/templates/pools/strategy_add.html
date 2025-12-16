@@ -32,7 +32,13 @@
                 Select the pools to include in this strategy. Order matters for round-robin.
             </p>
             
-            {% if has_nano_miners %}
+            {% if slots_need_sync %}
+            <div class="alert alert-warning" style="margin-bottom: 1rem;">
+                <i class="fas fa-sync-alt"></i>
+                <strong>Pool Slots Syncing:</strong> Avalon Nano miners detected but pool configurations haven't been synced yet. 
+                Please wait a few minutes for the system to query your miners' pool slots (happens automatically every 15 minutes).
+            </div>
+            {% elif has_nano_miners %}
             <div class="alert alert-info" style="margin-bottom: 1rem;">
                 <i class="fas fa-info-circle"></i>
                 <strong>Avalon Nano Miners Detected:</strong> Only pools configured in ALL Avalon Nano miners' 3 slots are shown. 
