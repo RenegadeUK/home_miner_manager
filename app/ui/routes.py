@@ -377,20 +377,6 @@ async def analytics_detail(request: Request, miner_id: int, db: AsyncSession = D
 
 
 @router.get("/faq", response_class=HTMLResponse)
-async def analytics_detail(request: Request, miner_id: int):
-    """Analytics detail page for specific miner"""
-    return templates.TemplateResponse("analytics_detail.html", {
-        "request": request,
-        "page_title": "Analytics",
-        "breadcrumbs": [
-            {"label": "Dashboard", "url": "/"},
-            {"label": "Analytics", "url": "/analytics"},
-            {"label": f"Miner {miner_id}", "url": f"/analytics/{miner_id}"}
-        ]
-    })
-
-
-@router.get("/faq", response_class=HTMLResponse)
 async def faq(request: Request):
     """FAQ page"""
     return templates.TemplateResponse("faq.html", {
