@@ -167,7 +167,7 @@ Rules stored in SQLite with JSON condition/action schema.
 
 11.6 Advanced Features ✅ PARTIALLY COMPLETED
 - ✅ Audit logging: track all configuration changes (database model, API endpoints, UI page with filtering)
-- ✅ Backup/restore: full configuration export/import with merge/replace modes, standard and full backup options (JSON/ZIP), drag-and-drop restore UI, system info dashboard
+- ✅ Backup/restore: full configuration export/import with merge/replace modes, standard and full backup options (JSON/ZIP), drag-and-drop restore UI, system info dashboard, cloud backup to Google Drive/OneDrive/iCloud with scheduling (hourly/daily/weekly/monthly), OAuth2 integration, operation logging
 - Future: API webhooks: POST events to external services
 - Future: Multi-user support: different access levels (admin/viewer/operator)
 - Future: Two-factor authentication for admin access
