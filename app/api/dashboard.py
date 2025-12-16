@@ -351,11 +351,11 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
     )
     current_energy_price = result.scalar()
     
-    # Get recent events (limit 20)
+    # Get recent events (limit 200 for pagination - 50 per page x 4 pages)
     result = await db.execute(
         select(Event)
         .order_by(Event.timestamp.desc())
-        .limit(20)
+        .limit(200)
     )
     events = result.scalars().all()
     
