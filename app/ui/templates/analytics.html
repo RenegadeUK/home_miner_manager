@@ -427,7 +427,9 @@ async function loadAnalytics(minerId) {
 // Load health score
 async function loadHealth(minerId) {
     try {
-        const response = await fetch(`/api/analytics/miners/${minerId}/health`);
+        const response = await fetch(`/api/analytics/miners/${minerId}/health?hours=${currentTimeRange}&_=${Date.now()}`, {
+            cache: 'no-cache'
+        });
         const data = await response.json();
         
         // Update scores
@@ -484,7 +486,9 @@ function updateHealthBar(name, score) {
 // Load telemetry stats
 async function loadStats(minerId) {
     try {
-        const response = await fetch(`/api/analytics/miners/${minerId}/telemetry/stats?hours=${currentTimeRange}`);
+        const response = await fetch(`/api/analytics/miners/${minerId}/telemetry/stats?hours=${currentTimeRange}&_=${Date.now()}`, {
+            cache: 'no-cache'
+        });
         const data = await response.json();
         
         // Format hashrate values with independent units
@@ -535,7 +539,9 @@ async function loadCharts(minerId) {
 // Load timeseries chart
 async function loadTimeseriesChart(minerId, metric, canvasId, label, color) {
     try {
-        const response = await fetch(`/api/analytics/miners/${minerId}/telemetry/timeseries?hours=${currentTimeRange}&metric=${metric}`);
+        const response = await fetch(`/api/analytics/miners/${minerId}/telemetry/timeseries?hours=${currentTimeRange}&metric=${metric}&_=${Date.now()}`, {
+            cache: 'no-cache'
+        });
         const data = await response.json();
         
         const ctx = document.getElementById(canvasId);
