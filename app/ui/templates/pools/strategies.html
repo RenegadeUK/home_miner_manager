@@ -1,17 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-header">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <p class="page-description">Manage round-robin and load balancing strategies</p>
-        </div>
-        <a href="/pools/strategies/add" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Add Strategy
-        </a>
-    </div>
-</div>
-
 {% if strategies %}
 <div class="card">
     <table class="table">
