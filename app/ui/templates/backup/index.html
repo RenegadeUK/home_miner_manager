@@ -151,8 +151,9 @@
 }
 
 .danger-zone {
-    border-color: #ffc107;
-    background: #fffbf0;
+    border-color: var(--warning-color, #ffc107);
+    background: var(--card-bg, #fff);
+    border-width: 2px;
 }
 
 .system-stats {
@@ -236,6 +237,8 @@
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.3s;
+    background: var(--card-bg, #fff);
+    color: var(--text-primary, #333);
 }
 
 .restore-mode input[type="radio"] {
@@ -244,7 +247,7 @@
 
 .restore-mode input[type="radio"]:checked + label {
     border-color: var(--primary-color, #3b82f6);
-    background: rgba(59, 130, 246, 0.05);
+    background: var(--primary-bg-light, rgba(59, 130, 246, 0.1));
 }
 
 .mode-desc {
