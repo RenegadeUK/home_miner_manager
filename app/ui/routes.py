@@ -219,15 +219,16 @@ async def edit_rule(request: Request, rule_id: int):
     })
 
 
-@router.get("/energy", response_class=HTMLResponse)
-async def energy_pricing(request: Request):
+@router.get("/settings/energy", response_class=HTMLResponse)
+async def energy_settings(request: Request):
     """Energy pricing page"""
     return templates.TemplateResponse("energy/pricing.html", {
         "request": request,
         "page_title": "Energy Pricing",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Energy Pricing", "url": "/energy"}
+            {"label": "Settings", "url": "/settings"},
+            {"label": "Energy Pricing", "url": "/settings/energy"}
         ]
     })
 
