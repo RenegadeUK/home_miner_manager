@@ -245,19 +245,6 @@ async def energy_optimization(request: Request):
     })
 
 
-@router.get("/logs", response_class=HTMLResponse)
-async def logs(request: Request):
-    """System logs page"""
-    return templates.TemplateResponse("logs.html", {
-        "request": request,
-        "page_title": "System Logs",
-        "breadcrumbs": [
-            {"label": "Dashboard", "url": "/"},
-            {"label": "Logs", "url": "/logs"}
-        ]
-    })
-
-
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request):
     """Settings page"""
@@ -309,6 +296,20 @@ async def pool_integrations_settings(request: Request):
             {"label": "Dashboard", "url": "/"},
             {"label": "Settings", "url": "/settings"},
             {"label": "Pool Integrations", "url": "/settings/pools"}
+        ]
+    })
+
+
+@router.get("/settings/logs", response_class=HTMLResponse)
+async def logs_settings(request: Request):
+    """System logs page"""
+    return templates.TemplateResponse("logs.html", {
+        "request": request,
+        "page_title": "System Logs",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Settings", "url": "/settings"},
+            {"label": "System Logs", "url": "/settings/logs"}
         ]
     })
 
