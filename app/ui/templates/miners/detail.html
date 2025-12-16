@@ -1,237 +1,356 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">{{ miner.name }}</h2>
-        <div>
-            <a href="/miners" class="btn btn-secondary">← Back to Miners</a>
-            <button class="btn btn-error" onclick="deleteMiner()">Delete Miner</button>
-        </div>
-    </div>
-    
-    <!-- Miner Info -->
-    <div class="card-content">
-        <h3>Configuration</h3>
-        <table class="info-table">
-            <tr>
-                <th>Type</th>
-                <td>{{ miner.miner_type }}</td>
-            </tr>
-            <tr>
-                <th>IP Address</th>
-                <td>{{ miner.ip_address }}</td>
-            </tr>
-            <tr>
-                <th>URL</th>
-                <td><a href="http://{{ miner.ip_address }}" target="_blank" rel="noopener noreferrer" style="color: #007bff; text-decoration: underline;">http://{{ miner.ip_address }}</a></td>
-            </tr>
-            <tr>
-                <th>Port</th>
-                <td>
-                    {% if miner.port %}
-                        {{ miner.port }}
-                    {% elif miner.miner_type == 'avalon_nano' %}
-                        4028 (default)
-                    {% elif miner.miner_type == 'bitaxe' or miner.miner_type == 'nerdqaxe' %}
-                        80 (default)
-                    {% elif miner.miner_type == 'nmminer' %}
-                        UDP 12345/12347 (default)
-                    {% else %}
-                        --
-                    {% endif %}
-                </td>
-            </tr>
-            <tr>
-                <th>Status</th>
-                <td>
-                    <span class="badge {% if miner.enabled %}badge-success{% else %}badge-error{% endif %}">
-                        {{ 'Enabled' if miner.enabled else 'Disabled' }}
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <th>Current Mode</th>
-                <td id="current-mode-display">{{ miner.current_mode or '--' }}</td>
-            </tr>
-            <tr>
-                <th>Current Pool</th>
-                <td id="current-pool-display">Loading...</td>
-            </tr>
-        </table>
-    </div>
+<!-- Action Buttons -->
+<div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 2rem;">
+    <a href="/miners" class="btn btn-secondary">← Back to Miners</a>
+    <button class="btn btn-error" onclick="deleteMiner()">Delete Miner</button>
 </div>
 
-<!-- Live Telemetry -->
-<div class="card">
-    <div class="card-header">
-        <h3>Live Telemetry</h3>
-        <button class="btn btn-secondary" onclick="refreshTelemetry()">↻ Refresh</button>
+<div class="detail-container">
+    <!-- Configuration Card -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <div class="detail-card-icon">⚙️</div>
+            <div>
+                <h3>Configuration</h3>
+                <span class="status-badge {% if miner.enabled %}status-enabled{% else %}status-disabled{% endif %}">
+                    {{ 'Enabled' if miner.enabled else 'Disabled' }}
+                </span>
+            </div>
+        </div>
+        <div class="detail-card-body">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Type</span>
+                    <span class="info-value">{{ miner.miner_type }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">IP Address</span>
+                    <span class="info-value">{{ miner.ip_address }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">URL</span>
+                    <span class="info-value">
+                        <a href="http://{{ miner.ip_address }}" target="_blank" rel="noopener noreferrer" class="link">http://{{ miner.ip_address }}</a>
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Port</span>
+                    <span class="info-value">
+                        {% if miner.port %}
+                            {{ miner.port }}
+                        {% elif miner.miner_type == 'avalon_nano' %}
+                            4028 (default)
+                        {% elif miner.miner_type == 'bitaxe' or miner.miner_type == 'nerdqaxe' %}
+                            80 (default)
+                        {% elif miner.miner_type == 'nmminer' %}
+                            UDP 12345/12347
+                        {% else %}
+                            --
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Current Mode</span>
+                    <span class="info-value" id="current-mode-display">{{ miner.current_mode or '--' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Current Pool</span>
+                    <span class="info-value" id="current-pool-display">Loading...</span>
+                </div>
+            </div>
+        </div>
     </div>
-    
-    <div class="card-content">
-        <div id="telemetry-loading" class="text-muted">Loading telemetry...</div>
-        <div id="telemetry-error" class="text-error" style="display: none;"></div>
-        <div id="telemetry-data" style="display: none;">
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Hashrate</div>
-                    <div class="stat-value" id="hashrate">--</div>
+
+    <!-- Live Telemetry Card -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <div class="detail-card-icon">📊</div>
+            <h3>Live Telemetry</h3>
+            <button class="btn btn-secondary btn-sm" onclick="refreshTelemetry()">↻ Refresh</button>
+        </div>
+        <div class="detail-card-body">
+            <div id="telemetry-loading" class="text-muted">Loading telemetry...</div>
+            <div id="telemetry-error" class="text-error" style="display: none;"></div>
+            <div id="telemetry-data" style="display: none;">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Hashrate</div>
+                        <div class="stat-value" id="hashrate">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Temperature</div>
+                        <div class="stat-value" id="temperature">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Power</div>
+                        <div class="stat-value" id="power">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Accepted</div>
+                        <div class="stat-value" id="shares-accepted">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Rejected</div>
+                        <div class="stat-value" id="shares-rejected">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">24h Cost</div>
+                        <div class="stat-value" id="cost-24h">--</div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Temperature</div>
-                    <div class="stat-value" id="temperature">--</div>
+                <div class="last-updated">
+                    <strong>Last Updated:</strong> <span id="last-updated">--</span>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-label">Power</div>
-                    <div class="stat-value" id="power">--</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Shares Accepted</div>
-                    <div class="stat-value" id="shares-accepted">--</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Shares Rejected</div>
-                    <div class="stat-value" id="shares-rejected">--</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">24h Cost</div>
-                    <div class="stat-value" id="cost-24h">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controls Card -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <div class="detail-card-icon">🎛️</div>
+            <h3>Controls</h3>
+        </div>
+        <div class="detail-card-body">
+            <!-- Mode Control -->
+            <div class="control-section">
+                <label class="control-label">Operating Mode</label>
+                <div class="control-row">
+                    <select id="mode-select" class="form-select">
+                        <option value="">-- Select Mode --</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="setMode()">Apply Mode</button>
                 </div>
             </div>
             
-            <div style="margin-top: 20px;">
-                <strong>Last Updated:</strong> <span id="last-updated">--</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Controls -->
-<div class="card">
-    <div class="card-header">
-        <h3>Controls</h3>
-    </div>
-    
-    <div class="card-content">
-        <div class="form-group">
-            <label>Current Operating Mode</label>
-            <div class="current-mode-display">
-                <span class="badge badge-info" id="current-mode-badge">{{ miner.current_mode or 'Not Set' }}</span>
-            </div>
-        </div>
-        
-        <div class="form-group" style="margin-top: 20px;">
-            <label>Change Operating Mode</label>
-            <select id="mode-select" class="form-control" style="max-width: 300px;">
-                <option value="">-- Select Mode --</option>
-            </select>
-            <button class="btn btn-primary" onclick="setMode()" style="margin-top: 10px;">Apply Mode</button>
-        </div>
-        
-        <div class="form-group" style="margin-top: 20px;">
-            <label>Change Pool</label>
-            <div id="pool-radio-group" class="radio-group">
-                <div class="radio-option">
-                    <div class="loading">Loading pools...</div>
+            <!-- Pool Control -->
+            <div class="control-section">
+                <label class="control-label">Pool Selection</label>
+                <div id="pool-radio-group" class="radio-group">
+                    <div class="loading-text">Loading pools...</div>
                 </div>
+                <button class="btn btn-primary" onclick="switchPool()">Switch Pool</button>
             </div>
-            <button class="btn btn-primary" onclick="switchPool()" style="margin-top: 10px;">Switch Pool</button>
-        </div>
-        
-        <div class="form-group" style="margin-top: 20px;">
-            <button class="btn btn-warning" onclick="restartMiner()">Restart Miner</button>
+            
+            <!-- Restart Control -->
+            <div class="control-section">
+                <label class="control-label">Device Control</label>
+                <button class="btn btn-warning" onclick="restartMiner()">🔄 Restart Miner</button>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-.info-table {
-    width: 100%;
-    max-width: 600px;
+.detail-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
 }
 
-.info-table th {
-    text-align: left;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.05);
-    width: 150px;
+.detail-card {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-.info-table td {
-    padding: 10px;
+.detail-card-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: #374151;
+    border-bottom: 1px solid #4a5568;
+}
+
+.detail-card-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.detail-card-header h3 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.25rem;
+    color: #f9fafb;
+}
+
+.detail-card-body {
+    padding: 1.5rem;
+}
+
+.status-badge {
+    padding: 0.375rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.status-enabled {
+    background: #10b981;
+    color: white;
+}
+
+.status-disabled {
+    background: #ef4444;
+    color: white;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.info-label {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 1rem;
+    color: #f9fafb;
+    font-weight: 600;
+}
+
+.link {
+    color: #3b82f6;
+    text-decoration: underline;
+}
+
+.link:hover {
+    color: #60a5fa;
 }
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
 }
 
-.stat-card {
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.05);
+.stat-box {
+    background: #1f2937;
+    padding: 1.25rem;
     border-radius: 8px;
+    border: 1px solid #374151;
 }
 
 .stat-label {
-    font-size: 12px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
 }
 
 .stat-value {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f9fafb;
 }
 
 .stat-value.small-text {
-    font-size: 14px;
-    word-break: break-all;
+    font-size: 1rem;
+}
+
+.last-updated {
+    padding-top: 1rem;
+    border-top: 1px solid #4a5568;
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
+.text-muted {
+    color: #9ca3af;
 }
 
 .text-error {
     color: #ef4444;
 }
 
-.current-mode-display {
-    padding: 10px 0;
+.control-section {
+    margin-bottom: 2rem;
 }
 
-.current-mode-display .badge {
-    font-size: 16px;
-    padding: 8px 16px;
+.control-section:last-child {
+    margin-bottom: 0;
+}
+
+.control-label {
+    display: block;
+    font-weight: 600;
+    color: #f9fafb;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.control-row {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.form-select {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.75rem;
+    background: #1f2937;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    color: #f9fafb;
+    font-size: 1rem;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #3b82f6;
 }
 
 .radio-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    max-width: 500px;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .radio-option {
     display: flex;
     align-items: center;
-    padding: 12px;
-    border: 2px solid var(--border-color);
+    padding: 1rem;
+    background: #1f2937;
+    border: 2px solid #4a5568;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s;
 }
 
 .radio-option:hover {
-    border-color: var(--primary-color);
-    background-color: var(--card-bg);
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.05);
 }
 
 .radio-option input[type="radio"] {
-    margin-right: 12px;
-    width: 18px;
-    height: 18px;
+    margin-right: 1rem;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
+    accent-color: #3b82f6;
 }
 
 .radio-option label {
@@ -240,27 +359,95 @@
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0.25rem;
 }
 
 .radio-option .pool-name {
     font-weight: 600;
-    color: var(--text-primary);
-    font-size: 15px;
+    color: #f9fafb;
+    font-size: 1rem;
 }
 
 .radio-option .pool-details {
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.radio-option input[type="radio"]:checked + label {
-    color: var(--primary-color);
+    font-size: 0.875rem;
+    color: #9ca3af;
 }
 
 .radio-option:has(input[type="radio"]:checked) {
-    border-color: var(--primary-color);
-    background-color: rgba(59, 130, 246, 0.05);
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.loading-text {
+    color: #9ca3af;
+    padding: 1rem;
+    text-align: center;
+}
+
+.btn {
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9375rem;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+}
+
+.btn-secondary {
+    background: #6b7280;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #4b5563;
+}
+
+.btn-primary {
+    background: #3b82f6;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-warning {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
+}
+
+.btn-error {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-error:hover {
+    background: #dc2626;
+}
+
+@media (max-width: 768px) {
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+    
+    .control-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
 </style>
 {% endblock %}

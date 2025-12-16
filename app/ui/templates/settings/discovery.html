@@ -1,142 +1,54 @@
 {% extends "base.html" %}
 
-{% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2 class="card-title">Network Discovery Settings</h2>
-        <button class="btn btn-primary" onclick="saveConfig()">💾 Save Settings</button>
-    </div>
-    
-    <div class="settings-container">
-        <!-- Enable/Disable Discovery -->
-        <div class="setting-section">
-            <h3>Auto-Discovery</h3>
-            <div class="setting-item">
-                <label class="toggle-label">
-                    <input type="checkbox" id="discovery-enabled" onchange="toggleDiscoverySettings()">
-                    <span>Enable automatic network discovery</span>
-                </label>
-                <p class="setting-description">Automatically scan configured networks for new miners</p>
-            </div>
-            
-            <div id="discovery-settings" style="display: none;">
-                <div class="setting-item">
-                    <label class="toggle-label">
-                        <input type="checkbox" id="auto-add">
-                        <span>Automatically add discovered miners</span>
-                    </label>
-                    <p class="setting-description">New miners will be added automatically without manual confirmation</p>
-                </div>
-                
-                <div class="setting-item">
-                    <label for="scan-interval">Scan Interval (hours)</label>
-                    <input type="number" id="scan-interval" min="1" max="168" value="24" class="form-input" style="max-width: 150px;">
-                    <p class="setting-description">How often to automatically scan for new miners (1-168 hours)</p>
-                </div>
-                
-                <div class="setting-item">
-                    <button class="btn btn-secondary" onclick="triggerAutoScan()">▶️ Run Auto-Scan Now</button>
-                    <p class="setting-description">Manually trigger a scan of all configured networks</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Network Ranges -->
-        <div class="setting-section">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3>Network Ranges</h3>
-                <button class="btn btn-secondary btn-sm" onclick="addNetworkRange()">+ Add Network</button>
-            </div>
-            
-            <div id="suggested-network" class="info-box" style="margin-bottom: 1rem; display: none;">
-                <strong>💡 Suggested network:</strong>
-                <span id="suggested-cidr"></span>
-                <button class="btn btn-sm btn-primary" onclick="useSuggested()" style="margin-left: 0.5rem;">Use This</button>
-            </div>
-            
-            <div id="networks-list">
-                <p class="text-muted">No networks configured. Add a network range to begin scanning.</p>
-            </div>
-        </div>
-        
-        <!-- Manual Discovery Scan -->
-        <div class="setting-section">
-            <h3>Manual Discovery Scan</h3>
-            <p class="setting-description">Scan a specific network range for miners right now</p>
-            
-            <div class="setting-item">
-                <label for="manual-network">Network CIDR</label>
-                <div style="display: flex; gap: 0.75rem; align-items: center;">
-                    <input type="text" id="manual-network" class="form-input" placeholder="192.168.1.0/24" style="max-width: 300px;">
-                    <button class="btn btn-primary" onclick="startManualScan()" id="manual-scan-btn">
-                        🔍 Scan Network
-                    </button>
-                    <button class="btn btn-secondary" onclick="detectLocalNetwork()">
-                        🎯 Detect Local Network
-                    </button>
-                </div>
-            </div>
-            
-            <div id="manual-scan-status" style="display: none; margin-top: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px;">
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div class="spinner"></div>
-                    <div>
-                        <div style="font-weight: 600;">Scanning network...</div>
-                        <div style="font-size: 0.875rem; color: var(--text-secondary);">This may take 30-60 seconds</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="manual-scan-results" style="display: none; margin-top: 1rem;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; padding: 1rem; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 1rem;">
-                    <div>
-                        <div style="font-size: 0.875rem; color: var(--text-secondary);">Total Found</div>
-                        <div style="font-weight: 600; font-size: 1.5rem; color: var(--primary-color);" id="manual-total">0</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.875rem; color: var(--text-secondary);">New Miners</div>
-                        <div style="font-weight: 600; font-size: 1.5rem; color: var(--success-color);" id="manual-new">0</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.875rem; color: var(--text-secondary);">Already Added</div>
-                        <div style="font-weight: 600; font-size: 1.5rem; color: var(--text-secondary);" id="manual-existing">0</div>
-                    </div>
-                </div>
-                <div id="manual-miners-list"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
+{% block extra_head %}
 <style>
-.settings-container {
+.discovery-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.detail-card {
+    background: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    margin-bottom: 2rem;
+}
+
+.detail-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    background: #374151;
+    border-bottom: 1px solid #4a5568;
+}
+
+.detail-card-icon {
+    font-size: 2rem;
+    margin-right: 1rem;
+}
+
+.detail-card-header h3 {
+    flex: 1;
+    margin: 0;
+    font-size: 1.25rem;
+    color: #f9fafb;
+    display: flex;
+    align-items: center;
+}
+
+.detail-card-body {
     padding: 1.5rem;
 }
 
-.setting-section {
-    margin-bottom: 2rem;
-    padding-bottom: 2rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.setting-section:last-child {
-    border-bottom: none;
-}
-
-.setting-section h3 {
-    margin-bottom: 1rem;
-    color: var(--text-primary);
-}
-
 .setting-item {
-    margin-bottom: 1.5rem;
-}
-
-.setting-item label {
-    display: block;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--text-primary);
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
 }
 
 .toggle-label {
@@ -144,6 +56,9 @@
     align-items: center;
     cursor: pointer;
     user-select: none;
+    font-weight: 600;
+    color: #f9fafb;
+    margin-bottom: 0.5rem;
 }
 
 .toggle-label input[type="checkbox"] {
@@ -155,29 +70,63 @@
 
 .setting-description {
     font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-top: 0.25rem;
+    color: #9ca3af;
+    margin-top: 0.5rem;
 }
 
-.spinner {
-    width: 24px;
-    height: 24px;
-    border: 3px solid var(--border-color);
-    border-top-color: var(--primary-color);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+.form-label {
+    display: block;
+    font-weight: 600;
+    color: #f9fafb;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+.form-input {
+    width: 100%;
+    padding: 0.625rem;
+    background: #374151;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    color: #f9fafb;
+    font-size: 0.9375rem;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.info-box {
+    padding: 1rem;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    color: #60a5fa;
+    font-size: 0.875rem;
+}
+
+.info-box strong {
+    color: #93c5fd;
+}
+
+.network-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 1rem;
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
 }
 
 .discovered-miner {
-    border: 1px solid var(--border-color);
+    border: 1px solid #374151;
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1rem;
-    background-color: var(--bg-primary);
+    background: #1f2937;
 }
 
 .discovered-miner.already-added {
@@ -194,6 +143,7 @@
 .miner-title {
     font-weight: 600;
     font-size: 1.125rem;
+    color: #f9fafb;
 }
 
 .miner-details {
@@ -209,7 +159,7 @@
 }
 
 .detail-label {
-    color: var(--text-secondary);
+    color: #9ca3af;
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -217,49 +167,197 @@
 }
 
 .detail-value {
-    color: var(--text-primary);
+    color: #f9fafb;
     font-weight: 500;
 }
 
-.form-input {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--bg-secondary);
-    color: var(--text-primary);
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    padding: 1rem;
+    background: #1f2937;
+    border-radius: 8px;
+    margin-bottom: 1rem;
 }
 
-.network-item {
+.stat-box {
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    margin-bottom: 0.25rem;
+}
+
+.stat-value {
+    font-weight: 600;
+    font-size: 1.5rem;
+}
+
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid #374151;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.scan-status {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #1f2937;
+    border-radius: 8px;
+    border: 1px solid #374151;
+}
+
+.scan-status-text {
+    font-weight: 600;
+    color: #f9fafb;
+}
+
+.scan-status-hint {
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
+.button-row {
     display: flex;
     gap: 0.75rem;
     align-items: center;
-    padding: 1rem;
-    background-color: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    margin-bottom: 0.75rem;
 }
 
-.network-item input {
-    flex: 1;
-}
-
-.info-box {
-    padding: 1rem;
-    background-color: rgba(59, 130, 246, 0.1);
-    border: 1px solid var(--primary-color);
-    border-radius: 8px;
-    color: var(--text-primary);
-}
-
-@media (max-width: 768px) {
-    .network-item {
-        flex-direction: column;
-        align-items: stretch;
-    }
+.text-muted {
+    color: #9ca3af;
+    font-style: italic;
 }
 </style>
+{% endblock %}
+
+{% block content %}
+<div class="discovery-container">
+    <!-- Auto-Discovery Settings -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h3><span class="detail-card-icon">🤖</span> Auto-Discovery</h3>
+            <button class="btn btn-primary" onclick="saveConfig()">💾 Save Settings</button>
+        </div>
+        <div class="detail-card-body">
+            <div class="setting-item">
+                <label class="toggle-label">
+                    <input type="checkbox" id="discovery-enabled" onchange="toggleDiscoverySettings()">
+                    <span>Enable automatic network discovery</span>
+                </label>
+                <p class="setting-description">Automatically scan configured networks for new miners</p>
+            </div>
+            
+            <div id="discovery-settings" style="display: none;">
+            <div class="setting-item">
+                <label class="toggle-label">
+                    <input type="checkbox" id="discovery-enabled" onchange="toggleDiscoverySettings()">
+                    <span>Enable automatic network discovery</span>
+                </label>
+                <p class="setting-description">Automatically scan configured networks for new miners</p>
+            </div>
+            
+                <div class="setting-item">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="auto-add">
+                        <span>Automatically add discovered miners</span>
+                    </label>
+                    <p class="setting-description">New miners will be added automatically without manual confirmation</p>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="form-label" for="scan-interval">Scan Interval (hours)</label>
+                    <input type="number" id="scan-interval" min="1" max="168" value="24" class="form-input" style="max-width: 150px;">
+                    <p class="setting-description">How often to automatically scan for new miners (1-168 hours)</p>
+                </div>
+                
+                <div class="setting-item">
+                    <button class="btn btn-secondary" onclick="triggerAutoScan()">▶️ Run Auto-Scan Now</button>
+                    <p class="setting-description">Manually trigger a scan of all configured networks</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Network Ranges -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h3><span class="detail-card-icon">🌐</span> Network Ranges</h3>
+            <button class="btn btn-secondary btn-sm" onclick="addNetworkRange()">+ Add Network</button>
+        </div>
+        <div class="detail-card-body">
+            <div id="suggested-network" class="info-box" style="margin-bottom: 1rem; display: none;">
+                <strong>💡 Suggested network:</strong>
+                <span id="suggested-cidr"></span>
+                <button class="btn btn-sm btn-primary" onclick="useSuggested()" style="margin-left: 0.5rem;">Use This</button>
+            </div>
+            
+            <div id="networks-list">
+                <p class="text-muted">No networks configured. Add a network range to begin scanning.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Manual Discovery Scan -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h3><span class="detail-card-icon">🔍</span> Manual Discovery Scan</h3>
+        </div>
+        <div class="detail-card-body">
+            <p class="setting-description" style="margin-bottom: 1rem;">Scan a specific network range for miners right now</p>
+            
+            <div class="setting-item">
+                <label class="form-label" for="manual-network">Network CIDR</label>
+                <div class="button-row">
+                    <input type="text" id="manual-network" class="form-input" placeholder="192.168.1.0/24" style="max-width: 300px;">
+                    <button class="btn btn-primary" onclick="startManualScan()" id="manual-scan-btn">
+                        🔍 Scan Network
+                    </button>
+                    <button class="btn btn-secondary" onclick="detectLocalNetwork()">
+                        🎯 Detect Local Network
+                    </button>
+                </div>
+            </div>
+            
+            <div id="manual-scan-status" class="scan-status" style="display: none; margin-top: 1rem;">
+                <div class="spinner"></div>
+                <div>
+                    <div class="scan-status-text">Scanning network...</div>
+                    <div class="scan-status-hint">This may take 30-60 seconds</div>
+                </div>
+            </div>
+            
+            <div id="manual-scan-results" style="display: none; margin-top: 1rem;">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Total Found</div>
+                        <div class="stat-value" style="color: #3b82f6;" id="manual-total">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">New Miners</div>
+                        <div class="stat-value" style="color: #10b981;" id="manual-new">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Already Added</div>
+                        <div class="stat-value" style="color: #9ca3af;" id="manual-existing">0</div>
+                    </div>
+                </div>
+                <div id="manual-miners-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 let suggestedCidr = null;

@@ -330,6 +330,20 @@ async def notifications_settings(request: Request):
     })
 
 
+@router.get("/settings/tuning", response_class=HTMLResponse)
+async def tuning_profiles(request: Request):
+    """Tuning Profiles page"""
+    return templates.TemplateResponse("settings/tuning.html", {
+        "request": request,
+        "page_title": "Tuning Profiles",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Settings", "url": "/settings"},
+            {"label": "Tuning Profiles", "url": "/settings/tuning"}
+        ]
+    })
+
+
 @router.get("/analytics", response_class=HTMLResponse)
 async def analytics(request: Request):
     """Analytics page"""
