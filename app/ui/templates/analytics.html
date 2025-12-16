@@ -11,9 +11,9 @@
         <h3>Select Miner</h3>
     </div>
     <div class="card-body">
-        <select id="miner-select" class="form-control">
-            <option value="">Loading miners...</option>
-        </select>
+        <div id="miner-tiles" class="miner-tiles-grid">
+            <div class="miner-tile-skeleton">Loading miners...</div>
+        </div>
     </div>
 </div>
 
@@ -255,6 +255,61 @@
     color: white;
 }
 
+.miner-tiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    padding: 0.5rem;
+}
+
+.miner-tile {
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.miner-tile:hover {
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.miner-tile.selected {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.miner-tile-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.miner-tile-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.miner-tile-type {
+    font-size: 0.875rem;
+    opacity: 0.7;
+}
+
+.miner-tile.selected .miner-tile-type {
+    opacity: 0.9;
+}
+
+.miner-tile-skeleton {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
 .time-selector {
     display: flex;
     gap: 0.5rem;
@@ -333,18 +388,50 @@ async function loadMiners() {
         const response = await fetch('/api/miners');
         const miners = await response.json();
         
-        const select = document.getElementById('miner-select');
-        select.innerHTML = '<option value="">Select a miner...</option>';
+        const tilesContainer = document.getElementById('miner-tiles');
+        
+        if (miners.length === 0) {
+            tilesContainer.innerHTML = '<div class="miner-tile-skeleton">No miners available</div>';
+            return;
+        }
+        
+        tilesContainer.innerHTML = '';
         
         miners.forEach(miner => {
-            const option = document.createElement('option');
-            option.value = miner.id;
-            option.textContent = miner.name;
-            select.appendChild(option);
+            const tile = document.createElement('div');
+            tile.className = 'miner-tile';
+            tile.dataset.minerId = miner.id;
+            
+            const icon = miner.miner_type === 'avalon_nano' ? '⛏️' : 
+                        miner.miner_type === 'bitaxe' ? '🔷' : 
+                        miner.miner_type === 'nerdqaxe' ? '🤓' : '📡';
+            
+            tile.innerHTML = `
+                <div class="miner-tile-icon">${icon}</div>
+                <div class="miner-tile-name">${miner.name}</div>
+                <div class="miner-tile-type">${miner.miner_type}</div>
+            `;
+            
+            tile.onclick = () => selectMiner(miner.id);
+            tilesContainer.appendChild(tile);
         });
     } catch (error) {
         console.error('Error loading miners:', error);
     }
+}
+
+// Select miner
+function selectMiner(minerId) {
+    currentMinerId = minerId;
+    
+    // Update tile selection
+    document.querySelectorAll('.miner-tile').forEach(tile => {
+        tile.classList.remove('selected');
+    });
+    document.querySelector(`[data-miner-id="${minerId}"]`).classList.add('selected');
+    
+    // Load analytics
+    loadAnalytics(minerId);
 }
 
 // Change time range
@@ -606,20 +693,9 @@ async function exportCSV() {
     window.location.href = `/api/analytics/miners/${currentMinerId}/export/csv?hours=${currentTimeRange}`;
 }
 
-// Event listeners
-document.getElementById('miner-select').addEventListener('change', function() {
-    const minerId = this.value;
-    if (minerId) {
-        loadAnalytics(minerId);
-    } else {
-        document.getElementById('health-section').style.display = 'none';
-        document.getElementById('stats-section').style.display = 'none';
-        document.getElementById('charts-section').style.display = 'none';
-        document.getElementById('export-section').style.display = 'none';
-    }
+// Initialize on page load
+window.addEventListener('DOMContentLoaded', function() {
+    loadMiners();
 });
-
-// Initialize
-loadMiners();
 </script>
 {% endblock %}
