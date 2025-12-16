@@ -328,8 +328,8 @@ class PoolStrategyService:
                     logger.warning(f"No adapter found for miner {miner.id} ({miner.name})")
                     continue
                 
-                # Switch the miner to the pool
-                success = await adapter.set_pool(pool.url, pool.username, pool.password)
+                # Switch the miner to the pool using the correct method signature
+                success = await adapter.switch_pool(pool.url, pool.port, pool.user, pool.password)
                 
                 if success:
                     logger.info(f"✓ Switched miner {miner.id} ({miner.name}) to pool {pool.name}")
