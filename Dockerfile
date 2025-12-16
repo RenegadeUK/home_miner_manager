@@ -7,6 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     nano \
+    librsvg2-bin \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
