@@ -18,18 +18,14 @@
     <p class="subtitle">Export your configuration for disaster recovery or migration</p>
 
     <!-- Cloud Backup Link -->
-    <div class="info-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white;">
-        <div style="display: flex; align-items: center; gap: 1rem;">
-            <div style="font-size: 3rem;">☁️</div>
-            <div style="flex: 1;">
-                <h3 style="margin: 0 0 0.5rem 0; color: white;">Automatic Cloud Backups</h3>
-                <p style="margin: 0; opacity: 0.9;">Schedule automatic backups to Google Drive, OneDrive, or iCloud</p>
-            </div>
-            <a href="/settings/backup/cloud" class="btn-primary" style="background: white; color: #667eea;">
-                <span class="icon">⚙️</span> Configure Cloud Backup
-            </a>
+    <a href="/settings/backup/cloud" class="cloud-backup-tile">
+        <div class="cloud-tile-icon">☁️</div>
+        <div class="cloud-tile-content">
+            <h3>Automatic Cloud Backups</h3>
+            <p>Schedule automatic backups to Google Drive, OneDrive, or iCloud</p>
         </div>
-    </div>
+        <div class="cloud-tile-arrow">→</div>
+    </a>
 
     <!-- System Info -->
     <div class="info-card">
@@ -381,6 +377,52 @@
     text-align: center;
     padding: 2rem;
     color: var(--text-secondary, #666);
+}
+
+.cloud-backup-tile {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.5rem;
+    background: var(--card-bg, #fff);
+    border: 2px solid var(--primary-color, #3b82f6);
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.cloud-backup-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2);
+    border-color: #2563eb;
+}
+
+.cloud-tile-icon {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+.cloud-tile-content {
+    flex: 1;
+}
+
+.cloud-tile-content h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-primary, #333);
+    font-size: 1.25rem;
+}
+
+.cloud-tile-content p {
+    margin: 0;
+    color: var(--text-secondary, #666);
+    font-size: 0.95rem;
+}
+
+.cloud-tile-arrow {
+    font-size: 2rem;
+    color: var(--primary-color, #3b82f6);
+    font-weight: bold;
 }
 </style>
 
