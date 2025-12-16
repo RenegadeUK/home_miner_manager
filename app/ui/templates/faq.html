@@ -345,6 +345,233 @@
 
         <div class="faq-section">
             <h3 class="faq-section-title" onclick="toggleSection(this)">
+                <span class="toggle-icon">▶</span> Pool Strategies
+            </h3>
+            <div class="faq-section-content">
+            
+            <div class="faq-item">
+                <h4>What are pool strategies and when should I use them?</h4>
+                <p>Pool strategies automate how your miners are distributed across multiple pools. There are two types:</p>
+                <ul>
+                    <li><strong>Round Robin</strong> - All miners rotate through pools at fixed intervals (e.g., every 60 minutes). Best for solo mining rotation, equal distribution over time, or comparing pool performance.</li>
+                    <li><strong>Load Balance</strong> - Miners are intelligently distributed across pools based on health scores, latency, and reject rates. Best for maximizing efficiency, ensuring reliability, and prioritizing specific pools.</li>
+                </ul>
+            </div>
+
+            <div class="faq-item">
+                <h4>Why can't I enable multiple strategies at once?</h4>
+                <p>Only one strategy can be active at a time to prevent conflicts. When you enable a strategy, all other strategies are automatically disabled. This ensures consistent pool switching behavior.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Why do I only see certain pools when creating a strategy?</h4>
+                <p>If you have <strong>Avalon Nano miners</strong>, the pool list is filtered to show only pools configured in their 3 physical pool slots. Avalon Nanos can only switch between their pre-configured slots (unlike Bitaxe/NerdQaxe which can switch to any pool). The system syncs these pool slots automatically every 15 minutes and on startup.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>How do I execute a strategy immediately?</h4>
+                <p>On the Pool Strategies page, click <strong>"Execute Now"</strong> next to any enabled strategy. This triggers an immediate pool switch based on the strategy's rules without waiting for the next scheduled check (which runs every minute).</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>What happens if a strategy tries to switch to an unhealthy pool?</h4>
+                <p>Load Balance strategies automatically avoid pools with low health scores (&lt;70). Round Robin strategies will attempt the switch regardless, but if intelligent failover is enabled, miners will be moved to healthier pools within minutes.</p>
+            </div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h3 class="faq-section-title" onclick="toggleSection(this)">
+                <span class="toggle-icon">▶</span> Network Discovery
+            </h3>
+            <div class="faq-section-content">
+            
+            <div class="faq-item">
+                <h4>How does network discovery work?</h4>
+                <p>Network discovery automatically scans your local network for compatible miners. It checks each IP in the specified range for:</p>
+                <ul>
+                    <li><strong>Avalon Nano</strong> - Tests for cgminer API on port 4028</li>
+                    <li><strong>Bitaxe/NerdQaxe</strong> - Tests for REST API endpoints (system/info)</li>
+                </ul>
+                <p>NMMiner devices are discovered via UDP broadcasts, not network scanning.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>How do I set up automatic discovery?</h4>
+                <p>Go to <strong>Settings → Discovery</strong> to configure:</p>
+                <ul>
+                    <li><strong>Network ranges</strong> - Add CIDR notation networks (e.g., 192.168.1.0/24)</li>
+                    <li><strong>Auto-add toggle</strong> - Automatically add discovered miners to your managed list</li>
+                    <li><strong>Scan interval</strong> - How often to scan (1-168 hours, default 24 hours)</li>
+                </ul>
+                <p>You can also trigger manual scans per network at any time.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Will discovery find miners on different subnets?</h4>
+                <p>Only if those subnets are reachable from the Docker container and you've configured those network ranges. Discovery cannot cross network boundaries that the container can't route to.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>How long does a network scan take?</h4>
+                <p>Scan time depends on the network size. A /24 network (254 addresses) typically takes 2-5 minutes. The system uses concurrent requests with timeouts to speed up scanning.</p>
+            </div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h3 class="faq-section-title" onclick="toggleSection(this)">
+                <span class="toggle-icon">▶</span> Overclocking & Profiles
+            </h3>
+            <div class="faq-section-content">
+            
+            <div class="faq-item">
+                <h4>What are overclocking profiles?</h4>
+                <p>Profiles save custom tuning settings (frequency, voltage, mode) for miners that support advanced tuning. You can create, save, and apply profiles to quickly switch between different performance configurations.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Which miners support overclocking profiles?</h4>
+                <ul>
+                    <li><strong>Avalon Nano</strong> - Mode selection (low/med/high), voltage tuning via config</li>
+                    <li><strong>Bitaxe</strong> - Frequency, voltage, mode (eco/standard/turbo/oc)</li>
+                    <li><strong>NerdQaxe++</strong> - Frequency, voltage, mode tuning</li>
+                    <li><strong>NMMiner</strong> - Not supported (fixed configuration)</li>
+                </ul>
+            </div>
+
+            <div class="faq-item">
+                <h4>Can I apply a profile to multiple miners at once?</h4>
+                <p>Yes! On the Miners page, use the checkboxes to select multiple miners, then choose <strong>"Apply Profile"</strong> from the bulk actions menu. The profile will be applied to all compatible selected miners.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>What firmware versions are displayed?</h4>
+                <p>The system tracks firmware versions from miner telemetry when available. This information is shown on the miner detail pages and helps you know which miners might need updates.</p>
+            </div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h3 class="faq-section-title" onclick="toggleSection(this)">
+                <span class="toggle-icon">▶</span> Performance Analytics
+            </h3>
+            <div class="faq-section-content">
+            
+            <div class="faq-item">
+                <h4>What is the health score?</h4>
+                <p>Each miner gets a health score (0-100) calculated from:</p>
+                <ul>
+                    <li><strong>Uptime (25pts)</strong> - Based on last seen timestamp</li>
+                    <li><strong>Temperature (30pts)</strong> - 90°C threshold for Avalon Nano, 75°C for others</li>
+                    <li><strong>Reject Rate (25pts)</strong> - Lower is better (&lt;2% ideal)</li>
+                    <li><strong>Hashrate Stability (20pts)</strong> - Consistency over time</li>
+                </ul>
+                <p>Scores above 80 are excellent (green), 60-80 are good (amber), below 60 need attention (red).</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>How do I compare miner performance?</h4>
+                <p>Go to <strong>Analytics → Performance</strong> to see comparative charts showing all miners' hashrates, temperatures, power consumption, and efficiency side-by-side. You can switch between day/week/month views and export data as CSV.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Why do hashrate units differ between charts?</h4>
+                <p>Each miner displays its natural hashrate unit (GH/s for Avalon Nano, TH/s for Bitaxe). The analytics page shows each miner independently to avoid confusing unit conversions. This gives you accurate, miner-appropriate metrics.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>How is energy consumption calculated?</h4>
+                <p>Total kWh is calculated by integrating power usage (watts) over the selected time range. The formula: <code>kWh = (average_watts × hours) / 1000</code>. This appears on the per-miner analytics pages and updates based on your selected timeframe (6h/24h/3d/7d).</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>What are hardware health predictions?</h4>
+                <p>The AI-powered prediction system analyzes historical telemetry trends to forecast potential issues:</p>
+                <ul>
+                    <li><strong>Temperature issues</strong> - Rising temperature trends</li>
+                    <li><strong>Hashrate decline</strong> - Gradual performance degradation</li>
+                    <li><strong>Power anomalies</strong> - Unusual power consumption patterns</li>
+                    <li><strong>Reject rate problems</strong> - Increasing share rejections</li>
+                    <li><strong>Disconnection patterns</strong> - Frequent offline events</li>
+                </ul>
+                <p>Predictions are shown on the dashboard and miner detail pages when available (requires 7+ days of data).</p>
+            </div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h3 class="faq-section-title" onclick="toggleSection(this)">
+                <span class="toggle-icon">▶</span> Bulk Operations
+            </h3>
+            <div class="faq-section-content">
+            
+            <div class="faq-item">
+                <h4>What bulk operations are available?</h4>
+                <p>From the Miners page, select multiple miners with checkboxes and perform:</p>
+                <ul>
+                    <li><strong>Enable/Disable</strong> - Start or stop telemetry collection</li>
+                    <li><strong>Set Mode</strong> - Change power mode (low/med/high or eco/standard/turbo)</li>
+                    <li><strong>Switch Pool</strong> - Move all miners to a specific pool</li>
+                    <li><strong>Restart</strong> - Reboot selected miners</li>
+                    <li><strong>Apply Profile</strong> - Apply saved overclocking profile</li>
+                </ul>
+            </div>
+
+            <div class="faq-item">
+                <h4>Can I bulk-operate on different miner types?</h4>
+                <p>Yes, but mode-specific actions only apply to compatible miners. For example, setting "turbo" mode will work on Bitaxe/NerdQaxe but be ignored by Avalon Nano (which uses low/med/high). The system handles type differences automatically.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Are bulk operations applied immediately?</h4>
+                <p>Yes! Bulk operations execute immediately on all selected miners. You'll see a summary of successes and failures. Large operations (10+ miners) may take several seconds to complete.</p>
+            </div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h3 class="faq-section-title" onclick="toggleSection(this)">
+                <span class="toggle-icon">▶</span> Notifications & Alerts
+            </h3>
+            <div class="faq-section-content">
+            
+            <div class="faq-item">
+                <h4>What notification channels are supported?</h4>
+                <p>The system can send alerts via:</p>
+                <ul>
+                    <li><strong>Telegram</strong> - Bot API integration (requires bot token and chat ID)</li>
+                    <li><strong>Discord</strong> - Webhook integration (requires webhook URL)</li>
+                </ul>
+                <p>Configure channels at <strong>Notifications → Setup</strong>.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>What alert types are available?</h4>
+                <p>You can receive notifications for:</p>
+                <ul>
+                    <li><strong>Miner Offline</strong> - When a miner becomes unreachable</li>
+                    <li><strong>High Temperature</strong> - When temperature exceeds thresholds</li>
+                    <li><strong>High Reject Rate</strong> - When share rejections spike</li>
+                    <li><strong>Pool Failure</strong> - When a pool becomes unhealthy</li>
+                    <li><strong>Low Hashrate</strong> - When hashrate drops significantly</li>
+                </ul>
+            </div>
+
+            <div class="faq-item">
+                <h4>How often are alerts checked?</h4>
+                <p>The alert system runs every <strong>5 minutes</strong>, checking all enabled alert configurations against current miner/pool status. Alerts respect cooldown periods to avoid spam (e.g., won't re-alert for the same miner offline within 30 minutes).</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Can I test notifications before enabling them?</h4>
+                <p>Yes! Each notification channel has a <strong>"Send Test"</strong> button that sends a test message to verify your configuration is working correctly.</p>
+            </div>
+            </div>
+        </div>
+
+        <div class="faq-section">
+            <h3 class="faq-section-title" onclick="toggleSection(this)">
                 <span class="toggle-icon">▶</span> Troubleshooting
             </h3>
             <div class="faq-section-content">
@@ -380,6 +607,45 @@
                     <li>Check at least one miner is using pools from that provider</li>
                     <li>Review Logs for API connection errors</li>
                 </ul>
+            </div>
+
+            <div class="faq-item">
+                <h4>Pool strategy shows "Pool Slots Syncing" warning</h4>
+                <p>This appears when you have Avalon Nano miners but their pool slots haven't been synced yet. The system syncs pool slots automatically:</p>
+                <ul>
+                    <li>On startup (immediate)</li>
+                    <li>Every 15 minutes (scheduled)</li>
+                </ul>
+                <p>Wait a few minutes or restart the container to trigger an immediate sync. Pool strategies require synced slots to know which pools are available on your Avalon Nanos.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>Network discovery isn't finding my miners</h4>
+                <p>Check:</p>
+                <ul>
+                    <li>Network range includes your miner's IP (use /24 for full subnet)</li>
+                    <li>Miners are powered on and network-accessible from container</li>
+                    <li>For Avalon Nano: cgminer API is enabled (default port 4028)</li>
+                    <li>For Bitaxe/NerdQaxe: Web interface is accessible</li>
+                    <li>No VLANs or firewall rules blocking discovery</li>
+                </ul>
+            </div>
+
+            <div class="faq-item">
+                <h4>Notifications not being sent</h4>
+                <p>Verify:</p>
+                <ul>
+                    <li>Notification channel is enabled in Settings</li>
+                    <li>Channel credentials are correct (test with "Send Test" button)</li>
+                    <li>Alert configuration is enabled and conditions are being met</li>
+                    <li>Check alert cooldown periods (may prevent duplicate alerts)</li>
+                    <li>Review Logs for notification delivery errors</li>
+                </ul>
+            </div>
+
+            <div class="faq-item">
+                <h4>Analytics charts showing no data</h4>
+                <p>Charts require historical telemetry data. If you just added a miner, wait 10-15 minutes for enough data points to be collected. Historical data is purged after 48 hours, so very old data won't appear.</p>
             </div>
             </div>
         </div>
