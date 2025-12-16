@@ -487,26 +487,22 @@ async function loadStats(minerId) {
         const response = await fetch(`/api/analytics/miners/${minerId}/telemetry/stats?hours=${currentTimeRange}`);
         const data = await response.json();
         
-        // Format hashrate values
+        // Format hashrate values with independent units
         const avgHashrate = data.avg_hashrate;
         const minHashrate = data.min_hashrate;
         const maxHashrate = data.max_hashrate;
         
         if (avgHashrate) {
-            const avgFormatted = avgHashrate >= 1000 ? `${(avgHashrate / 1000).toFixed(2)}` : `${avgHashrate.toFixed(2)}`;
-            const minFormatted = minHashrate >= 1000 ? `${(minHashrate / 1000).toFixed(2)}` : `${minHashrate.toFixed(2)}`;
-            const maxFormatted = maxHashrate >= 1000 ? `${(maxHashrate / 1000).toFixed(2)}` : `${maxHashrate.toFixed(2)}`;
-            const unit = avgHashrate >= 1000 ? 'TH/s' : 'GH/s';
+            // Format each value independently with its own unit
+            const avgFormatted = avgHashrate >= 1000 ? `${(avgHashrate / 1000).toFixed(2)} TH/s` : `${avgHashrate.toFixed(2)} GH/s`;
+            const minFormatted = minHashrate >= 1000 ? `${(minHashrate / 1000).toFixed(2)} TH/s` : `${minHashrate.toFixed(2)} GH/s`;
+            const maxFormatted = maxHashrate >= 1000 ? `${(maxHashrate / 1000).toFixed(2)} TH/s` : `${maxHashrate.toFixed(2)} GH/s`;
             
-            document.getElementById('avg-hashrate').textContent = avgFormatted;
-            document.getElementById('min-hashrate').textContent = minFormatted;
-            document.getElementById('max-hashrate').textContent = maxFormatted;
-            
-            // Update unit labels
+            // Update display with independent units
             document.querySelector('#avg-hashrate').parentElement.innerHTML = 
-                `Avg: <span id="avg-hashrate">${avgFormatted}</span> ${unit}<br>` +
-                `Min: <span id="min-hashrate">${minFormatted}</span> ${unit}<br>` +
-                `Max: <span id="max-hashrate">${maxFormatted}</span> ${unit}`;
+                `Avg: ${avgFormatted}<br>` +
+                `Min: ${minFormatted}<br>` +
+                `Max: ${maxFormatted}`;
         } else {
             document.getElementById('avg-hashrate').textContent = '-';
             document.getElementById('min-hashrate').textContent = '-';
