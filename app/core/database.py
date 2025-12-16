@@ -236,6 +236,7 @@ class PoolStrategy(Base):
     strategy_type: Mapped[str] = mapped_column(String(50))  # round_robin, load_balance, failover
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     pool_ids: Mapped[list] = mapped_column(JSON)  # List of pool IDs in strategy
+    miner_ids: Mapped[list] = mapped_column(JSON, default=list)  # List of miner IDs assigned to this strategy (empty = all miners)
     config: Mapped[dict] = mapped_column(JSON)  # Strategy-specific config
     current_pool_index: Mapped[int] = mapped_column(Integer, default=0)  # For round-robin
     last_switch: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

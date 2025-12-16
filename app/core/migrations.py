@@ -166,3 +166,14 @@ async def run_migrations():
             print("✓ Created miner_pool_slots table")
         except Exception:
             pass
+        
+        # Migration 11: Add miner_ids column to pool_strategies
+        try:
+            await conn.execute(text("""
+                ALTER TABLE pool_strategies 
+                ADD COLUMN miner_ids JSON DEFAULT '[]'
+            """))
+            print("✓ Added miner_ids column to pool_strategies")
+        except Exception:
+            # Column already exists
+            pass

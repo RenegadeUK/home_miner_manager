@@ -52,6 +52,14 @@
                 </td>
                 <td>
                     <span class="badge badge-light">{{ strategy.pool_ids|length }} pools</span>
+                    <br>
+                    <span class="badge badge-light" style="margin-top: 0.25rem;">
+                        {% if strategy.miner_ids %}
+                            {{ strategy.miner_ids|length }} miners
+                        {% else %}
+                            All miners
+                        {% endif %}
+                    </span>
                 </td>
                 <td>
                     {% if strategy.last_switch %}
@@ -295,7 +303,8 @@ async function deleteStrategy(strategyId) {
                     <i class="fas fa-exclamation-triangle"></i> Important Notes
                 </h4>
                 <ul style="color: var(--text-primary); margin-bottom: 0;">
-                    <li><strong>Only one active strategy:</strong> When you enable a strategy, all others are automatically disabled</li>
+                    <li><strong>Multiple strategies allowed:</strong> You can run multiple strategies simultaneously, but each miner can only be in one strategy at a time</li>
+                    <li><strong>Miner selection:</strong> Select specific miners for each strategy, or leave unselected to apply to all miners not in other strategies</li>
                     <li><strong>Avalon Nano limitations:</strong> These miners can only switch between their 3 pre-configured pool slots</li>
                     <li><strong>Manual execution:</strong> You can trigger any enabled strategy immediately with the "Execute Now" button</li>
                     <li><strong>Strategy interval:</strong> The system checks and executes strategies every minute</li>

@@ -198,6 +198,7 @@ class PoolStrategyCreate(BaseModel):
     name: str
     strategy_type: str  # round_robin, load_balance
     pool_ids: List[int]
+    miner_ids: List[int] = []  # Empty list means all miners
     config: dict = {}
     enabled: bool = False
 
@@ -206,6 +207,7 @@ class PoolStrategyUpdate(BaseModel):
     name: str | None = None
     strategy_type: str | None = None
     pool_ids: List[int] | None = None
+    miner_ids: List[int] | None = None
     config: dict | None = None
     enabled: bool | None = None
 
@@ -216,6 +218,7 @@ class PoolStrategyResponse(BaseModel):
     strategy_type: str
     enabled: bool
     pool_ids: List[int]
+    miner_ids: List[int]
     config: dict
     current_pool_index: int
     last_switch: str | None
@@ -259,17 +262,34 @@ async def create_strategy(strategy: PoolStrategyCreate, db: AsyncSession = Depen
     if len(pools) != len(strategy.pool_ids):
         raise HTTPException(status_code=400, detail="One or more pool IDs not found")
     
-    # If enabling this strategy, disable all others
-    if strategy.enabled:
-        result = await db.execute(select(PoolStrategy))
+    # Validate miner IDs exist if specified
+    if strategy.miner_ids:
+        from core.database import Miner
+        result = await db.execute(select(Miner).where(Miner.id.in_(strategy.miner_ids)))
+        miners = result.scalars().all()
+        if len(miners) != len(strategy.miner_ids):
+            raise HTTPException(status_code=400, detail="One or more miner IDs not found")
+    
+    # Check for miner conflicts with other enabled strategies
+    if strategy.enabled and strategy.miner_ids:
+        result = await db.execute(select(PoolStrategy).where(PoolStrategy.enabled == True))
         existing_strategies = result.scalars().all()
         for existing in existing_strategies:
-            existing.enabled = False
+            # Check if any miners overlap
+            existing_miner_ids = existing.miner_ids if existing.miner_ids else []
+            if existing_miner_ids:
+                overlap = set(strategy.miner_ids) & set(existing_miner_ids)
+                if overlap:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Miners {list(overlap)} are already assigned to strategy '{existing.name}'"
+                    )
     
     new_strategy = PoolStrategy(
         name=strategy.name,
         strategy_type=strategy.strategy_type,
         pool_ids=strategy.pool_ids,
+        miner_ids=strategy.miner_ids,
         config=strategy.config,
         enabled=strategy.enabled,
         current_pool_index=0
@@ -329,13 +349,32 @@ async def update_strategy(
     if not strategy:
         raise HTTPException(status_code=404, detail="Strategy not found")
     
-    # If enabling this strategy, disable all others
-    if strategy_update.enabled is not None and strategy_update.enabled:
-        result = await db.execute(select(PoolStrategy))
+    # Update miner_ids if specified
+    updated_miner_ids = strategy_update.miner_ids if strategy_update.miner_ids is not None else strategy.miner_ids
+    
+    # Validate miner IDs if updating
+    if strategy_update.miner_ids is not None and strategy_update.miner_ids:
+        from core.database import Miner
+        result = await db.execute(select(Miner).where(Miner.id.in_(strategy_update.miner_ids)))
+        miners = result.scalars().all()
+        if len(miners) != len(strategy_update.miner_ids):
+            raise HTTPException(status_code=400, detail="One or more miner IDs not found")
+    
+    # Check for miner conflicts if enabling or updating miner_ids
+    is_enabling = strategy_update.enabled is not None and strategy_update.enabled
+    if (is_enabling or strategy_update.miner_ids is not None) and updated_miner_ids:
+        result = await db.execute(select(PoolStrategy).where(PoolStrategy.enabled == True))
         existing_strategies = result.scalars().all()
         for existing in existing_strategies:
             if existing.id != strategy_id:
-                existing.enabled = False
+                existing_miner_ids = existing.miner_ids if existing.miner_ids else []
+                if existing_miner_ids:
+                    overlap = set(updated_miner_ids) & set(existing_miner_ids)
+                    if overlap:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Miners {list(overlap)} are already assigned to strategy '{existing.name}'"
+                        )
     
     if strategy_update.name is not None:
         strategy.name = strategy_update.name
@@ -348,6 +387,8 @@ async def update_strategy(
         if len(pools) != len(strategy_update.pool_ids):
             raise HTTPException(status_code=400, detail="One or more pool IDs not found")
         strategy.pool_ids = strategy_update.pool_ids
+    if strategy_update.miner_ids is not None:
+        strategy.miner_ids = strategy_update.miner_ids
         strategy.current_pool_index = 0  # Reset index when pools change
     if strategy_update.config is not None:
         strategy.config = strategy_update.config

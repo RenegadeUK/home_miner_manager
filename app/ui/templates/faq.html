@@ -359,8 +359,18 @@
             </div>
 
             <div class="faq-item">
-                <h4>Why can't I enable multiple strategies at once?</h4>
-                <p>Only one strategy can be active at a time to prevent conflicts. When you enable a strategy, all other strategies are automatically disabled. This ensures consistent pool switching behavior.</p>
+                <h4>Can I run multiple strategies at once?</h4>
+                <p>Yes! You can enable multiple strategies simultaneously. Each strategy can be assigned to specific miners, allowing you to run different strategies for different groups of miners. However, each individual miner can only be assigned to one strategy at a time to prevent conflicts.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>How do I assign miners to a strategy?</h4>
+                <p>When creating or editing a strategy, you'll see a <strong>Miner Selection</strong> section. Check the boxes for the miners you want to include in that strategy. If you leave all unchecked, the strategy will apply to all miners that aren't assigned to other enabled strategies.</p>
+            </div>
+
+            <div class="faq-item">
+                <h4>What happens if I try to assign a miner to two strategies?</h4>
+                <p>The system will prevent this with an error message. If you want to move a miner from one strategy to another, you need to either: 1) Edit the first strategy and remove that miner, or 2) Disable the first strategy, then assign the miner to the new strategy.</p>
             </div>
 
             <div class="faq-item">

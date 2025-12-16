@@ -76,7 +76,7 @@ class PoolStrategyService:
         # Apply to miners
         miners_affected = 0
         if apply_to_all:
-            miners_affected = await self._switch_all_miners_to_pool(next_pool_id)
+            miners_affected = await self._switch_miners_to_pool(next_pool_id, strategy.miner_ids)
         
         # Update strategy state
         strategy.current_pool_index = next_index
@@ -190,10 +190,20 @@ class PoolStrategyService:
             logger.warning("No pools with sufficient health for load balancing")
             return {"rebalanced": False, "reason": "no_healthy_pools"}
         
-        # Get all miners
-        result = await self.db.execute(
-            select(Miner).where(Miner.enabled == True)
-        )
+        # Get miners - either specific ones or all enabled
+        if strategy.miner_ids:
+            result = await self.db.execute(
+                select(Miner).where(
+                    and_(
+                        Miner.id.in_(strategy.miner_ids),
+                        Miner.enabled == True
+                    )
+                )
+            )
+        else:
+            result = await self.db.execute(
+                select(Miner).where(Miner.enabled == True)
+            )
         miners = list(result.scalars().all())
         
         if not miners:
@@ -261,8 +271,14 @@ class PoolStrategyService:
             "next_rebalance_eta": rebalance_interval
         }
     
-    async def _switch_all_miners_to_pool(self, pool_id: int) -> int:
-        """Switch all enabled miners to the specified pool"""
+    async def _switch_miners_to_pool(self, pool_id: int, miner_ids: List[int] = None) -> int:
+        """
+        Switch miners to the specified pool
+        
+        Args:
+            pool_id: Pool to switch to
+            miner_ids: List of specific miner IDs, or None/empty list for all miners
+        """
         # Get the pool details
         result = await self.db.execute(
             select(Pool).where(Pool.id == pool_id)
@@ -273,10 +289,20 @@ class PoolStrategyService:
             logger.error(f"Pool {pool_id} not found")
             return 0
         
-        # Get all enabled miners
-        result = await self.db.execute(
-            select(Miner).where(Miner.enabled == True)
-        )
+        # Get miners - either specific ones or all enabled
+        if miner_ids:
+            result = await self.db.execute(
+                select(Miner).where(
+                    and_(
+                        Miner.id.in_(miner_ids),
+                        Miner.enabled == True
+                    )
+                )
+            )
+        else:
+            result = await self.db.execute(
+                select(Miner).where(Miner.enabled == True)
+            )
         miners = result.scalars().all()
         
         # For now, just log the intended switches

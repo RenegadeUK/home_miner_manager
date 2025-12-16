@@ -69,6 +69,17 @@
             {% endif %}
         </div>
         
+        <div class="form-section">
+            <h3>Miner Selection</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                Select specific miners for this strategy, or leave all unchecked to apply to all miners.
+            </p>
+            
+            <div id="minerSelection">
+                <p class="text-muted">Loading miners...</p>
+            </div>
+        </div>
+        
         <div class="form-section" id="configSection" style="display: none;">
             <h3>Strategy Configuration</h3>
             
@@ -174,6 +185,35 @@ function updateSelectedPools() {
     console.log(`Selected ${checkboxes.length} pools`);
 }
 
+// Load miners for selection
+async function loadMiners() {
+    try {
+        const response = await fetch('/api/miners');
+        const miners = await response.json();
+        
+        const minerSelection = document.getElementById('minerSelection');
+        if (miners.length === 0) {
+            minerSelection.innerHTML = '<p class="text-muted">No miners available</p>';
+            return;
+        }
+        
+        minerSelection.innerHTML = miners.map(m => `
+            <div class="checkbox-group">
+                <input type="checkbox" id="miner_${m.id}" name="miner_ids" value="${m.id}">
+                <label for="miner_${m.id}">
+                    <strong>${m.name}</strong> - ${m.miner_type} (${m.ip_address})
+                </label>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load miners:', error);
+        document.getElementById('minerSelection').innerHTML = '<p class="text-danger">Failed to load miners</p>';
+    }
+}
+
+// Load miners on page load
+loadMiners();
+
 document.getElementById('strategyForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -188,6 +228,10 @@ document.getElementById('strategyForm').addEventListener('submit', async (e) => 
         alert('Please select at least 2 pools for the strategy');
         return;
     }
+    
+    // Get selected miner IDs (empty array means all miners)
+    const minerIds = Array.from(document.querySelectorAll('input[name="miner_ids"]:checked'))
+        .map(cb => parseInt(cb.value));
     
     // Build config object based on strategy type
     let config = {};
@@ -217,6 +261,7 @@ document.getElementById('strategyForm').addEventListener('submit', async (e) => 
         name: formData.get('name'),
         strategy_type: strategyType,
         pool_ids: poolIds,
+        miner_ids: minerIds,
         config: config,
         enabled: formData.get('enabled') === 'on'
     };
@@ -396,7 +441,8 @@ document.getElementById('strategyForm').addEventListener('submit', async (e) => 
                     <i class="fas fa-exclamation-triangle"></i> Important Notes
                 </h4>
                 <ul style="color: var(--text-primary); margin-bottom: 0;">
-                    <li><strong>Only one active strategy:</strong> When you enable a strategy, all others are automatically disabled</li>
+                    <li><strong>Multiple strategies allowed:</strong> You can run multiple strategies simultaneously, but each miner can only be in one strategy at a time</li>
+                    <li><strong>Miner selection:</strong> Select specific miners for each strategy, or leave unselected to apply to all miners not in other strategies</li>
                     <li><strong>Avalon Nano limitations:</strong> These miners can only switch between their 3 pre-configured pool slots</li>
                     <li><strong>Manual execution:</strong> You can trigger any enabled strategy immediately with the "Execute Now" button</li>
                     <li><strong>Strategy interval:</strong> The system checks and executes strategies every minute</li>
