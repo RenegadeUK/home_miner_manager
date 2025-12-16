@@ -8,6 +8,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
 from sqlalchemy import select
 from typing import Optional
+from core.config import app_config
 
 logger = logging.getLogger(__name__)
 
