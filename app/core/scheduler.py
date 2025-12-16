@@ -86,6 +86,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._log_system_summary,
+            IntervalTrigger(hours=6),
+            id="log_system_summary",
+            name="Log system status summary"
+        )
+        
+        self.scheduler.add_job(
             self._purge_old_energy_prices,
             IntervalTrigger(days=7),
             id="purge_old_energy_prices",
@@ -723,6 +730,74 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to purge old telemetry: {e}")
+    
+    async def _log_system_summary(self):
+        """Log system status summary every 6 hours"""
+        from core.database import AsyncSessionLocal, Event, Miner, Telemetry
+        from sqlalchemy import select, func
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                # Get miner counts
+                result = await db.execute(select(Miner))
+                all_miners = result.scalars().all()
+                total_miners = len(all_miners)
+                enabled_miners = len([m for m in all_miners if m.enabled])
+                
+                # Get recent telemetry success count (last 6 hours)
+                six_hours_ago = datetime.utcnow() - timedelta(hours=6)
+                result = await db.execute(
+                    select(func.count(Telemetry.id))
+                    .where(Telemetry.timestamp >= six_hours_ago)
+                )
+                telemetry_count = result.scalar() or 0
+                
+                # Get average hashrate and power for enabled miners
+                from core.health import get_miner_health_score
+                total_hashrate = 0.0
+                total_power = 0.0
+                health_scores = []
+                
+                for miner in all_miners:
+                    if miner.enabled:
+                        result = await db.execute(
+                            select(Telemetry)
+                            .where(Telemetry.miner_id == miner.id)
+                            .order_by(Telemetry.timestamp.desc())
+                            .limit(1)
+                        )
+                        latest_telemetry = result.scalars().first()
+                        
+                        if latest_telemetry:
+                            total_hashrate += latest_telemetry.hashrate or 0
+                            total_power += latest_telemetry.power or 0
+                            health_score = await get_miner_health_score(miner.id, db)
+                            if health_score is not None:
+                                health_scores.append(health_score)
+                
+                avg_health = sum(health_scores) / len(health_scores) if health_scores else 0
+                
+                # Create summary event
+                message = (
+                    f"System Status: {enabled_miners}/{total_miners} miners online | "
+                    f"Telemetry collected: {telemetry_count} | "
+                    f"Total hashrate: {total_hashrate:.2f} GH/s | "
+                    f"Total power: {total_power:.2f}W | "
+                    f"Avg health: {avg_health:.1f}/100"
+                )
+                
+                event = Event(
+                    event_type="info",
+                    source="scheduler",
+                    message=message
+                )
+                db.add(event)
+                await db.commit()
+                
+                print(f"ℹ️ {message}")
+        
+        except Exception as e:
+            print(f"❌ Failed to log system summary: {e}")
     
     async def _purge_old_events(self):
         """Purge events older than 30 days"""
