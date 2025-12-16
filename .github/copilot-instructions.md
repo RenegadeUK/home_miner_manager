@@ -102,9 +102,14 @@ Rules stored in SQLite with JSON condition/action schema.
 
 11.1 Monitoring & Analytics ✅ COMPLETED
 - ✅ Health scoring system based on uptime, temperature, reject rate, hashrate stability
+- ✅ Miner type-aware temperature thresholds (90°C for Avalon Nano, 75°C for others)
 - ✅ Comparative analytics with time-series charts (day/week/month)
 - ✅ Historical performance tracking and trend analysis
 - ✅ CSV export of performance reports
+- ✅ Per-miner analytics page with dynamic time ranges (6h/24h/3d/7d)
+- ✅ Independent hashrate unit display (GH/s vs TH/s per metric)
+- ✅ Total energy consumption calculation (kWh) based on selected time range
+- ✅ Cache busting for real-time data updates when switching miners
 - Future: Real-time dashboard widgets with drag-and-drop customization
 - Future: PDF export of performance reports
 
@@ -130,12 +135,17 @@ Rules stored in SQLite with JSON condition/action schema.
 - Future: Pool performance comparison: luck %, latency trends over time
 - Future: Multi-pool strategies: round-robin, load balancing
 
-11.4 Hardware Expansion
-- Network auto-discovery: scan for miners and suggest adding
-- Firmware management: check for updates, display versions
-- Overclocking profiles: save/load custom tuning presets
-- Bulk operations: apply settings to multiple miners
-- Hardware health predictions based on telemetry trends
+11.4 Hardware Expansion ✅ COMPLETED
+- ✅ Network auto-discovery: scan for Avalon Nano (cgminer API), Bitaxe/NerdQaxe (HTTP API)
+- ✅ Configurable network ranges with custom CIDR notation
+- ✅ Auto-add discovered miners toggle
+- ✅ Scheduled auto-discovery with configurable scan interval (1-168 hours)
+- ✅ Manual per-network scanning with discovery settings page
+- ✅ Auto-detection of local network CIDR for quick setup
+- Future: Firmware management: check for updates, display versions
+- Future: Overclocking profiles: save/load custom tuning presets
+- Future: Bulk operations: apply settings to multiple miners
+- Future: Hardware health predictions based on telemetry trends
 
 11.5 UI/UX Improvements
 - ✅ Collapsible FAQ sections with smooth animations and expand/collapse all
