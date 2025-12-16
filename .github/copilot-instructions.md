@@ -152,12 +152,13 @@ Rules stored in SQLite with JSON condition/action schema.
 - ✅ FAQ search functionality with real-time filtering and text highlighting
 - ✅ Logs page filter tiles (All/Info/Success/Warning/Error) with event counts
 - ✅ Pagination on logs page: 50 events per page, 4 pages (200 total), filters work across all pages
-- Future: Dark/light theme toggle with user preferences
+- ✅ Dark/light theme toggle with user preferences and localStorage persistence
+- ✅ Theme CSS variables system for consistent theming across all pages
+- ✅ WCAG AA accessibility compliance: all text meets 4.5:1 minimum contrast ratios
 - Future: Custom dashboard layouts: drag-and-drop widgets, per-user configs
 - Future: Progressive Web App (PWA) for mobile access
 - Future: Voice control integration (Alexa/Google Home)
 - Future: Multi-language support
-- Future: Accessibility improvements (WCAG compliance)
 
 11.6 Advanced Features
 - API webhooks: POST events to external services
