@@ -1,5 +1,5 @@
 """
-v0 Miner Controller - Main Application Entry Point
+Home Miner Manager v1.0.0 - Main Application Entry Point
 """
 import os
 import sys
@@ -39,7 +39,7 @@ logger.info("All imports successful")
 app = FastAPI(
     title="Home Miner Manager",
     description="Modern ASIC Miner Management Platform",
-    version="0.1.0"
+    version="1.0.0"
 )
 
 @app.on_event("startup")

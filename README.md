@@ -1,6 +1,6 @@
-# v0 Miner Controller
+# Home Miner Manager v1.0.0
 
-Modern, Dockerized ASIC miner management platform with energy-based automation and Octopus Agile pricing integration.
+🎉 **Production Release** - Modern, Dockerized ASIC miner management platform with energy-based automation and Octopus Agile pricing integration.
 
 ## Supported Miners
 

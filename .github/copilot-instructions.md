@@ -1,9 +1,9 @@
 DANVIC.dev — Copilot Instructions
-v0 Miner Controller — Full Development Specification
+Home Miner Manager v1.0.0 — Production Release
 DANVIC.dev — Copilot Instructions
-v0 Miner Controller — Full Development Specification
+Home Miner Manager v1.0.0 — Production Release
 1. Project Purpose
-The v0 Miner Controller is a modern, Dockerized, UI-driven platform designed to manage
+Home Miner Manager v1.0.0 is a production-ready, Dockerized, UI-driven platform designed to manage
 ASIC miners:
 - Avalon Nano 3 / 3S
 - Bitaxe 601
