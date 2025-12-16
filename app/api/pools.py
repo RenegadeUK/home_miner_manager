@@ -47,7 +47,8 @@ class PoolResponse(BaseModel):
 @router.get("/", response_model=List[PoolResponse])
 async def list_pools(db: AsyncSession = Depends(get_db)):
     """List all pools"""
-    result = await db.execute(select(Pool).order_by(Pool.name))
+    from sqlalchemy import func
+    result = await db.execute(select(Pool).order_by(func.lower(Pool.name)))
     pools = result.scalars().all()
     return pools
 

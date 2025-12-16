@@ -259,7 +259,8 @@ async def export_telemetry_csv(
 @router.get("/overview/stats")
 async def get_overview_stats(db: AsyncSession = Depends(get_db)):
     """Get overview statistics for all miners"""
-    result = await db.execute(select(Miner).where(Miner.enabled == True).order_by(Miner.name))
+    from sqlalchemy import func
+    result = await db.execute(select(Miner).where(Miner.enabled == True).order_by(func.lower(Miner.name)))
     miners = result.scalars().all()
     
     total_miners = len(miners)
