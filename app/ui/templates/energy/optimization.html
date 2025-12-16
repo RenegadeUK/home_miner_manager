@@ -8,8 +8,8 @@
 }
 
 .detail-card {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -21,8 +21,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 1.5rem;
-    background: #374151;
-    border-bottom: 1px solid #4a5568;
+    background: var(--card-header);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .detail-card-icon {
@@ -34,7 +34,7 @@
     flex: 1;
     margin: 0;
     font-size: 1.25rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
 }
@@ -51,7 +51,7 @@
 
 #auto-status {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .stats-grid {
@@ -62,7 +62,7 @@
 }
 
 .stat-box {
-    background: #1f2937;
+    background: var(--input-bg);
     padding: 1.5rem;
     border-radius: 8px;
     border: 1px solid #374151;
@@ -70,7 +70,7 @@
 
 .stat-label {
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.5rem;
@@ -79,7 +79,7 @@
 .stat-value {
     font-size: 1.875rem;
     font-weight: 700;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .two-column-grid {
@@ -90,7 +90,7 @@
 
 .info-banner {
     padding: 1rem;
-    background: #1f2937;
+    background: var(--input-bg);
     border-radius: 6px;
     border: 1px solid #374151;
     color: #d1d5db;
@@ -104,17 +104,17 @@
 .form-label {
     display: block;
     font-weight: 600;
-    color: #f9fafb;
+    color: var(--text-primary);
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
 }
 
 .form-control {
     padding: 0.625rem;
-    background: #1f2937;
-    border: 1px solid #4a5568;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 0.9375rem;
 }
 
@@ -126,7 +126,7 @@
 .form-text {
     display: block;
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
     margin-top: 0.375rem;
 }
 
@@ -143,7 +143,7 @@
     gap: 1.5rem;
     justify-content: center;
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .table-container {
@@ -161,7 +161,7 @@
 #profitability-table thead {
     position: sticky;
     top: 0;
-    background: #374151;
+    background: var(--card-header);
     z-index: 1;
 }
 
@@ -170,8 +170,8 @@
     text-align: left;
     font-weight: 600;
     font-size: 0.875rem;
-    color: #f9fafb;
-    border-bottom: 1px solid #4a5568;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
 }
 
 #profitability-table td {
@@ -184,14 +184,14 @@
 .note-box {
     margin-top: 0.75rem;
     padding: 0.75rem;
-    background: #1f2937;
+    background: var(--input-bg);
     border-radius: 6px;
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .note-box strong {
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 @media (max-width: 1024px) {
@@ -285,7 +285,7 @@
                 <div class="detail-card-body">
                     <div class="schedule-controls">
                         <input type="number" id="target-hours" value="12" min="1" max="24" class="form-control" style="max-width: 100px;">
-                        <span style="font-size: 0.875rem; color: #9ca3af;">hours/day</span>
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">hours/day</span>
                         <button class="btn btn-primary btn-sm" onclick="generateSchedule()">Generate</button>
                     </div>
                     
@@ -601,9 +601,9 @@ async function generateSchedule() {
         // Display recommended slots
         const slotsContainer = document.getElementById('schedule-slots');
         slotsContainer.innerHTML = data.recommended_slots.map(slot => `
-            <div style="padding: 0.5rem; background: #1f2937; border-radius: 4px; text-align: center; border: 1px solid #10b981; font-size: 0.75rem;">
-                <div style="font-weight: 600; color: #f9fafb;">${new Date(slot.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                <div style="font-size: 0.7rem; color: #9ca3af;">${slot.price_pence.toFixed(2)}p/kWh</div>
+            <div style="padding: 0.5rem; background: var(--input-bg); border-radius: 4px; text-align: center; border: 1px solid #10b981; font-size: 0.75rem;">
+                <div style="font-weight: 600; color: var(--text-primary);">${new Date(slot.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                <div style="font-size: 0.7rem; color: var(--text-secondary);">${slot.price_pence.toFixed(2)}p/kWh</div>
             </div>
         `).join('');
         
@@ -661,7 +661,7 @@ setInterval(() => {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #4a5568;
+    background-color: var(--bg-hover);
     transition: 0.3s;
     border-radius: 24px;
 }

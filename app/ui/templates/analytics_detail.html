@@ -8,17 +8,17 @@
 }
 
 .detail-card {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     margin-bottom: 1.5rem;
 }
 
 .detail-card-header {
-    background: #374151;
+    background: var(--card-header);
     padding: 1.5rem;
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -28,7 +28,7 @@
 .detail-card-header h3 {
     margin: 0;
     font-size: 1.5rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -57,12 +57,12 @@
 
 .health-label {
     font-weight: 500;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .health-bar {
     height: 24px;
-    background: #1f2937;
+    background: var(--input-bg);
     border-radius: 12px;
     overflow: hidden;
     position: relative;
@@ -78,14 +78,14 @@
 .health-value {
     text-align: right;
     font-weight: 600;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .health-info {
     padding-top: 1rem;
-    border-top: 1px solid #4a5568;
+    border-top: 1px solid var(--border-color);
     text-align: center;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .health-badge {
@@ -121,7 +121,7 @@
 }
 
 .stats-table tr {
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .stats-table tr:last-child {
@@ -130,11 +130,11 @@
 
 .stats-table td {
     padding: 1rem;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .stats-table td:first-child {
-    color: #9ca3af;
+    color: var(--text-secondary);
     width: 30%;
 }
 
@@ -145,9 +145,9 @@
 
 .time-selector .btn {
     padding: 0.5rem 1rem;
-    background: #374151;
-    border: 1px solid #4a5568;
-    color: #f9fafb;
+    background: var(--card-header);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
     cursor: pointer;
     border-radius: 6px;
 }

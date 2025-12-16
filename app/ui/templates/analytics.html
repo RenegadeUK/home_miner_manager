@@ -13,8 +13,8 @@
 }
 
 .analytics-tile {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     transition: all 0.2s ease;
@@ -34,8 +34,8 @@
     align-items: center;
     gap: 1rem;
     padding: 1.25rem;
-    background: #374151;
-    border-bottom: 1px solid #4a5568;
+    background: var(--card-header);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .analytics-tile-icon {
@@ -51,7 +51,7 @@
 .analytics-tile-name {
     font-weight: 600;
     font-size: 1.125rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
 
@@ -62,11 +62,11 @@
 
 .analytics-tile-body {
     padding: 1.25rem;
-    background: #2d3748;
+    background: var(--card-bg);
 }
 
 .analytics-tile-stat {
-    background: #1f2937;
+    background: var(--input-bg);
     padding: 0.875rem;
     border-radius: 8px;
     border: 1px solid #374151;
@@ -79,7 +79,7 @@
 
 .analytics-tile-label {
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -89,7 +89,7 @@
 .analytics-tile-value {
     font-weight: 600;
     font-size: 1.125rem;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 @media (max-width: 768px) {

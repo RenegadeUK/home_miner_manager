@@ -153,8 +153,8 @@
 }
 
 .detail-card {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -165,8 +165,8 @@
     align-items: center;
     gap: 1rem;
     padding: 1.5rem;
-    background: #374151;
-    border-bottom: 1px solid #4a5568;
+    background: var(--card-header);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .detail-card-icon {
@@ -178,7 +178,7 @@
     flex: 1;
     margin: 0;
     font-size: 1.25rem;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .detail-card-body {
@@ -217,13 +217,13 @@
 
 .info-label {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
 .info-value {
     font-size: 1rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -244,7 +244,7 @@
 }
 
 .stat-box {
-    background: #1f2937;
+    background: var(--input-bg);
     padding: 1.25rem;
     border-radius: 8px;
     border: 1px solid #374151;
@@ -252,7 +252,7 @@
 
 .stat-label {
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 0.5rem;
@@ -261,7 +261,7 @@
 .stat-value {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .stat-value.small-text {
@@ -270,13 +270,13 @@
 
 .last-updated {
     padding-top: 1rem;
-    border-top: 1px solid #4a5568;
+    border-top: 1px solid var(--border-color);
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .text-muted {
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .text-error {
@@ -294,7 +294,7 @@
 .control-label {
     display: block;
     font-weight: 600;
-    color: #f9fafb;
+    color: var(--text-primary);
     margin-bottom: 0.75rem;
     font-size: 1rem;
 }
@@ -310,10 +310,10 @@
     flex: 1;
     min-width: 200px;
     padding: 0.75rem;
-    background: #1f2937;
-    border: 1px solid #4a5568;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 1rem;
 }
 
@@ -333,7 +333,7 @@
     display: flex;
     align-items: center;
     padding: 1rem;
-    background: #1f2937;
+    background: var(--input-bg);
     border: 2px solid #4a5568;
     border-radius: 8px;
     cursor: pointer;
@@ -364,13 +364,13 @@
 
 .radio-option .pool-name {
     font-weight: 600;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 1rem;
 }
 
 .radio-option .pool-details {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .radio-option:has(input[type="radio"]:checked) {
@@ -379,7 +379,7 @@
 }
 
 .loading-text {
-    color: #9ca3af;
+    color: var(--text-secondary);
     padding: 1rem;
     text-align: center;
 }

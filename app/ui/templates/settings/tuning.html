@@ -8,17 +8,17 @@
 }
 
 .detail-card {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     margin-bottom: 1.5rem;
 }
 
 .detail-card-header {
-    background: #374151;
+    background: var(--card-header);
     padding: 1.5rem;
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -27,7 +27,7 @@
 .detail-card-header h3 {
     margin: 0;
     font-size: 1.5rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -48,17 +48,17 @@
 .form-label {
     display: block;
     margin-bottom: 0.5rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-weight: 500;
 }
 
 .form-select {
     width: 100%;
     padding: 0.75rem;
-    background: #374151;
-    border: 1px solid #4a5568;
+    background: var(--card-header);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 1rem;
 }
 
@@ -75,8 +75,8 @@
 }
 
 .profile-tile {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 1.5rem;
     cursor: pointer;
@@ -118,7 +118,7 @@
 
 .profile-tile h3 {
     margin: 0 0 0.5rem 0;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .profile-type-badge {
@@ -127,19 +127,19 @@
     border-radius: 12px;
     font-size: 0.875rem;
     font-weight: 500;
-    background: #374151;
-    color: #f9fafb;
+    background: var(--card-header);
+    color: var(--text-primary);
 }
 
 .profile-description {
-    color: #9ca3af;
+    color: var(--text-secondary);
     font-size: 0.875rem;
     margin-bottom: 1rem;
     min-height: 2.5rem;
 }
 
 .profile-settings {
-    background: #1f2937;
+    background: var(--input-bg);
     padding: 0.75rem;
     border-radius: 6px;
     margin-bottom: 1rem;
@@ -150,11 +150,11 @@
     display: flex;
     justify-content: space-between;
     padding: 0.25rem 0;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .profile-setting strong {
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .profile-actions {
@@ -163,7 +163,7 @@
     gap: 0.5rem;
     margin-top: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid #4a5568;
+    border-top: 1px solid var(--border-color);
 }
 
 .profile-actions button {
@@ -221,8 +221,8 @@
 }
 
 .modal-content {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     width: 90%;
     max-width: 600px;
@@ -231,9 +231,9 @@
 }
 
 .modal-header {
-    background: #374151;
+    background: var(--card-header);
     padding: 1.5rem;
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -241,7 +241,7 @@
 
 .modal-header h2 {
     margin: 0;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 1.5rem;
 }
 
@@ -249,7 +249,7 @@
     background: none;
     border: none;
     font-size: 2rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     cursor: pointer;
     line-height: 1;
 }
@@ -264,7 +264,7 @@
 
 .modal-footer {
     padding: 1.5rem;
-    border-top: 1px solid #4a5568;
+    border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
@@ -273,10 +273,10 @@
 .form-control {
     width: 100%;
     padding: 0.75rem;
-    background: #374151;
-    border: 1px solid #4a5568;
+    background: var(--card-header);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 1rem;
 }
 
@@ -290,17 +290,17 @@ textarea.form-control {
 }
 
 #settings-container h3 {
-    color: #f9fafb;
+    color: var(--text-primary);
     margin: 1.5rem 0 1rem 0;
     font-size: 1.25rem;
 }
 
 #settings-fields {
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .text-secondary {
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 </style>
 {% endblock %}

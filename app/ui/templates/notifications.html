@@ -8,8 +8,8 @@
 }
 
 .detail-card {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -20,8 +20,8 @@
     display: flex;
     align-items: center;
     padding: 1.5rem;
-    background: #374151;
-    border-bottom: 1px solid #4a5568;
+    background: var(--card-header);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .detail-card-icon {
@@ -32,7 +32,7 @@
 .detail-card-header h3 {
     margin: 0;
     font-size: 1.25rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
 }
@@ -42,7 +42,7 @@
 }
 
 .channel-section {
-    background: #1f2937;
+    background: var(--input-bg);
     border: 1px solid #374151;
     border-radius: 8px;
     padding: 1.5rem;
@@ -65,12 +65,12 @@
 .channel-title h4 {
     margin: 0;
     font-size: 1.125rem;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .channel-description {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .form-row {
@@ -80,7 +80,7 @@
 .form-label {
     display: block;
     font-weight: 600;
-    color: #f9fafb;
+    color: var(--text-primary);
     margin-bottom: 0.5rem;
     font-size: 0.875rem;
 }
@@ -88,10 +88,10 @@
 .form-input {
     width: 100%;
     padding: 0.625rem;
-    background: #374151;
-    border: 1px solid #4a5568;
+    background: var(--card-header);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 0.9375rem;
 }
 
@@ -103,7 +103,7 @@
 .form-hint {
     display: block;
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
     margin-top: 0.375rem;
 }
 
@@ -127,21 +127,21 @@
     justify-content: space-between;
     align-items: center;
     padding: 1rem;
-    background: #1f2937;
+    background: var(--input-bg);
     border: 1px solid #374151;
     border-radius: 8px;
     margin-bottom: 0.75rem;
 }
 
 .alert-info strong {
-    color: #f9fafb;
+    color: var(--text-primary);
     display: block;
     margin-bottom: 0.25rem;
 }
 
 .alert-description {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .table-container {
@@ -156,7 +156,7 @@
 }
 
 #notifications-log thead {
-    background: #374151;
+    background: var(--card-header);
 }
 
 #notifications-log th {
@@ -164,8 +164,8 @@
     text-align: left;
     font-weight: 600;
     font-size: 0.875rem;
-    color: #f9fafb;
-    border-bottom: 1px solid #4a5568;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
 }
 
 #notifications-log td {
@@ -328,7 +328,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #4a5568;
+    background-color: var(--bg-hover);
     transition: 0.3s;
     border-radius: 24px;
 }

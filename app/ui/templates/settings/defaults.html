@@ -8,17 +8,17 @@
 }
 
 .detail-card {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     margin-bottom: 1.5rem;
 }
 
 .detail-card-header {
-    background: #374151;
+    background: var(--card-header);
     padding: 1.5rem;
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -27,7 +27,7 @@
 .detail-card-header h3 {
     margin: 0;
     font-size: 1.5rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -46,7 +46,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 1.5rem 0;
-    border-bottom: 1px solid #4a5568;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .setting-item:last-child {
@@ -60,13 +60,13 @@
 .setting-label {
     font-size: 1.125rem;
     font-weight: 600;
-    color: #f9fafb;
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
 
 .setting-description {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .setting-control {
@@ -94,7 +94,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #4a5568;
+    background-color: var(--bg-hover);
     transition: 0.4s;
     border-radius: 34px;
 }

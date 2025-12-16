@@ -13,8 +13,8 @@
 }
 
 .rule-tile {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     transition: all 0.2s ease;
@@ -31,8 +31,8 @@
     align-items: center;
     gap: 1rem;
     padding: 1.25rem;
-    background: #374151;
-    border-bottom: 1px solid #4a5568;
+    background: var(--card-header);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .rule-tile-icon {
@@ -48,7 +48,7 @@
 .rule-tile-name {
     font-weight: 600;
     font-size: 1.125rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     margin-bottom: 0.25rem;
 }
 
@@ -62,11 +62,11 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 1.25rem;
-    background: #2d3748;
+    background: var(--card-bg);
 }
 
 .rule-tile-stat {
-    background: #1f2937;
+    background: var(--input-bg);
     padding: 0.875rem;
     border-radius: 8px;
     border: 1px solid #374151;
@@ -74,7 +74,7 @@
 
 .rule-tile-label {
     font-size: 0.75rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -84,7 +84,7 @@
 .rule-tile-value {
     font-weight: 600;
     font-size: 1rem;
-    color: #f9fafb;
+    color: var(--text-primary);
 }
 
 .rule-tile-actions {
@@ -92,12 +92,12 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
     padding: 1rem 1.25rem;
-    background: #1f2937;
-    border-top: 1px solid #4a5568;
+    background: var(--input-bg);
+    border-top: 1px solid var(--border-color);
 }
 
 .add-rule-tile {
-    background: #2d3748;
+    background: var(--card-bg);
     border: 2px dashed #4a5568;
     border-radius: 12px;
     display: flex;
@@ -112,7 +112,7 @@
 }
 
 .add-rule-tile:hover {
-    background: #374151;
+    background: var(--card-header);
     border-color: #60a5fa;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
@@ -121,7 +121,7 @@
 .add-rule-icon {
     font-size: 3rem;
     margin-bottom: 1rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 .add-rule-text {
@@ -133,7 +133,7 @@
 
 .add-rule-subtitle {
     font-size: 0.875rem;
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

@@ -8,8 +8,8 @@
 }
 
 .detail-card {
-    background: #2d3748;
-    border: 1px solid #4a5568;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.2);
@@ -20,8 +20,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 1.5rem;
-    background: #374151;
-    border-bottom: 1px solid #4a5568;
+    background: var(--card-header);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .detail-card-icon {
@@ -33,7 +33,7 @@
     flex: 1;
     margin: 0;
     font-size: 1.25rem;
-    color: #f9fafb;
+    color: var(--text-primary);
     display: flex;
     align-items: center;
 }
@@ -50,7 +50,7 @@
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 0.875rem;
 }
 
@@ -59,10 +59,10 @@
     width: 100%;
     max-width: 500px;
     padding: 0.625rem;
-    background: #374151;
-    border: 1px solid #4a5568;
+    background: var(--card-header);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    color: #f9fafb;
+    color: var(--text-primary);
     font-size: 0.9375rem;
 }
 
@@ -73,7 +73,7 @@
 }
 
 .form-input::placeholder {
-    color: #9ca3af;
+    color: var(--text-secondary);
 }
 </style>
 {% endblock %}
