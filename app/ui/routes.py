@@ -19,7 +19,11 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    """Dashboard page"""
+    """Dashboard page - redirects to default dashboard if set"""
+    # NOTE: Default dashboard preference is checked client-side via localStorage
+    # The original main dashboard is ALWAYS accessible here at "/"
+    # Custom dashboards are accessed via "/dashboards/{id}"
+    
     # Get basic stats
     result = await db.execute(select(Miner))
     miners = result.scalars().all()
@@ -592,4 +596,32 @@ async def faq(request: Request):
             {"label": "Dashboard", "url": "/"},
             {"label": "FAQ", "url": "/faq"}
         ]
+    })
+
+
+@router.get("/dashboards", response_class=HTMLResponse)
+async def custom_dashboards_list(request: Request):
+    """Custom dashboards management page"""
+    return templates.TemplateResponse("dashboards/list.html", {
+        "request": request,
+        "page_title": "Custom Dashboards",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Custom Dashboards", "url": "/dashboards"}
+        ]
+    })
+
+
+@router.get("/dashboards/{dashboard_id}", response_class=HTMLResponse)
+async def view_custom_dashboard(request: Request, dashboard_id: int):
+    """View a specific custom dashboard"""
+    return templates.TemplateResponse("dashboards/view.html", {
+        "request": request,
+        "page_title": "Custom Dashboard",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Custom Dashboards", "url": "/dashboards"},
+            {"label": "View", "url": f"/dashboards/{dashboard_id}"}
+        ],
+        "dashboard_id": dashboard_id
     })

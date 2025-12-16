@@ -202,3 +202,37 @@ async def run_migrations():
             print("✓ Created audit_logs table")
         except Exception:
             pass
+        
+        # Migration 13: Create custom_dashboards and dashboard_widgets tables
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS custom_dashboards (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR(100) NOT NULL,
+                    description VARCHAR(500),
+                    layout JSON NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created custom_dashboards table")
+        except Exception:
+            pass
+        
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS dashboard_widgets (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    dashboard_id INTEGER NOT NULL,
+                    widget_type VARCHAR(50) NOT NULL,
+                    config JSON NOT NULL,
+                    position JSON NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (dashboard_id) REFERENCES custom_dashboards(id) ON DELETE CASCADE
+                )
+            """))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_dashboard_widgets_dashboard_id ON dashboard_widgets(dashboard_id)"))
+            print("✓ Created dashboard_widgets table")
+        except Exception:
+            pass

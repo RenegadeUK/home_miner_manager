@@ -110,7 +110,8 @@ Rules stored in SQLite with JSON condition/action schema.
 - ✅ Independent hashrate unit display (GH/s vs TH/s per metric)
 - ✅ Total energy consumption calculation (kWh) based on selected time range
 - ✅ Cache busting for real-time data updates when switching miners
-- Future: Real-time dashboard widgets with drag-and-drop customization
+- ✅ Real-time dashboard widgets with drag-and-drop customization (12 widget types)
+- ✅ Custom dashboard system: create multiple dashboards, GridStack-based builder, auto-save layouts
 - Future: PDF export of performance reports
 
 11.2 Energy Optimization ✅ COMPLETED
@@ -160,8 +161,7 @@ Rules stored in SQLite with JSON condition/action schema.
 - ✅ Dark/light theme toggle with user preferences and localStorage persistence
 - ✅ Theme CSS variables system for consistent theming across all pages
 - ✅ WCAG AA accessibility compliance: all text meets 4.5:1 minimum contrast ratios
-- Future: Custom dashboard layouts: drag-and-drop widgets, per-user configs
-- Future: Progressive Web App (PWA) for mobile access
+- ✅ Progressive Web App (PWA): installable on mobile/desktop, offline support, service worker caching, push notifications ready
 - Future: Voice control integration (Alexa/Google Home)
 - Future: Multi-language support
 

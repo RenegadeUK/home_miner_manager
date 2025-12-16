@@ -275,6 +275,31 @@ class AuditLog(Base):
     error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
 
+class CustomDashboard(Base):
+    """Custom dashboard configurations"""
+    __tablename__ = "custom_dashboards"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    layout: Mapped[dict] = mapped_column(JSON)  # Grid layout configuration
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class DashboardWidget(Base):
+    """Widgets for custom dashboards"""
+    __tablename__ = "dashboard_widgets"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dashboard_id: Mapped[int] = mapped_column(Integer, index=True)
+    widget_type: Mapped[str] = mapped_column(String(50))  # miner_stats, energy_price, pool_health, chart, etc
+    config: Mapped[dict] = mapped_column(JSON)  # Widget-specific configuration
+    position: Mapped[dict] = mapped_column(JSON)  # {x, y, w, h} for grid layout
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 # Database engine and session
 DATABASE_URL = f"sqlite+aiosqlite:///{settings.DB_PATH}"
 engine = create_async_engine(DATABASE_URL, echo=False)
