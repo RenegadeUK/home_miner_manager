@@ -5,7 +5,7 @@
     --bg-secondary: #1a1a1a;
     --bg-tertiary: #2a2a2a;
     --text-primary: #ffffff;
-    --text-secondary: #a0a0a0;
+    --text-secondary: #b0b0b0;
     --accent: #3b82f6;
     --accent-hover: #2563eb;
     --success: #10b981;
@@ -223,12 +223,13 @@ body {
     color: var(--text-secondary);
     font-size: 0.875rem;
     margin-bottom: 0.25rem;
+    font-weight: 500;
 }
 
 .stat-value {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--text-primary);
 }
 
 /* Buttons */

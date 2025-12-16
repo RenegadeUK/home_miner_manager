@@ -31,11 +31,9 @@ class PoolStrategyService:
         
         Config options:
         - interval_minutes: How often to switch (default: 60)
-        - apply_to_all: Apply to all miners or just new connections (default: True)
         """
         config = strategy.config or {}
         interval_minutes = config.get("interval_minutes", 60)
-        apply_to_all = config.get("apply_to_all", True)
         
         # Check if it's time to switch
         if strategy.last_switch:
@@ -73,10 +71,8 @@ class PoolStrategyService:
             logger.warning(f"Next pool {next_pool_id} not found or disabled, skipping")
             return {"switched": False, "reason": "next_pool_unavailable"}
         
-        # Apply to miners
-        miners_affected = 0
-        if apply_to_all:
-            miners_affected = await self._switch_miners_to_pool(next_pool_id, strategy.miner_ids)
+        # Apply to assigned miners
+        miners_affected = await self._switch_miners_to_pool(next_pool_id, strategy.miner_ids)
         
         # Update strategy state
         strategy.current_pool_index = next_index

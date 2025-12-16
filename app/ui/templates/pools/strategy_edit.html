@@ -88,14 +88,6 @@
                            class="form-control" min="1" value="{{ strategy.config.get('interval_minutes', 60) }}">
                     <small class="form-text">How often to switch to the next pool</small>
                 </div>
-                
-                <div class="checkbox-group">
-                    <input type="checkbox" id="apply_to_all" name="apply_to_all" 
-                           {% if strategy.config.get('apply_to_all', True) %}checked{% endif %}>
-                    <label for="apply_to_all">
-                        Apply to all miners (if unchecked, only affects new connections)
-                    </label>
-                </div>
             </div>
             
             <!-- Load Balance Config -->
@@ -236,8 +228,7 @@ document.getElementById('strategyForm').addEventListener('submit', async (e) => 
     let config = {};
     if (strategyType === 'round_robin') {
         config = {
-            interval_minutes: parseInt(formData.get('interval_minutes') || 60),
-            apply_to_all: formData.get('apply_to_all') === 'on'
+            interval_minutes: parseInt(formData.get('interval_minutes') || 60)
         };
     } else if (strategyType === 'load_balance') {
         config = {
