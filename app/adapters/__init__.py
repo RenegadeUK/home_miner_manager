@@ -48,6 +48,26 @@ def create_adapter(
     return adapter_class(miner_id, miner_name, ip_address, port, config)
 
 
+def get_adapter(miner) -> Optional[MinerAdapter]:
+    """
+    Get adapter for a Miner database object.
+    
+    Args:
+        miner: Miner database model instance
+    
+    Returns:
+        MinerAdapter instance or None if type not supported
+    """
+    return create_adapter(
+        miner_type=miner.miner_type,
+        miner_id=miner.id,
+        miner_name=miner.name,
+        ip_address=miner.ip_address,
+        port=miner.port,
+        config=miner.config
+    )
+
+
 def get_supported_types() -> list:
     """Get list of supported miner types"""
     return list(ADAPTER_REGISTRY.keys())
