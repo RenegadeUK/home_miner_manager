@@ -423,3 +423,180 @@ async def get_miner_24h_cost(miner_id: int, db: AsyncSession = Depends(get_db)):
         "total_kwh": round(total_kwh, 3),
         "data_points": total_power_readings
     }
+
+
+class BulkOperationRequest(BaseModel):
+    miner_ids: List[int]
+    mode: str | None = None
+    pool_id: int | None = None
+
+
+@router.post("/bulk/enable")
+async def bulk_enable_miners(
+    request: BulkOperationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Enable multiple miners"""
+    success = 0
+    failed = 0
+    
+    for miner_id in request.miner_ids:
+        try:
+            result = await db.execute(select(Miner).where(Miner.id == miner_id))
+            miner = result.scalar_one_or_none()
+            if miner:
+                miner.enabled = True
+                success += 1
+            else:
+                failed += 1
+        except Exception as e:
+            print(f"Failed to enable miner {miner_id}: {e}")
+            failed += 1
+    
+    await db.commit()
+    return {"success": success, "failed": failed}
+
+
+@router.post("/bulk/disable")
+async def bulk_disable_miners(
+    request: BulkOperationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Disable multiple miners"""
+    success = 0
+    failed = 0
+    
+    for miner_id in request.miner_ids:
+        try:
+            result = await db.execute(select(Miner).where(Miner.id == miner_id))
+            miner = result.scalar_one_or_none()
+            if miner:
+                miner.enabled = False
+                success += 1
+            else:
+                failed += 1
+        except Exception as e:
+            print(f"Failed to disable miner {miner_id}: {e}")
+            failed += 1
+    
+    await db.commit()
+    return {"success": success, "failed": failed}
+
+
+@router.post("/bulk/mode")
+async def bulk_set_mode(
+    request: BulkOperationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Set mode for multiple miners"""
+    if not request.mode:
+        raise HTTPException(status_code=400, detail="Mode is required")
+    
+    success = 0
+    failed = 0
+    
+    for miner_id in request.miner_ids:
+        try:
+            result = await db.execute(select(Miner).where(Miner.id == miner_id))
+            miner = result.scalar_one_or_none()
+            if not miner:
+                failed += 1
+                continue
+            
+            adapter = create_adapter(
+                miner.miner_type,
+                miner.id,
+                miner.name,
+                miner.ip_address,
+                miner.port,
+                miner.config or {}
+            )
+            
+            await adapter.set_mode(request.mode)
+            miner.current_mode = request.mode
+            success += 1
+        except Exception as e:
+            print(f"Failed to set mode for miner {miner_id}: {e}")
+            failed += 1
+    
+    await db.commit()
+    return {"success": success, "failed": failed}
+
+
+@router.post("/bulk/pool")
+async def bulk_switch_pool(
+    request: BulkOperationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Switch pool for multiple miners"""
+    if not request.pool_id:
+        raise HTTPException(status_code=400, detail="Pool ID is required")
+    
+    # Get pool details
+    result = await db.execute(select(Pool).where(Pool.id == request.pool_id))
+    pool = result.scalar_one_or_none()
+    if not pool:
+        raise HTTPException(status_code=404, detail="Pool not found")
+    
+    success = 0
+    failed = 0
+    
+    for miner_id in request.miner_ids:
+        try:
+            result = await db.execute(select(Miner).where(Miner.id == miner_id))
+            miner = result.scalar_one_or_none()
+            if not miner:
+                failed += 1
+                continue
+            
+            adapter = create_adapter(
+                miner.miner_type,
+                miner.id,
+                miner.name,
+                miner.ip_address,
+                miner.port,
+                miner.config or {}
+            )
+            
+            await adapter.switch_pool(pool.url, pool.port, pool.username, pool.password or "")
+            success += 1
+        except Exception as e:
+            print(f"Failed to switch pool for miner {miner_id}: {e}")
+            failed += 1
+    
+    return {"success": success, "failed": failed}
+
+
+@router.post("/bulk/restart")
+async def bulk_restart_miners(
+    request: BulkOperationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Restart multiple miners"""
+    success = 0
+    failed = 0
+    
+    for miner_id in request.miner_ids:
+        try:
+            result = await db.execute(select(Miner).where(Miner.id == miner_id))
+            miner = result.scalar_one_or_none()
+            if not miner:
+                failed += 1
+                continue
+            
+            adapter = create_adapter(
+                miner.miner_type,
+                miner.id,
+                miner.name,
+                miner.ip_address,
+                miner.port,
+                miner.config or {}
+            )
+            
+            await adapter.restart()
+            success += 1
+        except Exception as e:
+            print(f"Failed to restart miner {miner_id}: {e}")
+            failed += 1
+    
+    return {"success": success, "failed": failed}

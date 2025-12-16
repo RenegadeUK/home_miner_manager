@@ -139,6 +139,20 @@
     color: var(--text-secondary);
 }
 
+.miner-checkbox {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.miner-tile.selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+}
+
 @media (max-width: 768px) {
     .miners-grid {
         grid-template-columns: 1fr;
@@ -153,8 +167,71 @@
 
 {% block content %}
 <div class="miners-container">
+    <!-- Bulk Actions Bar -->
+    <div id="bulk-actions-bar" style="display: none; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+                <strong id="selected-count">0 miners selected</strong>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button class="btn btn-sm btn-secondary" onclick="bulkEnable()">
+                    <i class="fas fa-check-circle"></i> Enable
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="bulkDisable()">
+                    <i class="fas fa-ban"></i> Disable
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="showBulkModeModal()">
+                    <i class="fas fa-sliders-h"></i> Set Mode
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="showBulkPoolModal()">
+                    <i class="fas fa-network-wired"></i> Switch Pool
+                </button>
+                <button class="btn btn-sm btn-warning" onclick="bulkRestart()">
+                    <i class="fas fa-redo"></i> Restart
+                </button>
+                <button class="btn btn-sm btn-secondary" onclick="clearSelection()">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="miners-grid" id="miners-grid">
         <p class="text-muted" style="grid-column: 1/-1; text-align: center;">Loading miners...</p>
+    </div>
+</div>
+
+<!-- Bulk Mode Modal -->
+<div id="bulk-mode-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="background: var(--background); max-width: 400px; margin: 100px auto; border-radius: 8px; padding: 2rem;">
+        <h3 style="margin-bottom: 1rem;">Set Mode for Selected Miners</h3>
+        <select id="bulk-mode-select" class="form-control" style="margin-bottom: 1rem;">
+            <option value="">-- Select Mode --</option>
+            <option value="low">Low Power</option>
+            <option value="med">Medium Power</option>
+            <option value="high">High Power</option>
+            <option value="eco">Eco</option>
+            <option value="standard">Standard</option>
+            <option value="turbo">Turbo</option>
+        </select>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-primary" onclick="executeBulkMode()">Apply</button>
+            <button class="btn btn-secondary" onclick="closeBulkModeModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Pool Modal -->
+<div id="bulk-pool-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+    <div style="background: var(--background); max-width: 400px; margin: 100px auto; border-radius: 8px; padding: 2rem;">
+        <h3 style="margin-bottom: 1rem;">Switch Pool for Selected Miners</h3>
+        <select id="bulk-pool-select" class="form-control" style="margin-bottom: 1rem;">
+            <option value="">-- Select Pool --</option>
+        </select>
+        <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-primary" onclick="executeBulkPool()">Apply</button>
+            <button class="btn btn-secondary" onclick="closeBulkPoolModal()">Cancel</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -199,7 +276,8 @@ async function loadMiners() {
         }
         
         const tilesHTML = miners.map(m => `
-            <div class="miner-tile">
+            <div class="miner-tile" data-miner-id="${m.id}" style="position: relative;">
+                <input type="checkbox" class="miner-checkbox" onchange="toggleMinerSelection(${m.id}, this.checked)">
                 <div class="miner-tile-header">
                     <div class="miner-tile-icon">${getMinerIcon(m.miner_type)}</div>
                     <div class="miner-tile-info">
@@ -275,6 +353,140 @@ async function deleteMiner(id, name) {
         await loadMiners();
     } catch (error) {
         alert('Error deleting miner: ' + error.message);
+    }
+}
+
+// Bulk operations
+let selectedMiners = new Set();
+
+function toggleMinerSelection(minerId, checked) {
+    const tile = document.querySelector(`[data-miner-id="${minerId}"]`);
+    if (checked) {
+        selectedMiners.add(minerId);
+        tile.classList.add('selected');
+    } else {
+        selectedMiners.delete(minerId);
+        tile.classList.remove('selected');
+    }
+    updateBulkActionsBar();
+}
+
+function updateBulkActionsBar() {
+    const bar = document.getElementById('bulk-actions-bar');
+    const count = document.getElementById('selected-count');
+    
+    if (selectedMiners.size > 0) {
+        bar.style.display = 'block';
+        count.textContent = `${selectedMiners.size} miner${selectedMiners.size > 1 ? 's' : ''} selected`;
+    } else {
+        bar.style.display = 'none';
+    }
+}
+
+function clearSelection() {
+    selectedMiners.clear();
+    document.querySelectorAll('.miner-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.miner-tile').forEach(tile => tile.classList.remove('selected'));
+    updateBulkActionsBar();
+}
+
+async function bulkEnable() {
+    if (selectedMiners.size === 0) return;
+    
+    const results = await executeBulkOperation('/api/miners/bulk/enable', Array.from(selectedMiners));
+    alert(`Enabled ${results.success} miners\n${results.failed > 0 ? `Failed: ${results.failed}` : ''}`);
+    clearSelection();
+    await loadMiners();
+}
+
+async function bulkDisable() {
+    if (selectedMiners.size === 0) return;
+    
+    const results = await executeBulkOperation('/api/miners/bulk/disable', Array.from(selectedMiners));
+    alert(`Disabled ${results.success} miners\n${results.failed > 0 ? `Failed: ${results.failed}` : ''}`);
+    clearSelection();
+    await loadMiners();
+}
+
+async function bulkRestart() {
+    if (selectedMiners.size === 0) return;
+    if (!confirm(`Restart ${selectedMiners.size} selected miners?`)) return;
+    
+    const results = await executeBulkOperation('/api/miners/bulk/restart', Array.from(selectedMiners));
+    alert(`Restarted ${results.success} miners\n${results.failed > 0 ? `Failed: ${results.failed}` : ''}`);
+    clearSelection();
+}
+
+function showBulkModeModal() {
+    if (selectedMiners.size === 0) return;
+    document.getElementById('bulk-mode-modal').style.display = 'block';
+}
+
+function closeBulkModeModal() {
+    document.getElementById('bulk-mode-modal').style.display = 'none';
+}
+
+async function executeBulkMode() {
+    const mode = document.getElementById('bulk-mode-select').value;
+    if (!mode) {
+        alert('Please select a mode');
+        return;
+    }
+    
+    const results = await executeBulkOperation('/api/miners/bulk/mode', Array.from(selectedMiners), { mode });
+    alert(`Applied mode to ${results.success} miners\n${results.failed > 0 ? `Failed: ${results.failed}` : ''}`);
+    closeBulkModeModal();
+    clearSelection();
+    await loadMiners();
+}
+
+async function showBulkPoolModal() {
+    if (selectedMiners.size === 0) return;
+    
+    // Load pools
+    const response = await fetch('/api/pools');
+    const pools = await response.json();
+    const select = document.getElementById('bulk-pool-select');
+    select.innerHTML = '<option value="">-- Select Pool --</option>' + 
+        pools.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    
+    document.getElementById('bulk-pool-modal').style.display = 'block';
+}
+
+function closeBulkPoolModal() {
+    document.getElementById('bulk-pool-modal').style.display = 'none';
+}
+
+async function executeBulkPool() {
+    const poolId = document.getElementById('bulk-pool-select').value;
+    if (!poolId) {
+        alert('Please select a pool');
+        return;
+    }
+    
+    const results = await executeBulkOperation('/api/miners/bulk/pool', Array.from(selectedMiners), { pool_id: parseInt(poolId) });
+    alert(`Switched ${results.success} miners to new pool\n${results.failed > 0 ? `Failed: ${results.failed}` : ''}`);
+    closeBulkPoolModal();
+    clearSelection();
+    await loadMiners();
+}
+
+async function executeBulkOperation(endpoint, minerIds, data = {}) {
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ miner_ids: minerIds, ...data })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Bulk operation failed');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Bulk operation error:', error);
+        return { success: 0, failed: minerIds.length };
     }
 }
 
