@@ -134,7 +134,11 @@ Rules stored in SQLite with JSON condition/action schema.
 - ✅ Historical pool health tracking with 30-day auto-purge
 - ✅ Pool performance comparison: luck %, latency trends, health scores, reject rates over time (24h/3d/7d/30d)
 - ✅ Multi-chart comparison view with color-coded pool legends
-- Future: Multi-pool strategies: round-robin, load balancing
+- ✅ Multi-pool strategies: round-robin rotation at fixed intervals, load balancing by health/latency/reject rate
+- ✅ Pool priority field for weighted load balancing
+- ✅ Strategy execution via scheduler (every minute)
+- ✅ Strategy management UI with manual execution and configuration
+- ✅ Only one strategy active at a time with automatic disabling of others
 
 11.4 Hardware Expansion ✅ COMPLETED
 - ✅ Network auto-discovery: scan for Avalon Nano (cgminer API), Bitaxe/NerdQaxe (HTTP API)
