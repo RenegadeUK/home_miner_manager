@@ -239,10 +239,21 @@ const poolColors = [
 async function loadPerformanceData(range) {
     try {
         const response = await fetch(`/api/pools/performance?range=${range}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const data = await response.json();
+        
+        console.log('Loaded performance data:', data);
         
         if (data.pools.length === 0) {
             document.getElementById('stats-grid').innerHTML = '<div class="no-data">No pool performance data available</div>';
+            Object.keys(charts).forEach(key => {
+                const canvas = document.getElementById(`${key}Chart`);
+                if (canvas) {
+                    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+                }
+            });
             return;
         }
         
@@ -250,7 +261,7 @@ async function loadPerformanceData(range) {
         renderCharts(data);
     } catch (error) {
         console.error('Error loading performance data:', error);
-        document.getElementById('stats-grid').innerHTML = '<div class="no-data">Error loading performance data</div>';
+        document.getElementById('stats-grid').innerHTML = `<div class="no-data">Error loading performance data: ${error.message}</div>`;
     }
 }
 
