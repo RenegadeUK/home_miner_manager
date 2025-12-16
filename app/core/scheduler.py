@@ -1,12 +1,15 @@
 """
 APScheduler for periodic tasks
 """
+import logging
 import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
 from sqlalchemy import select
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class SchedulerService:

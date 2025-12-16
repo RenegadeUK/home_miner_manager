@@ -7,87 +7,223 @@
         <h2 class="card-title">Recent Events</h2>
         <button class="btn btn-secondary btn-sm" onclick="clearEvents()">Clear All</button>
     </div>
+    
+    <!-- Filter Tiles -->
+    <div class="filter-tiles">
+        <button class="filter-tile active" onclick="filterEvents('all')" data-filter="all">
+            <div class="filter-tile-label">All</div>
+            <div class="filter-tile-count" id="count-all">0</div>
+        </button>
+        <button class="filter-tile" onclick="filterEvents('info')" data-filter="info">
+            <div class="filter-tile-label">Info</div>
+            <div class="filter-tile-count" id="count-info">0</div>
+        </button>
+        <button class="filter-tile" onclick="filterEvents('success')" data-filter="success">
+            <div class="filter-tile-label">Success</div>
+            <div class="filter-tile-count" id="count-success">0</div>
+        </button>
+        <button class="filter-tile" onclick="filterEvents('warning')" data-filter="warning">
+            <div class="filter-tile-label">Warning</div>
+            <div class="filter-tile-count" id="count-warning">0</div>
+        </button>
+        <button class="filter-tile" onclick="filterEvents('error')" data-filter="error">
+            <div class="filter-tile-label">Error</div>
+            <div class="filter-tile-count" id="count-error">0</div>
+        </button>
+    </div>
+    
     <div id="events-list">
         <p class="text-muted">Loading events...</p>
     </div>
 </div>
+
+<style>
+.filter-tiles {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.filter-tile {
+    flex: 1;
+    min-width: 100px;
+    padding: 0.75rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--bg-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.filter-tile:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+}
+
+.filter-tile.active {
+    border-color: var(--primary-color);
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.filter-tile-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.filter-tile-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+@media (max-width: 768px) {
+    .filter-tiles {
+        padding: 0.75rem;
+    }
+    
+    .filter-tile {
+        min-width: 80px;
+        padding: 0.5rem;
+    }
+    
+    .filter-tile-count {
+        font-size: 1.25rem;
+    }
+}
+</style>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
+let allEvents = [];
+let currentFilter = 'all';
+
+// Map event_type to badge color and category
+const getBadgeClass = (eventType) => {
+    if (eventType === 'error' || eventType === 'api_error') return 'danger';
+    if (eventType === 'warning' || eventType === 'api_warning') return 'warning';
+    if (eventType === 'info') return 'info';
+    return 'success';
+};
+
+const getEventCategory = (eventType) => {
+    if (eventType === 'error' || eventType === 'api_error') return 'error';
+    if (eventType === 'warning' || eventType === 'api_warning') return 'warning';
+    if (eventType === 'info') return 'info';
+    return 'success';
+};
+
+// Update filter counts
+function updateFilterCounts() {
+    const counts = {
+        all: allEvents.length,
+        info: allEvents.filter(e => getEventCategory(e.event_type) === 'info').length,
+        success: allEvents.filter(e => getEventCategory(e.event_type) === 'success').length,
+        warning: allEvents.filter(e => getEventCategory(e.event_type) === 'warning').length,
+        error: allEvents.filter(e => getEventCategory(e.event_type) === 'error').length
+    };
+    
+    Object.keys(counts).forEach(key => {
+        const el = document.getElementById(`count-${key}`);
+        if (el) el.textContent = counts[key];
+    });
+}
+
+// Filter events
+function filterEvents(category) {
+    currentFilter = category;
+    
+    // Update active state
+    document.querySelectorAll('.filter-tile').forEach(tile => {
+        tile.classList.remove('active');
+    });
+    document.querySelector(`[data-filter="${category}"]`).classList.add('active');
+    
+    // Filter and render
+    const filtered = category === 'all' 
+        ? allEvents 
+        : allEvents.filter(e => getEventCategory(e.event_type) === category);
+    
+    renderEvents(filtered);
+}
+
+// Render events to DOM
+function renderEvents(events) {
+    const eventsList = document.getElementById('events-list');
+    
+    if (events.length === 0) {
+        eventsList.innerHTML = '<p class="text-muted" style="padding: 1.5rem;">No events found</p>';
+        return;
+    }
+    
+    // Desktop table view
+    const tableHTML = `
+        <div class="desktop-only">
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Miner</th>
+                    <th>Event</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${events.map(e => `
+                    <tr>
+                        <td>${new Date(e.timestamp).toLocaleString()}</td>
+                        <td>${e.miner_name || 'System'}</td>
+                        <td><span class="badge badge-${getBadgeClass(e.event_type)}">${e.event_type}</span></td>
+                        <td>${e.message}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        </div>
+    `;
+    
+    // Mobile cards view
+    const cardsHTML = `
+        <div class="mobile-cards">
+            ${events.map(e => `
+                <div class="mobile-card">
+                    <div class="mobile-card-header">
+                        <span class="mobile-card-title">${e.miner_name || 'System'}</span>
+                        <span class="badge badge-${getBadgeClass(e.event_type)}">${e.event_type}</span>
+                    </div>
+                    <div class="mobile-card-body">
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">Time:</span>
+                            <span>${new Date(e.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="mobile-card-row">
+                            <span class="mobile-card-label">Details:</span>
+                            <span>${e.message}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    eventsList.innerHTML = tableHTML + cardsHTML;
+}
+
 // Load events
 async function loadEvents() {
     try {
         const response = await fetch('/api/dashboard/all');
         const data = await response.json();
         
-        const events = data.events || [];
-        const eventsList = document.getElementById('events-list');
+        allEvents = data.events || [];
         
-        if (events.length === 0) {
-            eventsList.innerHTML = '<p class="text-muted">No recent events</p>';
-            return;
-        }
-        
-        // Map event_type to badge color
-        const getBadgeClass = (eventType) => {
-            if (eventType === 'error' || eventType === 'api_error') return 'danger';
-            if (eventType === 'warning' || eventType === 'api_warning') return 'warning';
-            if (eventType === 'info') return 'info';
-            return 'success';
-        };
-        
-        // Desktop table view
-        const tableHTML = `
-            <div class="desktop-only">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Miner</th>
-                        <th>Event</th>
-                        <th>Details</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${events.map(e => `
-                        <tr>
-                            <td>${new Date(e.timestamp).toLocaleString()}</td>
-                            <td>${e.miner_name || 'System'}</td>
-                            <td><span class="badge badge-${getBadgeClass(e.event_type)}">${e.event_type}</span></td>
-                            <td>${e.message}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-            </div>
-        `;
-        
-        // Mobile cards view
-        const cardsHTML = `
-            <div class="mobile-cards">
-                ${events.map(e => `
-                    <div class="mobile-card">
-                        <div class="mobile-card-header">
-                            <span class="mobile-card-title">${e.miner_name || 'System'}</span>
-                            <span class="badge badge-${getBadgeClass(e.event_type)}">${e.event_type}</span>
-                        </div>
-                        <div class="mobile-card-body">
-                            <div class="mobile-card-row">
-                                <span class="mobile-card-label">Time:</span>
-                                <span>${new Date(e.timestamp).toLocaleString()}</span>
-                            </div>
-                            <div class="mobile-card-row">
-                                <span class="mobile-card-label">Details:</span>
-                                <span>${e.message}</span>
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        
-        eventsList.innerHTML = tableHTML + cardsHTML;
+        updateFilterCounts();
+        filterEvents(currentFilter);
     } catch (error) {
         console.error('Failed to load events:', error);
         document.getElementById('events-list').innerHTML = '<p class="text-muted">Failed to load events</p>';
