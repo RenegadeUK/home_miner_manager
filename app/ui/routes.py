@@ -63,6 +63,20 @@ async def add_miner(request: Request):
     })
 
 
+@router.get("/miners/discover", response_class=HTMLResponse)
+async def discover_miners(request: Request):
+    """Network discovery page"""
+    return templates.TemplateResponse("miners/discover.html", {
+        "request": request,
+        "page_title": "Discover Miners",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Miners", "url": "/miners"},
+            {"label": "Discover", "url": "/miners/discover"}
+        ]
+    })
+
+
 @router.get("/miners/{miner_id}", response_class=HTMLResponse)
 async def miner_detail(request: Request, miner_id: int, db: AsyncSession = Depends(get_db)):
     """Miner detail page"""
