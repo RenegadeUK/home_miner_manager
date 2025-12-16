@@ -174,6 +174,20 @@ async def edit_pool(request: Request, pool_id: int, db: AsyncSession = Depends(g
     })
 
 
+@router.get("/pools/performance", response_class=HTMLResponse)
+async def pools_performance(request: Request):
+    """Pool performance comparison page"""
+    return templates.TemplateResponse("pools/performance.html", {
+        "request": request,
+        "page_title": "Pool Performance Comparison",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Pools", "url": "/pools"},
+            {"label": "Performance", "url": "/pools/performance"}
+        ]
+    })
+
+
 @router.get("/automation", response_class=HTMLResponse)
 async def automation_list(request: Request, db: AsyncSession = Depends(get_db)):
     """Automation rules list page"""

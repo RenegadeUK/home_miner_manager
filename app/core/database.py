@@ -189,6 +189,7 @@ class PoolHealth(Base):
     shares_accepted: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     shares_rejected: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     health_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0-100
+    luck_percentage: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Pool luck %
     error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
 
