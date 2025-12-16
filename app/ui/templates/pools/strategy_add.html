@@ -3,6 +3,9 @@
 {% block content %}
 <div class="page-header">
     <p class="page-description">Create a new pool switching strategy</p>
+    <button class="btn btn-info" onclick="document.getElementById('strategyHelp').style.display='block'" style="margin-left: auto;">
+        <i class="fas fa-question-circle"></i> Strategy Guide
+    </button>
 </div>
 
 <div class="card">
@@ -275,4 +278,131 @@ document.getElementById('strategyForm').addEventListener('submit', async (e) => 
     color: var(--text-primary);
 }
 </style>
+
+<!-- Help Modal -->
+<div id="strategyHelp" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+    <div style="background: var(--background); max-width: 800px; margin: 2rem auto; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0; color: var(--text-primary);">
+                <i class="fas fa-book"></i> Pool Strategy Guide
+            </h2>
+            <button onclick="document.getElementById('strategyHelp').style.display='none'" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary);">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div style="padding: 2rem;">
+            <!-- Round Robin -->
+            <div style="margin-bottom: 2rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--info); margin-bottom: 1rem;">
+                    <i class="fas fa-sync"></i>
+                    Round Robin
+                </h3>
+                <p style="color: var(--text-primary); margin-bottom: 1rem; font-size: 1.1rem;">
+                    <strong>What it does:</strong> Rotates all miners through your selected pools at fixed time intervals.
+                </p>
+                <div style="background: var(--surface); padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                    <h4 style="color: var(--text-primary); margin-top: 0;">When to use:</h4>
+                    <ul style="color: var(--text-secondary); margin-bottom: 0;">
+                        <li><strong>Equal distribution:</strong> When you want to split your hashrate evenly across multiple pools over time</li>
+                        <li><strong>Solo mining rotation:</strong> Perfect for rotating between solo pools to try your luck at different pools</li>
+                        <li><strong>Pool comparison:</strong> Testing multiple pools to see which performs best for your setup</li>
+                        <li><strong>Reduce variance:</strong> Spreading risk across pools instead of concentrating on one</li>
+                    </ul>
+                </div>
+                <div style="background: var(--info-background); border-left: 4px solid var(--info); padding: 1rem; border-radius: 4px;">
+                    <p style="margin: 0; color: var(--text-primary);">
+                        <i class="fas fa-lightbulb"></i> <strong>Example:</strong> If you have 3 pools and set a 60-minute interval, all your miners will switch to Pool 1, then after an hour they all switch to Pool 2, then Pool 3, then back to Pool 1.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Load Balance -->
+            <div style="margin-bottom: 2rem;">
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; color: var(--primary); margin-bottom: 1rem;">
+                    <i class="fas fa-balance-scale"></i>
+                    Load Balance
+                </h3>
+                <p style="color: var(--text-primary); margin-bottom: 1rem; font-size: 1.1rem;">
+                    <strong>What it does:</strong> Intelligently distributes your miners across pools based on real-time health, latency, and performance metrics.
+                </p>
+                <div style="background: var(--surface); padding: 1rem; border-radius: 4px; margin-bottom: 1rem;">
+                    <h4 style="color: var(--text-primary); margin-top: 0;">When to use:</h4>
+                    <ul style="color: var(--text-secondary); margin-bottom: 0;">
+                        <li><strong>Maximize efficiency:</strong> When you want the best performance and lowest reject rates</li>
+                        <li><strong>Pool reliability:</strong> Automatically avoid pools with high latency or connection issues</li>
+                        <li><strong>Multiple miners:</strong> Distribute miners dynamically instead of having them all on the same pool</li>
+                        <li><strong>Set priority:</strong> Weight allocation toward higher-priority pools while keeping others as backup</li>
+                    </ul>
+                </div>
+                <div style="background: var(--primary-background); border-left: 4px solid var(--primary); padding: 1rem; border-radius: 4px;">
+                    <p style="margin: 0; color: var(--text-primary);">
+                        <i class="fas fa-lightbulb"></i> <strong>Example:</strong> If you have 5 miners and 3 pools (priorities 10, 5, 3), the system might assign 3 miners to the highest priority pool, 1 to the medium, and 1 to the lowest - automatically adjusting if any pool's health degrades.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Comparison -->
+            <div style="border-top: 2px solid var(--border); padding-top: 1.5rem;">
+                <h3 style="color: var(--text-primary); margin-bottom: 1rem;">
+                    <i class="fas fa-balance-scale-right"></i> Quick Comparison
+                </h3>
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Round Robin</th>
+                            <th>Load Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>All miners same pool?</td>
+                            <td><i class="fas fa-check text-success"></i> Yes</td>
+                            <td><i class="fas fa-times text-danger"></i> No</td>
+                        </tr>
+                        <tr>
+                            <td>Time-based switching</td>
+                            <td><i class="fas fa-check text-success"></i> Yes</td>
+                            <td><i class="fas fa-check text-success"></i> Yes</td>
+                        </tr>
+                        <tr>
+                            <td>Health-based switching</td>
+                            <td><i class="fas fa-times text-danger"></i> No</td>
+                            <td><i class="fas fa-check text-success"></i> Yes</td>
+                        </tr>
+                        <tr>
+                            <td>Predictable rotation</td>
+                            <td><i class="fas fa-check text-success"></i> Yes</td>
+                            <td><i class="fas fa-times text-danger"></i> No</td>
+                        </tr>
+                        <tr>
+                            <td>Best for solo mining</td>
+                            <td><i class="fas fa-check text-success"></i> Yes</td>
+                            <td><i class="fas fa-times text-danger"></i> No</td>
+                        </tr>
+                        <tr>
+                            <td>Best for efficiency</td>
+                            <td><i class="fas fa-times text-danger"></i> No</td>
+                            <td><i class="fas fa-check text-success"></i> Yes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Important Notes -->
+            <div style="background: var(--warning-background); border-left: 4px solid var(--warning); padding: 1rem; border-radius: 4px; margin-top: 1.5rem;">
+                <h4 style="color: var(--text-primary); margin-top: 0;">
+                    <i class="fas fa-exclamation-triangle"></i> Important Notes
+                </h4>
+                <ul style="color: var(--text-primary); margin-bottom: 0;">
+                    <li><strong>Only one active strategy:</strong> When you enable a strategy, all others are automatically disabled</li>
+                    <li><strong>Avalon Nano limitations:</strong> These miners can only switch between their 3 pre-configured pool slots</li>
+                    <li><strong>Manual execution:</strong> You can trigger any enabled strategy immediately with the "Execute Now" button</li>
+                    <li><strong>Strategy interval:</strong> The system checks and executes strategies every minute</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
