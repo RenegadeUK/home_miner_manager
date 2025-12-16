@@ -142,10 +142,10 @@ Rules stored in SQLite with JSON condition/action schema.
 - ✅ Scheduled auto-discovery with configurable scan interval (1-168 hours)
 - ✅ Manual per-network scanning with discovery settings page
 - ✅ Auto-detection of local network CIDR for quick setup
-- Future: Firmware management: check for updates, display versions
-- Future: Overclocking profiles: save/load custom tuning presets
-- Future: Bulk operations: apply settings to multiple miners
-- Future: Hardware health predictions based on telemetry trends
+- ✅ Firmware management: track and display firmware versions from telemetry
+- ✅ Overclocking profiles: save/load/apply custom tuning presets (frequency, voltage, mode)
+- ✅ Bulk operations: enable/disable, set mode, switch pool, restart, apply profile to multiple miners
+- ✅ Hardware health predictions: AI-powered analysis of telemetry trends predicting temperature issues, hashrate decline, power anomalies, reject rate problems, and disconnection patterns
 
 11.5 UI/UX Improvements
 - ✅ Collapsible FAQ sections with smooth animations and expand/collapse all
