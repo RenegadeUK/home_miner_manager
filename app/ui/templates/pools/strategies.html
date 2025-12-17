@@ -1,10 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-    <button class="btn btn-info" onclick="document.getElementById('strategyHelp').style.display='block'">
-        <i class="fas fa-question-circle"></i> Strategy Guide
-    </button>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <h1 style="margin: 0;">Pool Strategies</h1>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="/pools/strategies/add" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Strategy
+        </a>
+        <button class="btn btn-info" onclick="document.getElementById('strategyHelp').style.display='block'">
+            <i class="fas fa-question-circle"></i> Strategy Guide
+        </button>
+    </div>
 </div>
 
 {% if strategies %}
