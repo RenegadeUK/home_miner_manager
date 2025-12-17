@@ -32,10 +32,14 @@ class MinerTelemetry:
     
     def to_dict(self) -> Dict:
         """Convert to dictionary"""
+        # Extract hashrate_unit from extra_data if present
+        hashrate_unit = self.extra_data.get("hashrate_unit", "GH/s") if self.extra_data else "GH/s"
+        
         return {
             "miner_id": self.miner_id,
             "timestamp": self.timestamp.isoformat(),
             "hashrate": self.hashrate,
+            "hashrate_unit": hashrate_unit,
             "temperature": self.temperature,
             "power_watts": self.power_watts,
             "shares_accepted": self.shares_accepted,

@@ -474,7 +474,7 @@ async function loadTelemetry() {
         
         // Update values
         document.getElementById('hashrate').textContent = telemetry.hashrate 
-            ? formatHashrate(telemetry.hashrate) 
+            ? formatHashrate(telemetry.hashrate, telemetry.hashrate_unit || 'GH/s') 
             : '--';
         document.getElementById('temperature').textContent = telemetry.temperature 
             ? telemetry.temperature.toFixed(1) + '°C' 
