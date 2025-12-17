@@ -68,8 +68,9 @@ class XMRigAdapter(MinerAdapter):
                     data = await response.json()
                     
                     # Extract data from response
-                    hashrate_10s = data.get("hashrate", {}).get("total", [0, 0, 0])[0]  # 10s average
-                    hashrate_khs = hashrate_10s if hashrate_10s else 0
+                    # XMRig returns hashrate in H/s, convert to KH/s
+                    hashrate_hs = data.get("hashrate", {}).get("total", [0, 0, 0])[0]  # 10s average in H/s
+                    hashrate_khs = (hashrate_hs / 1000.0) if hashrate_hs else 0
                     
                     # Keep in KH/s - CPU miners work in kilohash range, not gigahash
                     # (10 KH/s would show as 0.00001 GH/s which is confusing)
@@ -95,8 +96,8 @@ class XMRigAdapter(MinerAdapter):
                     threads = data.get("cpu", {}).get("enabled", 0)
                     
                     extra_data = {
-                        "hashrate_1m": data.get("hashrate", {}).get("total", [0, 0, 0])[1],  # KH/s
-                        "hashrate_15m": data.get("hashrate", {}).get("total", [0, 0, 0])[2],  # KH/s
+                        "hashrate_1m": data.get("hashrate", {}).get("total", [0, 0, 0])[1] / 1000.0,  # Convert H/s to KH/s
+                        "hashrate_15m": data.get("hashrate", {}).get("total", [0, 0, 0])[2] / 1000.0,  # Convert H/s to KH/s
                         "hashrate_unit": "KH/s",
                         "threads": threads,
                         "cpu_brand": data.get("cpu", {}).get("brand", "Unknown"),
