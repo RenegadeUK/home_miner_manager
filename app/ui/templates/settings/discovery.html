@@ -505,9 +505,8 @@ async function startManualScan() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                networks: [cidr],
-                miner_types: ['avalon_nano', 'bitaxe', 'nerdqaxe'],
-                auto_add: false
+                network_cidr: cidr,
+                timeout: 5.0
             })
         });
         
@@ -531,11 +530,11 @@ async function startManualScan() {
                     <div class="setting-item">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <strong>${m.ip}:${m.port}</strong> - ${m.miner_type}
+                                <strong>${m.ip}:${m.port}</strong> - ${m.type}
                                 ${m.already_added ? '<span style="color: var(--text-secondary); font-size: 0.875rem;">(Already added)</span>' : ''}
-                                ${m.firmware_version ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">Firmware: ${m.firmware_version}</div>` : ''}
+                                ${m.details && m.details.version ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">Firmware: ${m.details.version}</div>` : ''}
                             </div>
-                            ${!m.already_added ? `<button class="btn btn-primary btn-sm" onclick="addDiscoveredMiner('${m.ip}', ${m.port}, '${m.miner_type}')">+ Add Miner</button>` : ''}
+                            ${!m.already_added ? `<button class="btn btn-primary btn-sm" onclick="addDiscoveredMiner('${m.ip}', ${m.port}, '${m.type}')">+ Add Miner</button>` : ''}
                         </div>
                     </div>
                 `).join('');
