@@ -8,14 +8,15 @@
     
     <!-- Search Bar -->
     <div class="faq-search">
-        <input type="text" id="faq-search" placeholder="🔍 Search FAQ..." class="search-input">
-        <button onclick="clearSearch()" class="btn btn-sm btn-secondary" style="margin-left: 0.5rem;">Clear</button>
+        <label for="faq-search" class="sr-only">Search FAQ</label>
+        <input type="text" id="faq-search" placeholder="🔍 Search FAQ..." class="search-input" aria-label="Search frequently asked questions">
+        <button onclick="clearSearch()" class="btn btn-sm btn-secondary" style="margin-left: 0.5rem;" aria-label="Clear search">Clear</button>
     </div>
     
     <!-- Quick Links -->
     <div class="faq-quick-links">
-        <button onclick="expandAll()" class="btn btn-sm btn-primary">Expand All</button>
-        <button onclick="collapseAll()" class="btn btn-sm btn-secondary">Collapse All</button>
+        <button onclick="expandAll()" class="btn btn-sm btn-primary" aria-label="Expand all FAQ sections">Expand All</button>
+        <button onclick="collapseAll()" class="btn btn-sm btn-secondary" aria-label="Collapse all FAQ sections">Collapse All</button>
     </div>
     
     <div class="faq-container">

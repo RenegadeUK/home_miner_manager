@@ -42,4 +42,16 @@ function showNotification(message, type = 'info') {
     console.log(`[${type}] ${message}`);
 }
 
+// WCAG AA - Announce status updates to screen readers
+function announceStatus(message) {
+    const announcer = document.getElementById('status-announcer');
+    if (announcer) {
+        announcer.textContent = message;
+        // Clear after 1 second to allow repeated announcements
+        setTimeout(() => {
+            announcer.textContent = '';
+        }, 1000);
+    }
+}
+
 console.log('v0 Miner Controller initialized');

@@ -5,28 +5,28 @@
 <div class="card">
     <div class="card-header">
         <h2 class="card-title">Recent Events</h2>
-        <button class="btn btn-secondary btn-sm" onclick="clearEvents()">Clear All</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearEvents()" aria-label="Clear all events">Clear All</button>
     </div>
     
     <!-- Filter Tiles -->
     <div class="filter-tiles">
-        <button class="filter-tile active" onclick="filterEvents('all')" data-filter="all">
+        <button class="filter-tile active" onclick="filterEvents('all')" data-filter="all" aria-label="Show all events">
             <div class="filter-tile-label">All</div>
             <div class="filter-tile-count" id="count-all">0</div>
         </button>
-        <button class="filter-tile" onclick="filterEvents('info')" data-filter="info">
+        <button class="filter-tile" onclick="filterEvents('info')" data-filter="info" aria-label="Filter by info events">
             <div class="filter-tile-label">Info</div>
             <div class="filter-tile-count" id="count-info">0</div>
         </button>
-        <button class="filter-tile" onclick="filterEvents('success')" data-filter="success">
+        <button class="filter-tile" onclick="filterEvents('success')" data-filter="success" aria-label="Filter by success events">
             <div class="filter-tile-label">Success</div>
             <div class="filter-tile-count" id="count-success">0</div>
         </button>
-        <button class="filter-tile" onclick="filterEvents('warning')" data-filter="warning">
+        <button class="filter-tile" onclick="filterEvents('warning')" data-filter="warning" aria-label="Filter by warning events">
             <div class="filter-tile-label">Warning</div>
             <div class="filter-tile-count" id="count-warning">0</div>
         </button>
-        <button class="filter-tile" onclick="filterEvents('error')" data-filter="error">
+        <button class="filter-tile" onclick="filterEvents('error')" data-filter="error" aria-label="Filter by error events">
             <div class="filter-tile-label">Error</div>
             <div class="filter-tile-count" id="count-error">0</div>
         </button>
@@ -38,9 +38,9 @@
     
     <!-- Pagination -->
     <div class="pagination" id="pagination" style="display: none;">
-        <button class="btn btn-secondary btn-sm" id="prev-page" onclick="changePage(-1)">← Previous</button>
+        <button class="btn btn-secondary btn-sm" id="prev-page" onclick="changePage(-1)" aria-label="Go to previous page">← Previous</button>
         <span id="page-info" style="margin: 0 1rem; color: var(--text-primary);"></span>
-        <button class="btn btn-secondary btn-sm" id="next-page" onclick="changePage(1)">Next →</button>
+        <button class="btn btn-secondary btn-sm" id="next-page" onclick="changePage(1)" aria-label="Go to next page">Next →</button>
     </div>
 </div>
 
@@ -235,10 +235,10 @@ function renderEvents(events) {
         <table>
             <thead>
                 <tr>
-                    <th>Time</th>
-                    <th>Miner</th>
-                    <th>Event</th>
-                    <th>Details</th>
+                    <th scope="col">Time</th>
+                    <th scope="col">Miner</th>
+                    <th scope="col">Event</th>
+                    <th scope="col">Details</th>
                 </tr>
             </thead>
             <tbody>

@@ -18,12 +18,12 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Pools</th>
-                <th>Last Switch</th>
-                <th>Actions</th>
+                <th scope="col">Name</th>
+                <th scope="col">Type</th>
+                <th scope="col">Status</th>
+                <th scope="col">Pools</th>
+                <th scope="col">Last Switch</th>
+                <th scope="col">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -77,15 +77,15 @@
                 <td>
                     <div class="btn-group">
                         {% if strategy.enabled %}
-                        <button class="btn btn-sm btn-primary" onclick="executeStrategy({{ strategy.id }})">
+                        <button class="btn btn-sm btn-primary" onclick="executeStrategy({{ strategy.id }})" aria-label="Execute {{ strategy.name }} now">
                             <i class="fas fa-play"></i> Execute Now
                         </button>
                         {% endif %}
-                        <a href="/pools/strategies/{{ strategy.id }}/edit" class="btn btn-sm btn-secondary">
+                        <a href="/pools/strategies/{{ strategy.id }}/edit" class="btn btn-sm btn-secondary" aria-label="Edit {{ strategy.name }}">
                             <i class="fas fa-edit"></i> Edit
                         </a>
-                        <button class="btn btn-sm btn-danger" onclick="deleteStrategy({{ strategy.id }})">
-                            <i class="fas fa-trash"></i>
+                        <button class="btn btn-sm btn-danger" onclick="deleteStrategy({{ strategy.id }})" aria-label="Delete {{ strategy.name }}">
+                            <i class="fas fa-trash"></i> Delete
                         </button>
                     </div>
                 </td>

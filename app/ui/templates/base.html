@@ -128,8 +128,14 @@
     </script>
 </head>
 <body>
+    <!-- Skip to main content link -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <!-- ARIA live region for status announcements -->
+    <div aria-live="polite" aria-atomic="true" class="sr-only" id="status-announcer"></div>
+    
     <!-- Mobile Menu Toggle -->
-    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle menu">
+    <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -191,7 +197,7 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="main-content">
+        <main class="main-content" id="main-content">
             <!-- Breadcrumbs -->
             {% if breadcrumbs %}
             <div class="breadcrumbs">

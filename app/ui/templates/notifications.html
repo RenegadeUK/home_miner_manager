@@ -232,8 +232,8 @@
                     </div>
                     
                     <div class="button-row">
-                        <button class="btn btn-primary" onclick="saveTelegram()">Save</button>
-                        <button class="btn btn-secondary" onclick="testTelegram()">Send Test</button>
+                        <button class="btn btn-primary" onclick="saveTelegram()" aria-label="Save Telegram configuration">Save</button>
+                        <button class="btn btn-secondary" onclick="testTelegram()" aria-label="Send test notification to Telegram">Send Test</button>
                     </div>
                 </div>
             </div>
@@ -261,8 +261,8 @@
                     </div>
                     
                     <div class="button-row">
-                        <button class="btn btn-primary" onclick="saveDiscord()">Save</button>
-                        <button class="btn btn-secondary" onclick="testDiscord()">Send Test</button>
+                        <button class="btn btn-primary" onclick="saveDiscord()" aria-label="Save Discord configuration">Save</button>
+                        <button class="btn btn-secondary" onclick="testDiscord()" aria-label="Send test notification to Discord">Send Test</button>
                     </div>
                 </div>
             </div>
@@ -289,11 +289,11 @@
                 <table id="notifications-log">
                     <thead>
                         <tr>
-                            <th>Time</th>
-                            <th>Channel</th>
-                            <th>Alert Type</th>
-                            <th>Message</th>
-                            <th>Status</th>
+                            <th scope="col">Time</th>
+                            <th scope="col">Channel</th>
+                            <th scope="col">Alert Type</th>
+                            <th scope="col">Message</th>
+                            <th scope="col">Status</th>
                         </tr>
                     </thead>
                     <tbody id="notifications-log-body">
