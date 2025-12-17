@@ -22,11 +22,13 @@
     cursor: pointer;
     text-decoration: none;
     display: block;
+    color: var(--text-primary);
 }
 
 .analytics-tile:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     transform: translateY(-2px);
+    border-color: #3b82f6;
 }
 
 .analytics-tile-header {
@@ -108,7 +110,7 @@
             <div class="analytics-tile-header">
                 <div class="analytics-tile-icon">📊</div>
                 <div class="analytics-tile-info">
-                    <h3 style="margin: 0; font-size: 1.25rem;">Long-Term Analytics</h3>
+                    <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-primary);">Long-Term Analytics</h3>
                     <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
                         View historical trends, ROI analysis, and strategic insights (12+ months)
                     </p>
