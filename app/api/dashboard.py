@@ -224,17 +224,18 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     # Calculate P/L (earnings - cost)
     pl_pounds_24h = earnings_pounds_24h - (total_cost_pence / 100)
     
-    # Calculate average miner health (using latest health score for each miner)
+    # Calculate average miner health (using latest health score for each ASIC miner)
+    # Exclude XMRig miners for now - they use different scoring weights
     from core.database import HealthScore
     avg_miner_health = None
     
-    # Get all miners
-    result = await db.execute(select(Miner))
-    all_miners = result.scalars().all()
+    # Get all ASIC miners (exclude XMRig)
+    result = await db.execute(select(Miner).where(Miner.miner_type != 'xmrig'))
+    asic_miners = result.scalars().all()
     
-    # Get latest health score for each miner
+    # Get latest health score for each ASIC miner
     miner_health_scores = []
-    for miner in all_miners:
+    for miner in asic_miners:
         result = await db.execute(
             select(HealthScore.overall_score)
             .where(HealthScore.miner_id == miner.id)
@@ -743,14 +744,14 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
     try:
         from core.database import HealthScore, PoolHealth
         
-        # Calculate average miner health (using latest health score for each miner)
-        # Get all miners
-        result = await db.execute(select(Miner))
-        all_miners = result.scalars().all()
+        # Calculate average miner health (using latest health score for each ASIC miner)
+        # Exclude XMRig miners - they use different scoring weights
+        result = await db.execute(select(Miner).where(Miner.miner_type != 'xmrig'))
+        asic_miners = result.scalars().all()
         
-        # Get latest health score for each miner
+        # Get latest health score for each ASIC miner
         miner_health_scores = []
-        for miner in all_miners:
+        for miner in asic_miners:
             result = await db.execute(
                 select(HealthScore.overall_score)
                 .where(HealthScore.miner_id == miner.id)
