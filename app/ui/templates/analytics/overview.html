@@ -31,25 +31,25 @@
     </div>
     
     <!-- Monthly P&L Chart -->
-    <div class="card" style="margin-bottom: 1rem;">
-        <div class="card-header">
-            <h2>💰 Monthly Profit & Loss</h2>
-            <p>Total earnings vs energy costs by month</p>
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <div class="card-header" style="padding: 0.75rem 1rem;">
+            <h2 style="margin: 0 0 0.25rem 0; font-size: 1.1rem;">💰 Monthly Profit & Loss</h2>
+            <p style="margin: 0; font-size: 0.85rem;">Total earnings vs energy costs by month</p>
         </div>
-        <div class="card-body">
-            <canvas id="monthlyPLChart" style="max-height: 280px;"></canvas>
+        <div class="card-body" style="padding: 0.75rem;">
+            <canvas id="monthlyPLChart" style="max-height: 220px;"></canvas>
         </div>
     </div>
     
     <!-- ROI Comparison Table -->
-    <div class="card" style="margin-bottom: 1rem;">
-        <div class="card-header">
-            <h2>🎯 Miner ROI Comparison</h2>
-            <p>Compare profitability across all miners</p>
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <div class="card-header" style="padding: 0.75rem 1rem;">
+            <h2 style="margin: 0 0 0.25rem 0; font-size: 1.1rem;">🎯 Miner ROI Comparison</h2>
+            <p style="margin: 0; font-size: 0.85rem;">Compare profitability across all miners</p>
         </div>
-        <div class="card-body">
-            <div class="table-container">
-                <table class="data-table" id="roiTable">
+        <div class="card-body" style="padding: 0.5rem;">
+            <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                <table class="data-table" id="roiTable" style="font-size: 0.9rem;">
                     <thead>
                         <tr>
                             <th>Miner</th>
@@ -73,10 +73,10 @@
     </div>
     
     <!-- Hardware Comparison -->
-    <div class="card" style="margin-bottom: 1rem;">
-        <div class="card-header">
-            <h2>⚙️ Hardware Comparison: ASIC vs CPU</h2>
-            <p>Performance comparison by miner type</p>
+    <div class="card" style="margin-bottom: 0.75rem;">
+        <div class="card-header" style="padding: 0.75rem 1rem;">
+            <h2 style="margin: 0 0 0.25rem 0; font-size: 1.1rem;">⚙️ Hardware Comparison: ASIC vs CPU</h2>
+            <p style="margin: 0; font-size: 0.85rem;">Performance comparison by miner type</p>
         </div>
         <div class="card-body">
             <div class="hardware-comparison" id="hardwareComparison">
@@ -87,9 +87,9 @@
     
     <!-- Pool Performance Summary -->
     <div class="card" style="margin-bottom: 0.5rem;">
-        <div class="card-header">
-            <h2>🏊 Pool Performance Summary</h2>
-            <p>Historical pool health and reliability</p>
+        <div class="card-header" style="padding: 0.75rem 1rem;">
+            <h2 style="margin: 0 0 0.25rem 0; font-size: 1.1rem;">🏊 Pool Performance Summary</h2>
+            <p style="margin: 0; font-size: 0.85rem;">Historical pool health and reliability</p>
         </div>
         <div class="card-body">
             <div class="table-container">
@@ -117,8 +117,8 @@
 
 <style>
 .time-range-selector {
-    margin-bottom: 2rem;
-    padding: 1rem;
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
     background: var(--card-bg);
     border-radius: 8px;
     display: flex;
