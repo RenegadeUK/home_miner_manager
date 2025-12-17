@@ -9,10 +9,16 @@ from pydantic import BaseModel
 import logging
 
 from core.database import get_db, Miner, Pool, MinerPoolSlot
+from core.solopool import SolopoolService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def is_xmr_pool(pool: Pool) -> bool:
+    """Check if pool is XMR (CPU-only, not compatible with ASIC miners)"""
+    return SolopoolService.is_solopool_xmr_pool(pool.url, pool.port)
 
 
 class PoolOption(BaseModel):
@@ -239,6 +245,9 @@ async def get_available_pools_for_strategy(
         )
         common_pools = result.scalars().all()
         
+        # Filter out XMR pools (CPU-only, not compatible with ASIC miners)
+        compatible_pools = [p for p in common_pools if not is_xmr_pool(p)]
+        
         available_pools = [
             PoolOption(
                 id=p.id,
@@ -248,17 +257,20 @@ async def get_available_pools_for_strategy(
                 available_for_all=True,
                 avalon_only=True
             )
-            for p in common_pools
+            for p in compatible_pools
         ]
         
     elif has_others and not has_avalon:
-        # ONLY Bitaxe/NerdQaxe - return all enabled pools
-        warning = f"Selected {len(other_miners)} Bitaxe/NerdQaxe miners. All configured pools are available."
+        # ONLY Bitaxe/NerdQaxe - return all enabled pools (excluding XMR which is CPU-only)
+        warning = f"Selected {len(other_miners)} Bitaxe/NerdQaxe miners. All SHA-256 compatible pools are available."
         
         result = await db.execute(
             select(Pool).where(Pool.enabled == True).order_by(Pool.name)
         )
         all_pools = result.scalars().all()
+        
+        # Filter out XMR pools (CPU-only, not compatible with ASIC miners)
+        compatible_pools = [p for p in all_pools if not is_xmr_pool(p)]
         
         available_pools = [
             PoolOption(
@@ -269,7 +281,7 @@ async def get_available_pools_for_strategy(
                 available_for_all=True,
                 avalon_only=False
             )
-            for p in all_pools
+            for p in compatible_pools
         ]
         
     else:
@@ -301,6 +313,9 @@ async def get_available_pools_for_strategy(
         )
         all_pools = result.scalars().all()
         
+        # Filter out XMR pools (CPU-only, not compatible with ASIC miners)
+        compatible_pools = [p for p in all_pools if not is_xmr_pool(p)]
+        
         # If we have slot data, mark pools appropriately
         # If no slot data, assume all pools might work (with warning above)
         available_pools = [
@@ -312,7 +327,7 @@ async def get_available_pools_for_strategy(
                 available_for_all=(p.id in avalon_pool_ids) if avalon_pool_ids else True,
                 avalon_only=False
             )
-            for p in all_pools
+            for p in compatible_pools
         ]
     
     return AvailablePoolsResponse(
