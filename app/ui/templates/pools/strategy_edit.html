@@ -166,7 +166,7 @@ async function loadAvailablePools() {
         poolSelection.innerHTML = '<p class="text-muted"><i class="fas fa-spinner fa-spin"></i> Loading available pools...</p>';
         poolWarning.style.display = 'none';
         
-        const response = await fetch(`/api/pools/available-for-strategy?miner_ids=${minerIds}`);
+        const response = await fetch(`/api/strategy-pools/available?miner_ids=${minerIds}`);
         const data = await response.json();
         
         // Show warning if applicable

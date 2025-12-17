@@ -34,7 +34,7 @@ class AvailablePoolsResponse(BaseModel):
     pools: List[PoolOption]
 
 
-@router.get("/pools/available-for-strategy", response_model=AvailablePoolsResponse)
+@router.get("/strategy-pools/available", response_model=AvailablePoolsResponse)
 async def get_available_pools_for_strategy(
     miner_ids: str = Query(default="", description="Comma-separated miner IDs, empty for all"),
     db: AsyncSession = Depends(get_db)
