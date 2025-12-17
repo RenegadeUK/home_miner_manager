@@ -90,21 +90,36 @@ class XMRigAdapter(MinerAdapter):
                     if "cpu" in data and "temp" in data["cpu"]:
                         temp = data["cpu"]["temp"]
                     
-                    # Power estimation (not directly available, but we can estimate)
-                    # Typical CPU mining: 50-150W depending on CPU
-                    # Store threads count in extra_data for future power estimation
-                    threads = data.get("cpu", {}).get("enabled", 0)
+                    # CPU-specific mining data
+                    cpu_data = data.get("cpu", {})
+                    threads_enabled = cpu_data.get("enabled", 0)
+                    threads_total = cpu_data.get("threads", 0)
+                    
+                    # Hugepages info (critical for RandomX performance)
+                    hugepages = data.get("hugepages", [0, 0])  # [allocated, total]
+                    hugepages_str = f"{hugepages[0]}/{hugepages[1]}" if len(hugepages) >= 2 else "Unknown"
+                    
+                    # Backend optimization (AVX2, AVX, SSE, etc.)
+                    backend = cpu_data.get("backend", "Unknown")
+                    
+                    # Pool latency
+                    connection = data.get("connection", {})
+                    pool_ping = connection.get("ping", 0)
                     
                     extra_data = {
                         "hashrate_1m": data.get("hashrate", {}).get("total", [0, 0, 0])[1] / 1000.0,  # Convert H/s to KH/s
                         "hashrate_15m": data.get("hashrate", {}).get("total", [0, 0, 0])[2] / 1000.0,  # Convert H/s to KH/s
                         "hashrate_unit": "KH/s",
-                        "threads": threads,
-                        "cpu_brand": data.get("cpu", {}).get("brand", "Unknown"),
+                        "threads_enabled": threads_enabled,
+                        "threads_total": threads_total,
+                        "cpu_brand": cpu_data.get("brand", "Unknown"),
+                        "backend": backend,
+                        "hugepages": hugepages_str,
+                        "pool_ping": pool_ping,
                         "uptime": data.get("uptime", 0),
                         "version": data.get("version", "Unknown"),
                         "algo": data.get("algo", "Unknown"),
-                        "difficulty": data.get("connection", {}).get("diff", 0)
+                        "difficulty": connection.get("diff", 0)
                     }
                     
                     return MinerTelemetry(

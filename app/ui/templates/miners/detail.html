@@ -73,7 +73,8 @@
             <div id="telemetry-loading" class="text-muted">Loading telemetry...</div>
             <div id="telemetry-error" class="text-error" style="display: none;"></div>
             <div id="telemetry-data" style="display: none;">
-                <div class="stats-grid">
+                <!-- ASIC Miner Stats (default) -->
+                <div class="stats-grid" id="asic-stats">
                     <div class="stat-box">
                         <div class="stat-label">Hashrate</div>
                         <div class="stat-value" id="hashrate">--</div>
@@ -99,6 +100,59 @@
                         <div class="stat-value" id="cost-24h">--</div>
                     </div>
                 </div>
+                
+                <!-- XMRig CPU Miner Stats -->
+                <div class="stats-grid" id="xmrig-stats" style="display: none;">
+                    <div class="stat-box">
+                        <div class="stat-label">Hashrate</div>
+                        <div class="stat-value" id="xmrig-hashrate">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">CPU Model</div>
+                        <div class="stat-value" id="xmrig-cpu" style="font-size: 0.85rem;">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Temperature</div>
+                        <div class="stat-value" id="xmrig-temperature">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Threads</div>
+                        <div class="stat-value" id="xmrig-threads">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Hugepages</div>
+                        <div class="stat-value" id="xmrig-hugepages">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Algorithm</div>
+                        <div class="stat-value" id="xmrig-algo">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Accepted</div>
+                        <div class="stat-value" id="xmrig-shares-accepted">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Rejected</div>
+                        <div class="stat-value" id="xmrig-shares-rejected">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Backend</div>
+                        <div class="stat-value" id="xmrig-backend">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Pool Latency</div>
+                        <div class="stat-value" id="xmrig-ping">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Uptime</div>
+                        <div class="stat-value" id="xmrig-uptime">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Version</div>
+                        <div class="stat-value" id="xmrig-version" style="font-size: 0.9rem;">--</div>
+                    </div>
+                </div>
+                
                 <div class="last-updated">
                     <strong>Last Updated:</strong> <span id="last-updated">--</span>
                 </div>
@@ -472,18 +526,62 @@ async function loadTelemetry() {
         document.getElementById('telemetry-error').style.display = 'none';
         document.getElementById('telemetry-data').style.display = 'block';
         
-        // Update values
-        document.getElementById('hashrate').textContent = telemetry.hashrate 
-            ? formatHashrate(telemetry.hashrate, telemetry.hashrate_unit || 'GH/s') 
-            : '--';
-        document.getElementById('temperature').textContent = telemetry.temperature 
-            ? telemetry.temperature.toFixed(1) + '°C' 
-            : '--';
-        document.getElementById('power').textContent = telemetry.power_watts 
-            ? telemetry.power_watts.toFixed(1) + 'W' 
-            : '--';
-        document.getElementById('shares-accepted').textContent = telemetry.shares_accepted || 0;
-        document.getElementById('shares-rejected').textContent = telemetry.shares_rejected || 0;
+        // Check if this is XMRig (CPU miner)
+        const isXMRig = telemetry.extra_data && telemetry.extra_data.cpu_brand;
+        
+        if (isXMRig) {
+            // Show XMRig layout, hide ASIC layout
+            document.getElementById('asic-stats').style.display = 'none';
+            document.getElementById('xmrig-stats').style.display = 'grid';
+            
+            // Populate XMRig stats
+            document.getElementById('xmrig-hashrate').textContent = telemetry.hashrate 
+                ? formatHashrate(telemetry.hashrate, telemetry.hashrate_unit || 'KH/s') 
+                : '--';
+            document.getElementById('xmrig-cpu').textContent = telemetry.extra_data.cpu_brand || '--';
+            document.getElementById('xmrig-temperature').textContent = telemetry.temperature 
+                ? telemetry.temperature.toFixed(1) + '°C' 
+                : '--';
+            document.getElementById('xmrig-threads').textContent = 
+                `${telemetry.extra_data.threads_enabled || 0}/${telemetry.extra_data.threads_total || 0}`;
+            document.getElementById('xmrig-hugepages').textContent = telemetry.extra_data.hugepages || '--';
+            document.getElementById('xmrig-algo').textContent = telemetry.extra_data.algo || '--';
+            document.getElementById('xmrig-shares-accepted').textContent = telemetry.shares_accepted || 0;
+            document.getElementById('xmrig-shares-rejected').textContent = telemetry.shares_rejected || 0;
+            document.getElementById('xmrig-backend').textContent = telemetry.extra_data.backend || '--';
+            document.getElementById('xmrig-ping').textContent = telemetry.extra_data.pool_ping 
+                ? telemetry.extra_data.pool_ping + ' ms' 
+                : '--';
+            
+            // Format uptime
+            const uptime = telemetry.extra_data.uptime || 0;
+            const days = Math.floor(uptime / 86400);
+            const hours = Math.floor((uptime % 86400) / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            document.getElementById('xmrig-uptime').textContent = days > 0 
+                ? `${days}d ${hours}h ${minutes}m` 
+                : `${hours}h ${minutes}m`;
+            
+            document.getElementById('xmrig-version').textContent = telemetry.extra_data.version || '--';
+        } else {
+            // Show ASIC layout, hide XMRig layout
+            document.getElementById('asic-stats').style.display = 'grid';
+            document.getElementById('xmrig-stats').style.display = 'none';
+            
+            // Populate ASIC stats
+            document.getElementById('hashrate').textContent = telemetry.hashrate 
+                ? formatHashrate(telemetry.hashrate, telemetry.hashrate_unit || 'GH/s') 
+                : '--';
+            document.getElementById('temperature').textContent = telemetry.temperature 
+                ? telemetry.temperature.toFixed(1) + '°C' 
+                : '--';
+            document.getElementById('power').textContent = telemetry.power_watts 
+                ? telemetry.power_watts.toFixed(1) + 'W' 
+                : '--';
+            document.getElementById('shares-accepted').textContent = telemetry.shares_accepted || 0;
+            document.getElementById('shares-rejected').textContent = telemetry.shares_rejected || 0;
+        }
+        
         document.getElementById('last-updated').textContent = new Date().toLocaleString();
         
         // Store current pool info for radio button selection
@@ -500,8 +598,10 @@ async function loadTelemetry() {
         // Update current pool display
         await updateCurrentPoolDisplay(telemetry.pool_in_use);
         
-        // Load 24h cost
-        await load24hCost();
+        // Load 24h cost (ASIC miners only - XMRig doesn't report power)
+        if (!isXMRig) {
+            await load24hCost();
+        }
         
     } catch (error) {
         document.getElementById('telemetry-loading').style.display = 'none';
