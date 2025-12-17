@@ -220,8 +220,6 @@ async def get_available_pools_for_strategy(
         
     else:
         # MIXED device types
-        warning = f"Mixed devices selected ({len(avalon_miners)} Avalon Nano, {len(other_miners)} Bitaxe/NerdQaxe). Strategy will use pool slots for Avalon miners and direct assignment for others."
-        
         # Get Avalon pool slots
         avalon_miner_ids = [m.id for m in avalon_miners]
         result = await db.execute(
@@ -237,19 +235,27 @@ async def get_available_pools_for_strategy(
                 if slot.pool_id:
                     avalon_pool_ids.add(slot.pool_id)
         
+        # Set warning based on whether we have slot data
+        if not avalon_pool_ids:
+            warning = f"Mixed devices selected ({len(avalon_miners)} Avalon Nano, {len(other_miners)} Bitaxe/NerdQaxe). ⚠️ Avalon pool slots not yet synced - all pools shown but Avalon miners may only switch to pools in their configured slots."
+        else:
+            warning = f"Mixed devices selected ({len(avalon_miners)} Avalon Nano, {len(other_miners)} Bitaxe/NerdQaxe). Pools marked 'All Devices' work for both types; others work only for Bitaxe/NerdQaxe."
+        
         # Get all enabled pools
         result = await db.execute(
             select(Pool).where(Pool.enabled == True).order_by(Pool.name)
         )
         all_pools = result.scalars().all()
         
+        # If we have slot data, mark pools appropriately
+        # If no slot data, assume all pools might work (with warning above)
         available_pools = [
             PoolOption(
                 id=p.id,
                 name=p.name,
                 url=p.url,
                 port=p.port,
-                available_for_all=(p.id in avalon_pool_ids) if avalon_pool_ids else False,
+                available_for_all=(p.id in avalon_pool_ids) if avalon_pool_ids else True,
                 avalon_only=False
             )
             for p in all_pools
