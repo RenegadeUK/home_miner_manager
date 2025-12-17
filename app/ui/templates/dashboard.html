@@ -22,6 +22,18 @@
         <div class="stat-label">Total Hashrate</div>
         <div class="stat-value" id="total-hashrate">0 GH/s</div>
     </div>
+    <div class="stat-card" onclick="window.location.href='/analytics'" style="cursor: pointer;">
+        <div class="stat-label">Avg Miner Health</div>
+        <div class="stat-value" id="avg-miner-health">--</div>
+    </div>
+    <div class="stat-card" onclick="window.location.href='/pools'" style="cursor: pointer;">
+        <div class="stat-label">Avg Pool Health</div>
+        <div class="stat-value" id="avg-pool-health">--</div>
+    </div>
+</div>
+
+<!-- Additional Stats Grid -->
+<div class="stats-grid">
     <div class="stat-card" onclick="window.location.href='/settings/energy'" style="cursor: pointer;">
         <div class="stat-label">Current Energy Price</div>
         <div class="stat-value" id="energy-price">-- p/kWh</div>
@@ -30,10 +42,6 @@
         <div class="stat-label">24h Total Cost</div>
         <div class="stat-value" id="total-cost-24h">£0.00</div>
     </div>
-</div>
-
-<!-- Additional Stats Grid -->
-<div class="stats-grid">
     <div class="stat-card">
         <div class="stat-label">24h Earnings</div>
         <div class="stat-value" id="earnings-24h">£0.00</div>
@@ -41,14 +49,6 @@
     <div class="stat-card">
         <div class="stat-label">24h P/L</div>
         <div class="stat-value" id="pl-24h">£0.00</div>
-    </div>
-    <div class="stat-card" onclick="window.location.href='/analytics'" style="cursor: pointer;">
-        <div class="stat-label">Avg Miner Health</div>
-        <div class="stat-value" id="avg-miner-health">--</div>
-    </div>
-    <div class="stat-card" onclick="window.location.href='/pools'" style="cursor: pointer;">
-        <div class="stat-label">Avg Pool Health</div>
-        <div class="stat-value" id="avg-pool-health">--</div>
     </div>
 </div>
 

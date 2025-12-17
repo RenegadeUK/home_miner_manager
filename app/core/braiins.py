@@ -210,3 +210,51 @@ class BraiinsPoolService:
             return f"{hashrate * 1000:.2f} GH/s"
         else:
             return f"{hashrate * 1000000:.2f} MH/s"
+
+
+async def get_braiins_stats(db) -> Optional[Dict[str, Any]]:
+    """
+    Get Braiins Pool stats including today_reward for dashboard earnings calculation
+    
+    Args:
+        db: Database session
+        
+    Returns:
+        Dict with today_reward (in satoshis) and other stats, or None if Braiins not configured
+    """
+    from core.config import app_config
+    
+    # Check if Braiins is enabled
+    braiins_enabled = app_config.get("braiins_enabled", False)
+    if not braiins_enabled:
+        return None
+    
+    # Get API token
+    api_token = app_config.get("braiins_api_token", "")
+    if not api_token:
+        return None
+    
+    try:
+        # Fetch profile data which contains today_reward
+        profile_data = await BraiinsPoolService.get_profile(api_token)
+        
+        if profile_data and "btc" in profile_data:
+            btc_data = profile_data["btc"]
+            
+            # Convert BTC string to satoshis (multiply by 100000000)
+            try:
+                today_reward_str = btc_data.get("today_reward", "0")
+                today_reward_satoshis = int(float(today_reward_str) * 100000000)
+                
+                return {
+                    "today_reward": today_reward_satoshis,
+                    "current_balance": int(float(btc_data.get("current_balance", "0")) * 100000000),
+                    "all_time_reward": int(float(btc_data.get("all_time_reward", "0")) * 100000000)
+                }
+            except (ValueError, TypeError):
+                return None
+        
+        return None
+        
+    except Exception:
+        return None

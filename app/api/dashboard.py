@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timedelta, timezone
+import logging
 
 from core.database import get_db, Miner, Telemetry, EnergyPrice, Event
 
@@ -122,16 +123,38 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     earnings_pounds_24h = 0.0
     try:
         from core.braiins import get_braiins_stats
-        from core.config import app_config, crypto_price_cache
+        from core.config import app_config
+        from core.database import CryptoPrice
         
-        # Get crypto prices for earnings calculation
-        btc_price_gbp = crypto_price_cache.get("bitcoin", 0)
-        bch_price_gbp = crypto_price_cache.get("bitcoin-cash", 0)
-        dgb_price_gbp = crypto_price_cache.get("digibyte", 0)
-        xmr_price_gbp = crypto_price_cache.get("monero", 0)
+        # Get crypto prices for earnings calculation from database
+        btc_price_gbp = 0
+        bch_price_gbp = 0
+        dgb_price_gbp = 0
+        xmr_price_gbp = 0
+        
+        # Fetch from database
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "bitcoin"))
+        btc_cached = result.scalar_one_or_none()
+        if btc_cached:
+            btc_price_gbp = btc_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "bitcoin-cash"))
+        bch_cached = result.scalar_one_or_none()
+        if bch_cached:
+            bch_price_gbp = bch_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "digibyte"))
+        dgb_cached = result.scalar_one_or_none()
+        if dgb_cached:
+            dgb_price_gbp = dgb_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "monero"))
+        xmr_cached = result.scalar_one_or_none()
+        if xmr_cached:
+            xmr_price_gbp = xmr_cached.price_gbp
         
         # 1. Braiins Pool earnings
-        braiins_enabled = app_config.get("braiins_pool.enabled", False)
+        braiins_enabled = app_config.get("braiins_enabled", False)
         if braiins_enabled and btc_price_gbp > 0:
             braiins_stats = await get_braiins_stats(db)
             if braiins_stats and "today_reward" in braiins_stats:
@@ -196,33 +219,60 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                     earnings_pounds_24h += blocks_found * block_reward * coin_price
         
     except Exception as e:
-        import logging
         logging.error(f"Error calculating 24h earnings: {e}")
     
     # Calculate P/L (earnings - cost)
     pl_pounds_24h = earnings_pounds_24h - (total_cost_pence / 100)
     
-    # Calculate average miner health
+    # Calculate average miner health (using latest health score for each miner)
     from core.database import HealthScore
     avg_miner_health = None
-    result = await db.execute(
-        select(func.avg(HealthScore.health_score))
-        .where(HealthScore.timestamp > cutoff_24h)
-    )
-    avg_health_value = result.scalar()
-    if avg_health_value is not None:
-        avg_miner_health = float(avg_health_value)
     
-    # Calculate average pool health
-    from core.database import PoolHealth
+    # Get all miners
+    result = await db.execute(select(Miner))
+    all_miners = result.scalars().all()
+    
+    # Get latest health score for each miner
+    miner_health_scores = []
+    for miner in all_miners:
+        result = await db.execute(
+            select(HealthScore.overall_score)
+            .where(HealthScore.miner_id == miner.id)
+            .order_by(HealthScore.timestamp.desc())
+            .limit(1)
+        )
+        latest_score = result.scalar()
+        if latest_score is not None:
+            miner_health_scores.append(latest_score)
+    
+    # Calculate average of latest scores
+    if miner_health_scores:
+        avg_miner_health = sum(miner_health_scores) / len(miner_health_scores)
+    
+    # Calculate average pool health (using latest health score for each pool)
+    from core.database import PoolHealth, Pool
     avg_pool_health = None
-    result = await db.execute(
-        select(func.avg(PoolHealth.health_score))
-        .where(PoolHealth.timestamp > cutoff_24h)
-    )
-    avg_pool_value = result.scalar()
-    if avg_pool_value is not None:
-        avg_pool_health = float(avg_pool_value)
+    
+    # Get all pools
+    result = await db.execute(select(Pool))
+    all_pools = result.scalars().all()
+    
+    # Get latest health score for each pool
+    pool_health_scores = []
+    for pool in all_pools:
+        result = await db.execute(
+            select(PoolHealth.health_score)
+            .where(PoolHealth.pool_id == pool.id)
+            .order_by(PoolHealth.timestamp.desc())
+            .limit(1)
+        )
+        latest_score = result.scalar()
+        if latest_score is not None:
+            pool_health_scores.append(latest_score)
+    
+    # Calculate average of latest scores
+    if pool_health_scores:
+        avg_pool_health = sum(pool_health_scores) / len(pool_health_scores)
     
     return {
         "total_miners": total_miners,
@@ -578,6 +628,162 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
             "cost_24h": round(miner_cost_24h / 100, 2)  # Convert to pounds
         })
     
+    # Calculate 24h earnings (from Braiins Pool + Solopool blocks found)
+    earnings_pounds_24h = 0.0
+    try:
+        from core.braiins import get_braiins_stats
+        from core.config import app_config
+        from core.database import CryptoPrice
+        
+        # Get crypto prices for earnings calculation from database
+        btc_price_gbp = 0
+        bch_price_gbp = 0
+        dgb_price_gbp = 0
+        xmr_price_gbp = 0
+        
+        # Fetch from database
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "bitcoin"))
+        btc_cached = result.scalar_one_or_none()
+        if btc_cached:
+            btc_price_gbp = btc_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "bitcoin-cash"))
+        bch_cached = result.scalar_one_or_none()
+        if bch_cached:
+            bch_price_gbp = bch_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "digibyte"))
+        dgb_cached = result.scalar_one_or_none()
+        if dgb_cached:
+            dgb_price_gbp = dgb_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "monero"))
+        xmr_cached = result.scalar_one_or_none()
+        if xmr_cached:
+            xmr_price_gbp = xmr_cached.price_gbp
+        
+        # 1. Braiins Pool earnings
+        braiins_enabled = app_config.get("braiins_enabled", False)
+        if braiins_enabled and btc_price_gbp > 0:
+            braiins_stats = await get_braiins_stats(db)
+            if braiins_stats and "today_reward" in braiins_stats:
+                # today_reward is in satoshis
+                btc_earned_24h = braiins_stats["today_reward"] / 100000000
+                earnings_pounds_24h += btc_earned_24h * btc_price_gbp
+        
+        # 2. Solopool earnings (blocks found in last 24h)
+        from core.solopool import SolopoolService
+        
+        # Get all pools to check for Solopool configurations
+        result = await db.execute(select(Pool))
+        pools_list = result.scalars().all()
+        
+        # Track unique Solopool usernames to avoid double-counting
+        solopool_users_checked = set()
+        
+        for pool in pools_list:
+            # Check which Solopool coin this is
+            is_bch = SolopoolService.is_solopool_bch_pool(pool.url, pool.port)
+            is_dgb = SolopoolService.is_solopool_dgb_pool(pool.url, pool.port)
+            is_btc = SolopoolService.is_solopool_btc_pool(pool.url, pool.port)
+            is_xmr = SolopoolService.is_solopool_xmr_pool(pool.url, pool.port)
+            
+            if not (is_bch or is_dgb or is_btc or is_xmr):
+                continue
+            
+            # Extract username from pool.user
+            username = SolopoolService.extract_username(pool.user)
+            if not username or username in solopool_users_checked:
+                continue
+            
+            solopool_users_checked.add(username)
+            
+            # Fetch stats for this user
+            stats = None
+            coin_price = 0
+            block_reward = 0
+            
+            if is_bch and bch_price_gbp > 0:
+                stats = await SolopoolService.get_bch_account_stats(username)
+                coin_price = bch_price_gbp
+                block_reward = 6.25  # BCH block reward
+            elif is_dgb and dgb_price_gbp > 0:
+                stats = await SolopoolService.get_dgb_account_stats(username)
+                coin_price = dgb_price_gbp
+                block_reward = 665.0  # DGB block reward
+            elif is_btc and btc_price_gbp > 0:
+                stats = await SolopoolService.get_btc_account_stats(username)
+                coin_price = btc_price_gbp
+                block_reward = 3.125  # BTC block reward (post-halving 2024)
+            elif is_xmr and xmr_price_gbp > 0:
+                stats = await SolopoolService.get_xmr_account_stats(username)
+                coin_price = xmr_price_gbp
+                block_reward = 0.6  # XMR block reward (approximate)
+            
+            if stats and "blocks_24h" in stats:
+                blocks_found = stats["blocks_24h"]
+                if blocks_found > 0:
+                    earnings_pounds_24h += blocks_found * block_reward * coin_price
+        
+    except Exception as e:
+        logging.error(f"Error calculating 24h earnings in /all: {e}")
+    
+    # Calculate P/L
+    pl_pounds_24h = earnings_pounds_24h - (total_cost_24h_pence / 100)
+    
+    # Calculate average health scores
+    avg_miner_health = None
+    avg_pool_health = None
+    
+    try:
+        from core.database import HealthScore, PoolHealth
+        
+        # Calculate average miner health (using latest health score for each miner)
+        # Get all miners
+        result = await db.execute(select(Miner))
+        all_miners = result.scalars().all()
+        
+        # Get latest health score for each miner
+        miner_health_scores = []
+        for miner in all_miners:
+            result = await db.execute(
+                select(HealthScore.overall_score)
+                .where(HealthScore.miner_id == miner.id)
+                .order_by(HealthScore.timestamp.desc())
+                .limit(1)
+            )
+            latest_score = result.scalar()
+            if latest_score is not None:
+                miner_health_scores.append(latest_score)
+        
+        # Calculate average of latest scores
+        if miner_health_scores:
+            avg_miner_health = round(sum(miner_health_scores) / len(miner_health_scores), 1)
+        
+        # Calculate average pool health (using latest health score for each pool)
+        # Get all pools
+        result = await db.execute(select(Pool))
+        all_pools = result.scalars().all()
+        
+        # Get latest health score for each pool
+        pool_health_scores = []
+        for pool in all_pools:
+            result = await db.execute(
+                select(PoolHealth.health_score)
+                .where(PoolHealth.pool_id == pool.id)
+                .order_by(PoolHealth.timestamp.desc())
+                .limit(1)
+            )
+            latest_score = result.scalar()
+            if latest_score is not None:
+                pool_health_scores.append(latest_score)
+        
+        # Calculate average of latest scores
+        if pool_health_scores:
+            avg_pool_health = round(sum(pool_health_scores) / len(pool_health_scores), 1)
+    except Exception as e:
+        logging.error(f"Error calculating health scores in /all: {e}")
+    
     return {
         "stats": {
             "total_miners": len(miners),
@@ -586,10 +792,10 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
             "current_energy_price_pence": current_energy_price,
             "total_cost_24h_pence": round(total_cost_24h_pence, 2),
             "total_cost_24h_pounds": round(total_cost_24h_pence / 100, 2),
-            "earnings_24h_pounds": 0.0,
-            "pl_24h_pounds": 0.0,
-            "avg_miner_health": None,
-            "avg_pool_health": None
+            "earnings_24h_pounds": round(earnings_pounds_24h, 2),
+            "pl_24h_pounds": round(pl_pounds_24h, 2),
+            "avg_miner_health": avg_miner_health,
+            "avg_pool_health": avg_pool_health
         },
         "miners": miners_data,
         "events": [
