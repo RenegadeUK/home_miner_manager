@@ -218,7 +218,7 @@ async function loadAvailablePools() {
 // Load miners for selection
 async function loadMiners() {
     try {
-        const response = await fetch('/api/miners');
+        const response = await fetch('/api/miners/');
         const miners = await response.json();
         
         const minerSelection = document.getElementById('minerSelection');
