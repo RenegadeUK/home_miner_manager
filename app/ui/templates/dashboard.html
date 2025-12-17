@@ -426,9 +426,12 @@ async function loadSolopoolStats() {
 // Load dashboard data
 async function loadDashboard() {
     try {
-        // Fetch stats separately (includes earnings/P/L/health)
-        const statsResponse = await fetch('/api/dashboard/stats');
-        const stats = await statsResponse.json();
+        // Single optimized API call that returns everything
+        const response = await fetch('/api/dashboard/all');
+        const data = await response.json();
+        
+        // Update stats
+        const stats = data.stats;
         document.getElementById('total-miners').textContent = stats.total_miners;
         document.getElementById('total-hashrate').textContent = formatHashrate(stats.total_hashrate_ghs);
         
