@@ -555,12 +555,20 @@ async function startManualScan() {
 }
 
 async function addDiscoveredMiner(ip, port, type) {
+    // Prompt for custom name
+    const defaultName = `${type}-${ip.split('.').pop()}`;
+    const name = prompt(`Enter a name for this miner:\n(${type} at ${ip})`, defaultName);
+    
+    if (!name || name.trim() === '') {
+        return; // User cancelled or entered empty name
+    }
+    
     try {
         const response = await fetch('/api/miners', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                name: `${type}-${ip.split('.').pop()}`,
+                name: name.trim(),
                 miner_type: type,
                 ip_address: ip,
                 port: port,
