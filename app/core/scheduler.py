@@ -115,6 +115,14 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._aggregate_daily_stats,
+            IntervalTrigger(hours=24),
+            id="aggregate_daily_stats",
+            name="Aggregate daily statistics at midnight",
+            next_run_time=self._get_next_midnight()
+        )
+        
+        self.scheduler.add_job(
             self._monitor_pool_health,
             IntervalTrigger(minutes=5),
             id="monitor_pool_health",
@@ -777,12 +785,12 @@ class SchedulerService:
             print(f"❌ Failed to start NMMiner UDP listener: {e}")
     
     async def _purge_old_telemetry(self):
-        """Purge telemetry data older than 48 hours"""
+        """Purge telemetry data older than 30 days (increased for long-term analytics)"""
         from core.database import AsyncSessionLocal, Telemetry
         from sqlalchemy import delete
         
         try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=48)
+            cutoff_time = datetime.utcnow() - timedelta(days=30)
             
             async with AsyncSessionLocal() as db:
                 # Delete old telemetry records
@@ -794,10 +802,27 @@ class SchedulerService:
                 
                 deleted_count = result.rowcount
                 if deleted_count > 0:
-                    print(f"🗑️ Purged {deleted_count} telemetry records older than 48 hours")
+                    print(f"🗑️ Purged {deleted_count} telemetry records older than 30 days")
         
         except Exception as e:
             print(f"❌ Failed to purge old telemetry: {e}")
+    
+    def _get_next_midnight(self):
+        """Calculate next midnight UTC for daily aggregation"""
+        now = datetime.utcnow()
+        next_midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        return next_midnight
+    
+    async def _aggregate_daily_stats(self):
+        """Aggregate yesterday's stats into daily tables at midnight"""
+        from core.aggregation import aggregate_daily_stats
+        
+        try:
+            await aggregate_daily_stats()
+            print("✓ Daily stats aggregation complete")
+        except Exception as e:
+            logger.error(f"Failed to aggregate daily stats: {e}", exc_info=True)
+            print(f"❌ Daily stats aggregation failed: {e}")
     
     async def _log_system_summary(self):
         """Log system status summary every 6 hours"""

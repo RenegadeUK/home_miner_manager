@@ -301,6 +301,103 @@ class DashboardWidget(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class DailyMinerStats(Base):
+    """Daily aggregated miner statistics for long-term analytics"""
+    __tablename__ = "daily_miner_stats"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    miner_id: Mapped[int] = mapped_column(Integer, index=True)
+    date: Mapped[datetime] = mapped_column(DateTime, index=True)  # Date at midnight UTC
+    
+    # Hashrate stats
+    avg_hashrate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    min_hashrate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_hashrate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    hashrate_unit: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, default="GH/s")
+    
+    # Temperature stats (ASIC only)
+    avg_temperature: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_temperature: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Power stats (ASIC only)
+    avg_power: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    total_kwh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Uptime
+    uptime_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    offline_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Shares
+    total_shares_accepted: Mapped[int] = mapped_column(Integer, default=0)
+    total_shares_rejected: Mapped[int] = mapped_column(Integer, default=0)
+    reject_rate_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Economics
+    energy_cost_gbp: Mapped[float] = mapped_column(Float, default=0.0)
+    earnings_gbp: Mapped[float] = mapped_column(Float, default=0.0)
+    profit_gbp: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Metadata
+    data_points: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Unique constraint: one entry per miner per day
+    __table_args__ = ({'sqlite_autoincrement': True},)
+
+
+class DailyPoolStats(Base):
+    """Daily aggregated pool statistics"""
+    __tablename__ = "daily_pool_stats"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pool_id: Mapped[int] = mapped_column(Integer, index=True)
+    date: Mapped[datetime] = mapped_column(DateTime, index=True)
+    
+    # Pool performance
+    blocks_found: Mapped[int] = mapped_column(Integer, default=0)
+    total_shares_submitted: Mapped[int] = mapped_column(Integer, default=0)
+    avg_luck_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    avg_latency_ms: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Health
+    avg_health_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    uptime_percent: Mapped[float] = mapped_column(Float, default=100.0)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = ({'sqlite_autoincrement': True},)
+
+
+class MonthlyMinerStats(Base):
+    """Monthly rollup of miner statistics"""
+    __tablename__ = "monthly_miner_stats"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    miner_id: Mapped[int] = mapped_column(Integer, index=True)
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    month: Mapped[int] = mapped_column(Integer, index=True)  # 1-12
+    
+    # Aggregated from daily stats
+    avg_hashrate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    hashrate_unit: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    total_kwh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    uptime_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    total_shares_accepted: Mapped[int] = mapped_column(Integer, default=0)
+    total_shares_rejected: Mapped[int] = mapped_column(Integer, default=0)
+    reject_rate_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    # Economics
+    total_energy_cost_gbp: Mapped[float] = mapped_column(Float, default=0.0)
+    total_earnings_gbp: Mapped[float] = mapped_column(Float, default=0.0)
+    total_profit_gbp: Mapped[float] = mapped_column(Float, default=0.0)
+    
+    days_active: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = ({'sqlite_autoincrement': True},)
+
+
 # Database engine and session
 DATABASE_URL = f"sqlite+aiosqlite:///{settings.DB_PATH}"
 engine = create_async_engine(DATABASE_URL, echo=False)

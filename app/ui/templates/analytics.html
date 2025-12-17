@@ -102,6 +102,22 @@
 
 {% block content %}
 <div class="analytics-container">
+    <!-- Overview Card -->
+    <div style="margin-bottom: 2rem;">
+        <a href="/analytics/overview" class="analytics-tile" style="display: block; max-width: 600px; margin: 0 auto;">
+            <div class="analytics-tile-header">
+                <div class="analytics-tile-icon">📊</div>
+                <div class="analytics-tile-info">
+                    <h3 style="margin: 0; font-size: 1.25rem;">Long-Term Analytics</h3>
+                    <p style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.9rem;">
+                        View historical trends, ROI analysis, and strategic insights (12+ months)
+                    </p>
+                </div>
+            </div>
+        </a>
+    </div>
+    
+    <h2 style="margin-bottom: 1rem; color: var(--text-primary);">Per-Miner Analytics</h2>
     <div class="analytics-grid" id="analytics-grid">
         <p class="text-muted" style="grid-column: 1/-1; text-align: center;">Loading miners...</p>
     </div>

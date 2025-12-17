@@ -567,6 +567,20 @@ async def analytics(request: Request):
     })
 
 
+@router.get("/analytics/overview", response_class=HTMLResponse)
+async def analytics_overview(request: Request):
+    """Long-term analytics overview page"""
+    return templates.TemplateResponse("analytics/overview.html", {
+        "request": request,
+        "page_title": "Analytics Overview",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Analytics", "url": "/analytics"},
+            {"label": "Overview", "url": "/analytics/overview"}
+        ]
+    })
+
+
 @router.get("/analytics/{miner_id}", response_class=HTMLResponse)
 async def analytics_detail(request: Request, miner_id: int, db: AsyncSession = Depends(get_db)):
     """Analytics detail page for specific miner"""

@@ -291,3 +291,113 @@ async def run_migrations():
         except Exception:
             # Column already exists
             pass
+        
+        # Migration 16: Create daily_miner_stats table for long-term analytics
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS daily_miner_stats (
+                    id INTEGER PRIMARY KEY,
+                    miner_id INTEGER NOT NULL,
+                    date DATETIME NOT NULL,
+                    avg_hashrate FLOAT,
+                    min_hashrate FLOAT,
+                    max_hashrate FLOAT,
+                    hashrate_unit VARCHAR(10) DEFAULT 'GH/s',
+                    avg_temperature FLOAT,
+                    max_temperature FLOAT,
+                    avg_power FLOAT,
+                    total_kwh FLOAT,
+                    uptime_percent FLOAT DEFAULT 0.0,
+                    offline_minutes INTEGER DEFAULT 0,
+                    total_shares_accepted INTEGER DEFAULT 0,
+                    total_shares_rejected INTEGER DEFAULT 0,
+                    reject_rate_percent FLOAT DEFAULT 0.0,
+                    energy_cost_gbp FLOAT DEFAULT 0.0,
+                    earnings_gbp FLOAT DEFAULT 0.0,
+                    profit_gbp FLOAT DEFAULT 0.0,
+                    data_points INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_daily_miner_stats_miner_id ON daily_miner_stats(miner_id)
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_daily_miner_stats_date ON daily_miner_stats(date)
+            """))
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_miner_stats_unique 
+                ON daily_miner_stats(miner_id, date)
+            """))
+            print("✓ Created daily_miner_stats table with indexes")
+        except Exception:
+            pass
+        
+        # Migration 17: Create daily_pool_stats table
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS daily_pool_stats (
+                    id INTEGER PRIMARY KEY,
+                    pool_id INTEGER NOT NULL,
+                    date DATETIME NOT NULL,
+                    blocks_found INTEGER DEFAULT 0,
+                    total_shares_submitted INTEGER DEFAULT 0,
+                    avg_luck_percent FLOAT,
+                    avg_latency_ms FLOAT,
+                    avg_health_score FLOAT,
+                    uptime_percent FLOAT DEFAULT 100.0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_daily_pool_stats_pool_id ON daily_pool_stats(pool_id)
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_daily_pool_stats_date ON daily_pool_stats(date)
+            """))
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_pool_stats_unique 
+                ON daily_pool_stats(pool_id, date)
+            """))
+            print("✓ Created daily_pool_stats table with indexes")
+        except Exception:
+            pass
+        
+        # Migration 18: Create monthly_miner_stats table
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS monthly_miner_stats (
+                    id INTEGER PRIMARY KEY,
+                    miner_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    avg_hashrate FLOAT,
+                    hashrate_unit VARCHAR(10),
+                    total_kwh FLOAT,
+                    uptime_percent FLOAT DEFAULT 0.0,
+                    total_shares_accepted INTEGER DEFAULT 0,
+                    total_shares_rejected INTEGER DEFAULT 0,
+                    reject_rate_percent FLOAT DEFAULT 0.0,
+                    total_energy_cost_gbp FLOAT DEFAULT 0.0,
+                    total_earnings_gbp FLOAT DEFAULT 0.0,
+                    total_profit_gbp FLOAT DEFAULT 0.0,
+                    days_active INTEGER DEFAULT 0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_monthly_miner_stats_miner_id ON monthly_miner_stats(miner_id)
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_monthly_miner_stats_year ON monthly_miner_stats(year)
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_monthly_miner_stats_month ON monthly_miner_stats(month)
+            """))
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_monthly_miner_stats_unique 
+                ON monthly_miner_stats(miner_id, year, month)
+            """))
+            print("✓ Created monthly_miner_stats table with indexes")
+        except Exception:
+            pass

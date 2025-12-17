@@ -1,0 +1,458 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Overview - Home Miner Manager{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs">
+    <a href="/">Dashboard</a>
+    <span>/</span>
+    <a href="/analytics">Analytics</a>
+    <span>/</span>
+    <span>Overview</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>📊 Long-Term Analytics</h1>
+        <p>Historical performance trends, ROI analysis, and strategic insights</p>
+    </div>
+    
+    <!-- Time Range Selector -->
+    <div class="time-range-selector">
+        <label for="timeRange">Time Range:</label>
+        <select id="timeRange" onchange="updateAllCharts()">
+            <option value="3">Last 3 Months</option>
+            <option value="6">Last 6 Months</option>
+            <option value="12" selected>Last 12 Months</option>
+            <option value="24">Last 24 Months</option>
+        </select>
+    </div>
+    
+    <!-- Monthly P&L Chart -->
+    <div class="card">
+        <div class="card-header">
+            <h2>💰 Monthly Profit & Loss</h2>
+            <p>Total earnings vs energy costs by month</p>
+        </div>
+        <div class="card-body">
+            <canvas id="monthlyPLChart" style="max-height: 400px;"></canvas>
+        </div>
+    </div>
+    
+    <!-- ROI Comparison Table -->
+    <div class="card">
+        <div class="card-header">
+            <h2>🎯 Miner ROI Comparison</h2>
+            <p>Compare profitability across all miners</p>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="data-table" id="roiTable">
+                    <thead>
+                        <tr>
+                            <th>Miner</th>
+                            <th>Type</th>
+                            <th>Total Earnings</th>
+                            <th>Total Cost</th>
+                            <th>Total Profit</th>
+                            <th>Avg Monthly Profit</th>
+                            <th>Uptime</th>
+                            <th>Days Active</th>
+                        </tr>
+                    </thead>
+                    <tbody id="roiTableBody">
+                        <tr>
+                            <td colspan="8" class="loading">Loading ROI data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Hardware Comparison -->
+    <div class="card">
+        <div class="card-header">
+            <h2>⚙️ Hardware Comparison: ASIC vs CPU</h2>
+            <p>Performance comparison by miner type</p>
+        </div>
+        <div class="card-body">
+            <div class="hardware-comparison" id="hardwareComparison">
+                <div class="loading">Loading hardware comparison...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pool Performance Summary -->
+    <div class="card">
+        <div class="card-header">
+            <h2>🏊 Pool Performance Summary</h2>
+            <p>Historical pool health and reliability</p>
+        </div>
+        <div class="card-body">
+            <div class="table-container">
+                <table class="data-table" id="poolTable">
+                    <thead>
+                        <tr>
+                            <th>Pool</th>
+                            <th>Health Score</th>
+                            <th>Avg Latency</th>
+                            <th>Avg Luck</th>
+                            <th>Total Shares</th>
+                            <th>Uptime</th>
+                        </tr>
+                    </thead>
+                    <tbody id="poolTableBody">
+                        <tr>
+                            <td colspan="6" class="loading">Loading pool data...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.time-range-selector {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.time-range-selector label {
+    font-weight: 600;
+}
+
+.time-range-selector select {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.hardware-comparison {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.hardware-type-card {
+    padding: 1.5rem;
+    background: var(--tile-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.hardware-type-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.hardware-stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.hardware-stat:last-child {
+    border-bottom: none;
+}
+
+.hardware-stat .label {
+    color: var(--text-secondary);
+}
+
+.hardware-stat .value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.hardware-stat .value.positive {
+    color: var(--success-color);
+}
+
+.hardware-stat .value.negative {
+    color: var(--danger-color);
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    background: var(--tile-bg);
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.data-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table tbody tr:hover {
+    background: var(--tile-bg);
+}
+
+.profit-positive {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.profit-negative {
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let monthlyPLChart = null;
+
+async function loadMonthlyPL() {
+    const months = document.getElementById('timeRange').value;
+    
+    try {
+        const response = await fetch(`/api/analytics/overview/monthly-pl?months=${months}`);
+        const data = await response.json();
+        
+        // Prepare chart data
+        const labels = data.map(d => d.month);
+        const earnings = data.map(d => d.total_earnings);
+        const costs = data.map(d => d.total_energy_cost);
+        const profits = data.map(d => d.total_profit);
+        
+        // Destroy existing chart
+        if (monthlyPLChart) {
+            monthlyPLChart.destroy();
+        }
+        
+        // Create chart
+        const ctx = document.getElementById('monthlyPLChart').getContext('2d');
+        monthlyPLChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Earnings (£)',
+                        data: earnings,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Energy Cost (£)',
+                        data: costs,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Profit (£)',
+                        data: profits,
+                        backgroundColor: profits.map(p => p >= 0 ? 'rgba(54, 162, 235, 0.6)' : 'rgba(255, 159, 64, 0.6)'),
+                        borderColor: profits.map(p => p >= 0 ? 'rgba(54, 162, 235, 1)' : 'rgba(255, 159, 64, 1)'),
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': £' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '£' + value.toFixed(2);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error loading monthly P&L:', error);
+    }
+}
+
+async function loadMinerROI() {
+    const months = document.getElementById('timeRange').value;
+    
+    try {
+        const response = await fetch(`/api/analytics/overview/miner-roi?months=${months}`);
+        const data = await response.json();
+        
+        const tbody = document.getElementById('roiTableBody');
+        
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="loading">No ROI data available yet</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = data.map(miner => `
+            <tr>
+                <td><strong>${miner.miner_name}</strong></td>
+                <td>${miner.miner_type.toUpperCase()}</td>
+                <td>£${miner.total_earnings.toFixed(2)}</td>
+                <td>£${miner.total_energy_cost.toFixed(2)}</td>
+                <td class="${miner.total_profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    £${miner.total_profit.toFixed(2)}
+                </td>
+                <td class="${miner.avg_monthly_profit >= 0 ? 'profit-positive' : 'profit-negative'}">
+                    £${miner.avg_monthly_profit.toFixed(2)}
+                </td>
+                <td>${miner.uptime_percent.toFixed(1)}%</td>
+                <td>${miner.days_active}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading miner ROI:', error);
+    }
+}
+
+async function loadHardwareComparison() {
+    const days = parseInt(document.getElementById('timeRange').value) * 30;
+    
+    try {
+        const response = await fetch(`/api/analytics/overview/hardware-comparison?days=${days}`);
+        const data = await response.json();
+        
+        const container = document.getElementById('hardwareComparison');
+        
+        container.innerHTML = `
+            <div class="hardware-type-card">
+                <h3>🔧 ASIC Miners</h3>
+                <div class="hardware-stat">
+                    <span class="label">Total Earnings:</span>
+                    <span class="value">£${data.asic.total_earnings_gbp.toFixed(2)}</span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Total Cost:</span>
+                    <span class="value">£${data.asic.total_cost_gbp.toFixed(2)}</span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Total Profit:</span>
+                    <span class="value ${data.asic.total_profit_gbp >= 0 ? 'positive' : 'negative'}">
+                        £${data.asic.total_profit_gbp.toFixed(2)}
+                    </span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Total Energy:</span>
+                    <span class="value">${data.asic.total_kwh.toFixed(2)} kWh</span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Avg Uptime:</span>
+                    <span class="value">${data.asic.avg_uptime_percent.toFixed(1)}%</span>
+                </div>
+            </div>
+            
+            <div class="hardware-type-card">
+                <h3>💻 CPU Miners</h3>
+                <div class="hardware-stat">
+                    <span class="label">Total Earnings:</span>
+                    <span class="value">£${data.cpu.total_earnings_gbp.toFixed(2)}</span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Total Cost:</span>
+                    <span class="value">£${data.cpu.total_cost_gbp.toFixed(2)}</span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Total Profit:</span>
+                    <span class="value ${data.cpu.total_profit_gbp >= 0 ? 'positive' : 'negative'}">
+                        £${data.cpu.total_profit_gbp.toFixed(2)}
+                    </span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Total Energy:</span>
+                    <span class="value">${data.cpu.total_kwh.toFixed(2)} kWh</span>
+                </div>
+                <div class="hardware-stat">
+                    <span class="label">Avg Uptime:</span>
+                    <span class="value">${data.cpu.avg_uptime_percent.toFixed(1)}%</span>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading hardware comparison:', error);
+    }
+}
+
+async function loadPoolPerformance() {
+    const days = parseInt(document.getElementById('timeRange').value) * 30;
+    
+    try {
+        const response = await fetch(`/api/analytics/overview/pool-performance?days=${days}`);
+        const data = await response.json();
+        
+        const tbody = document.getElementById('poolTableBody');
+        
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="loading">No pool data available yet</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = data.map(pool => `
+            <tr>
+                <td><strong>${pool.pool_name}</strong></td>
+                <td>${pool.avg_health_score !== null ? pool.avg_health_score.toFixed(1) + '/100' : 'N/A'}</td>
+                <td>${pool.avg_latency_ms !== null ? pool.avg_latency_ms.toFixed(0) + ' ms' : 'N/A'}</td>
+                <td>${pool.avg_luck_percent !== null ? pool.avg_luck_percent.toFixed(1) + '%' : 'N/A'}</td>
+                <td>${pool.total_shares.toLocaleString()}</td>
+                <td>${pool.uptime_percent.toFixed(1)}%</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading pool performance:', error);
+    }
+}
+
+async function updateAllCharts() {
+    await Promise.all([
+        loadMonthlyPL(),
+        loadMinerROI(),
+        loadHardwareComparison(),
+        loadPoolPerformance()
+    ]);
+}
+
+// Load on page load
+window.addEventListener('DOMContentLoaded', updateAllCharts);
+</script>
+{% endblock %}
