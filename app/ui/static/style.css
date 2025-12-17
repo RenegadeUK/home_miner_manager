@@ -311,18 +311,18 @@ a:focus-visible {
 /* Skip to main content link */
 .skip-link {
     position: absolute;
-    top: -40px;
-    left: 0;
+    left: -9999px;
+    z-index: 1000;
     background: var(--accent);
     color: white;
     padding: 0.5rem 1rem;
     text-decoration: none;
-    z-index: 1000;
     font-weight: 500;
     border-radius: 0 0 4px 0;
 }
 
 .skip-link:focus {
+    left: 0;
     top: 0;
 }
 
