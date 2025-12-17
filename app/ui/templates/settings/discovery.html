@@ -581,6 +581,33 @@ async function addDiscoveredMiner(ip, port, type) {
             throw new Error(error.detail || 'Failed to add miner');
         }
         
+        // Find and update the display for this miner in the results
+        const minersList = document.getElementById('manual-miners-list');
+        const minerDivs = minersList.querySelectorAll('.setting-item');
+        
+        minerDivs.forEach(div => {
+            const strongTag = div.querySelector('strong');
+            if (strongTag && strongTag.textContent === `${ip}:${port}`) {
+                // Update to show as already added
+                const innerDiv = div.querySelector('div > div');
+                if (innerDiv) {
+                    innerDiv.innerHTML = `
+                        <strong>${ip}:${port}</strong> - ${type}
+                        <span style="color: var(--text-secondary); font-size: 0.875rem;">(Already added)</span>
+                    `;
+                }
+                // Remove the Add button
+                const button = div.querySelector('button');
+                if (button) button.remove();
+            }
+        });
+        
+        // Update counts
+        const newCount = parseInt(document.getElementById('manual-new').textContent) - 1;
+        const existingCount = parseInt(document.getElementById('manual-existing').textContent) + 1;
+        document.getElementById('manual-new').textContent = newCount;
+        document.getElementById('manual-existing').textContent = existingCount;
+        
         alert('✅ Miner added successfully!\n\nYou can continue adding more miners or re-scan to refresh the list.');
         
     } catch (error) {
