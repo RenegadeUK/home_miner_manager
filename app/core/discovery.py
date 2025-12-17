@@ -103,21 +103,26 @@ class MinerDiscoveryService:
             if response:
                 data = json.loads(response.decode().strip('\x00'))
                 
-                # Check if it's an Avalon device
-                if 'VERSION' in data and any(v.get('Type', '').lower() == 'avalon' 
-                                             for v in data.get('VERSION', [])):
+                # Check if it's an Avalon device - check PROD or MODEL fields
+                if 'VERSION' in data and len(data.get('VERSION', [])) > 0:
                     version_info = data['VERSION'][0]
+                    prod = version_info.get('PROD', '').lower()
+                    model = version_info.get('MODEL', '').lower()
                     
-                    return {
-                        'ip': ip,
-                        'port': MinerDiscoveryService.CGMINER_PORT,
-                        'type': 'avalon_nano',
-                        'name': f"Avalon Nano ({ip})",
-                        'details': {
-                            'miner': version_info.get('Miner', 'Unknown'),
-                            'api_version': version_info.get('API', 'Unknown')
+                    # Check if it's an Avalon device (Nano3, Nano3s, etc)
+                    if 'avalon' in prod or 'avalon' in model or 'nano' in prod or 'nano' in model:
+                        return {
+                            'ip': ip,
+                            'port': MinerDiscoveryService.CGMINER_PORT,
+                            'type': 'avalon_nano',
+                            'name': f"Avalon Nano ({ip})",
+                            'details': {
+                                'product': version_info.get('PROD', 'Unknown'),
+                                'model': version_info.get('MODEL', 'Unknown'),
+                                'cgminer': version_info.get('CGMiner', 'Unknown'),
+                                'api_version': version_info.get('API', 'Unknown')
+                            }
                         }
-                    }
         except (asyncio.TimeoutError, ConnectionRefusedError, OSError, json.JSONDecodeError):
             pass
         except Exception as e:
