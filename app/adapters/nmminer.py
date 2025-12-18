@@ -57,6 +57,10 @@ class NMMinerAdapter(MinerAdapter):
         """Update telemetry from UDP listener"""
         self.last_telemetry = telemetry_data
     
+    async def get_mode(self) -> Optional[str]:
+        """Get current operating mode - NMMiner doesn't support persistent modes"""
+        return None
+    
     async def set_mode(self, mode: str) -> bool:
         """NMMiner does not support mode tuning"""
         print("⚠️ NMMiner does not support mode changes")

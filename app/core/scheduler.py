@@ -45,6 +45,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._reconcile_automation_rules,
+            IntervalTrigger(minutes=5),
+            id="reconcile_automation_rules",
+            name="Reconcile miners with active automation rules"
+        )
+        
+        self.scheduler.add_job(
             self._check_alerts,
             IntervalTrigger(minutes=5),
             id="check_alerts",
@@ -746,6 +753,186 @@ class SchedulerService:
                 data={"rule": rule.name}
             )
             db.add(event)
+    
+    async def _reconcile_automation_rules(self):
+        """Reconcile miners that should be in a specific state based on currently active automation rules"""
+        from core.database import AsyncSessionLocal, AutomationRule, Miner, EnergyPrice, Pool
+        from adapters import get_adapter
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                # Get all enabled rules
+                result = await db.execute(
+                    select(AutomationRule)
+                    .where(AutomationRule.enabled == True)
+                    .order_by(AutomationRule.priority)
+                )
+                rules = result.scalars().all()
+                
+                reconciled_count = 0
+                checked_count = 0
+                
+                for rule in rules:
+                    try:
+                        # Check if rule is currently triggered
+                        triggered = False
+                        
+                        if rule.trigger_type == "price_threshold":
+                            triggered, _ = await self._check_price_threshold(db, rule.trigger_config, None)
+                        elif rule.trigger_type == "time_window":
+                            triggered = self._check_time_window(rule.trigger_config)
+                        # Note: miner_offline, overheat, pool_failure are reactive, not persistent states to reconcile
+                        
+                        if not triggered:
+                            continue
+                        
+                        # Rule is currently active - verify miners are in correct state
+                        action_type = rule.action_type
+                        action_config = rule.action_config
+                        
+                        if action_type == "apply_mode":
+                            expected_mode = action_config.get("mode")
+                            miner_id = action_config.get("miner_id")
+                            
+                            if not expected_mode or not miner_id:
+                                continue
+                            
+                            # Resolve miners
+                            miners_to_check = []
+                            
+                            if isinstance(miner_id, str) and miner_id.startswith("type:"):
+                                miner_type = miner_id[5:]
+                                result = await db.execute(
+                                    select(Miner).where(Miner.miner_type == miner_type).where(Miner.enabled == True)
+                                )
+                                miners_to_check = result.scalars().all()
+                            else:
+                                result = await db.execute(select(Miner).where(Miner.id == miner_id))
+                                miner = result.scalar_one_or_none()
+                                if miner:
+                                    miners_to_check = [miner]
+                            
+                            # Check each miner's current mode
+                            for miner in miners_to_check:
+                                checked_count += 1
+                                adapter = get_adapter(miner)
+                                
+                                if not adapter:
+                                    continue
+                                
+                                # Get current mode from miner
+                                try:
+                                    current_mode = await adapter.get_mode()
+                                    
+                                    if current_mode and current_mode != expected_mode:
+                                        logger.info(
+                                            f"🔄 Reconciling automation: {miner.name} is in mode '{current_mode}' "
+                                            f"but should be '{expected_mode}' (rule: {rule.name})"
+                                        )
+                                        
+                                        # Apply correct mode
+                                        success = await adapter.set_mode(expected_mode)
+                                        
+                                        if success:
+                                            miner.current_mode = expected_mode
+                                            reconciled_count += 1
+                                            logger.info(f"✓ Reconciled {miner.name} to mode '{expected_mode}'")
+                                            
+                                            from core.database import Event
+                                            event = Event(
+                                                event_type="info",
+                                                source=f"automation_reconciliation",
+                                                message=f"Reconciled {miner.name} to mode '{expected_mode}' (rule: {rule.name})",
+                                                data={"rule": rule.name, "miner": miner.name, "mode": expected_mode}
+                                            )
+                                            db.add(event)
+                                        else:
+                                            logger.warning(f"✗ Failed to reconcile {miner.name} to mode '{expected_mode}'")
+                                
+                                except Exception as e:
+                                    logger.debug(f"Could not get current mode for {miner.name}: {e}")
+                                    continue
+                        
+                        elif action_type == "switch_pool":
+                            miner_id = action_config.get("miner_id")
+                            pool_id = action_config.get("pool_id")
+                            
+                            if not miner_id or not pool_id:
+                                continue
+                            
+                            result = await db.execute(select(Miner).where(Miner.id == miner_id))
+                            miner = result.scalar_one_or_none()
+                            
+                            result = await db.execute(select(Pool).where(Pool.id == pool_id))
+                            expected_pool = result.scalar_one_or_none()
+                            
+                            if not miner or not expected_pool:
+                                continue
+                            
+                            checked_count += 1
+                            adapter = get_adapter(miner)
+                            
+                            if not adapter:
+                                continue
+                            
+                            # Get current pool
+                            try:
+                                telemetry = await adapter.get_telemetry()
+                                
+                                if telemetry and telemetry.pool_in_use:
+                                    current_pool_url = telemetry.pool_in_use
+                                    expected_pool_url = f"{expected_pool.url}"
+                                    
+                                    # Normalize URLs for comparison
+                                    def normalize_url(url: str) -> str:
+                                        url = url.replace("stratum+tcp://", "").replace("http://", "").replace("https://", "")
+                                        url = url.rstrip("/")
+                                        return url.lower()
+                                    
+                                    if normalize_url(current_pool_url) != normalize_url(expected_pool_url):
+                                        logger.info(
+                                            f"🔄 Reconciling automation: {miner.name} is on pool '{current_pool_url}' "
+                                            f"but should be on '{expected_pool.name}' (rule: {rule.name})"
+                                        )
+                                        
+                                        # Switch to correct pool
+                                        success = await adapter.switch_pool(
+                                            expected_pool.url, expected_pool.port, 
+                                            expected_pool.user, expected_pool.password
+                                        )
+                                        
+                                        if success:
+                                            reconciled_count += 1
+                                            logger.info(f"✓ Reconciled {miner.name} to pool '{expected_pool.name}'")
+                                            
+                                            from core.database import Event
+                                            event = Event(
+                                                event_type="info",
+                                                source=f"automation_reconciliation",
+                                                message=f"Reconciled {miner.name} to pool '{expected_pool.name}' (rule: {rule.name})",
+                                                data={"rule": rule.name, "miner": miner.name, "pool": expected_pool.name}
+                                            )
+                                            db.add(event)
+                                        else:
+                                            logger.warning(f"✗ Failed to reconcile {miner.name} to pool '{expected_pool.name}'")
+                            
+                            except Exception as e:
+                                logger.debug(f"Could not get current pool for {miner.name}: {e}")
+                                continue
+                    
+                    except Exception as e:
+                        logger.error(f"Error reconciling automation rule {rule.name}: {e}")
+                        continue
+                
+                await db.commit()
+                
+                if reconciled_count > 0:
+                    logger.info(f"✅ Automation reconciliation: {reconciled_count}/{checked_count} miners reconciled")
+        
+        except Exception as e:
+            logger.error(f"Failed to reconcile automation rules: {e}")
+            import traceback
+            traceback.print_exc()
     
     async def _start_nmminer_listener(self):
         """Start NMMiner UDP listener"""

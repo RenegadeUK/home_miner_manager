@@ -4,8 +4,11 @@ Avalon Nano 3 / 3S adapter using cgminer TCP API
 import socket
 import json
 import asyncio
+import logging
 from typing import Dict, List, Optional
 from adapters.base import MinerAdapter, MinerTelemetry
+
+logger = logging.getLogger(__name__)
 
 
 class AvalonNanoAdapter(MinerAdapter):
@@ -154,6 +157,28 @@ class AvalonNanoAdapter(MinerAdapter):
         except Exception as e:
             print(f"⚠️ Failed to get power from MPO: {e}")
             return None
+    
+    async def get_mode(self) -> Optional[str]:
+        """Get current operating mode"""
+        try:
+            result = await self._cgminer_command("stats")
+            if result and "STATS" in result:
+                for stat in result["STATS"]:
+                    if "MM ID" in stat:
+                        frequency = stat.get("Frequency", 0)
+                        
+                        # Map frequency to modes
+                        if frequency <= 450:
+                            return "eco"
+                        elif frequency <= 550:
+                            return "standard"
+                        elif frequency <= 650:
+                            return "turbo"
+                        else:
+                            return "oc"
+        except Exception as e:
+            logger.debug(f"Could not get mode for Avalon Nano: {e}")
+        return None
     
     async def set_mode(self, mode: str) -> bool:
         """Set operating mode using workmode parameter"""

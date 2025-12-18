@@ -137,6 +137,10 @@ class XMRigAdapter(MinerAdapter):
             print(f"XMRig telemetry error: {e}")
             return None
     
+    async def get_mode(self) -> Optional[str]:
+        """Get current operating mode - XMRig doesn't support persistent modes"""
+        return None
+    
     async def set_mode(self, mode: str) -> bool:
         """
         XMRig doesn't have preset modes like ASICs

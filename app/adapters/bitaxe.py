@@ -77,6 +77,10 @@ class BitaxeAdapter(MinerAdapter):
             print(f"❌ Failed to get telemetry from Bitaxe {self.ip_address}: {e}")
             return None
     
+    async def get_mode(self) -> Optional[str]:
+        """Get current operating mode"""
+        return await self.get_current_mode()
+    
     async def set_mode(self, mode: str) -> bool:
         """Set operating mode"""
         if mode not in self.MODES:

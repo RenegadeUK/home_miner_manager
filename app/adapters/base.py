@@ -65,6 +65,11 @@ class MinerAdapter(ABC):
         pass
     
     @abstractmethod
+    async def get_mode(self) -> Optional[str]:
+        """Get current operating mode"""
+        pass
+    
+    @abstractmethod
     async def set_mode(self, mode: str) -> bool:
         """Set miner operating mode"""
         pass
