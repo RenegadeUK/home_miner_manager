@@ -41,6 +41,10 @@ main.py
 - Compute watts from PS[] fields:
 watts = raw_power_code / (millivolts / 1000)
 - Modes: low / med / high.
+- **Mode Detection: MUST use WORKMODE field from estats MM ID string, NOT frequency**.
+  - WORKMODE values: 0=low, 1=med, 2=high
+  - Parse using _detect_current_mode() method
+  - Example MM ID string: "Ver[1200-80-21042601_4ec6bb0_211fc83] DNA[020100002e8accf8] MEMFREE[176976.0] NETFAIL[0 0 0 0 0 0 0 0] SYSTEMSTATU[Work: In Work, Hash Board: 1 ] Elapsed[1234] BOOTBY[0x01.00000000] LV[0] MW[0 0 0] LED[0] MGHS[123.45] MTmax[90] MTavg[85] TA[100] Core[A3200] PING[12] POWS[0] FANR[3000] FAN[100] WORKMODE[2] PVT_T[85-92/87]"
 - Support pool switching and mode changes.
 4.2 Bitaxe 601
 - REST API (system/info, system/restart, etc).
