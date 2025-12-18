@@ -111,7 +111,7 @@ Rules stored in SQLite with JSON condition/action schema.
 
 11.1 Monitoring & Analytics ✅ COMPLETED
 - ✅ Health scoring system based on uptime, temperature, reject rate, hashrate stability
-- ✅ Miner type-aware temperature thresholds (90°C for Avalon Nano, 75°C for others)
+- ✅ Miner type-aware temperature thresholds (95°C for Avalon Nano, 75°C for others)
 - ✅ Comparative analytics with time-series charts (day/week/month)
 - ✅ Historical performance tracking and trend analysis
 - ✅ CSV export of performance reports

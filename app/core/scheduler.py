@@ -1278,14 +1278,14 @@ class SchedulerService:
                         # Check high temperature
                         elif alert_config.alert_type == "high_temperature":
                             # Use different default thresholds for different miner types
-                            # Avalon Nano can reach 90°C safely
+                            # Avalon Nano can reach 95°C safely
                             is_avalon = 'avalon' in miner.miner_type.lower()
-                            default_threshold = 90 if is_avalon else 75
+                            default_threshold = 95 if is_avalon else 75
                             threshold = alert_config.config.get("threshold_celsius", default_threshold)
                             
-                            # If threshold is 75 but this is an Avalon, upgrade to 90
-                            if is_avalon and threshold == 75:
-                                threshold = 90
+                            # If threshold is 75 or 90 but this is an Avalon, upgrade to 95
+                            if is_avalon and threshold in [75, 90]:
+                                threshold = 95
                             
                             if latest_telemetry and latest_telemetry.temperature and \
                                latest_telemetry.temperature > threshold:

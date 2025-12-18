@@ -137,15 +137,17 @@ class HealthScoringService:
         
         # Different temperature scales based on miner type
         if miner_type and 'avalon' in miner_type.lower():
-            # Avalon Nano: <70°C = 100, 70-80°C = 80, 80-90°C = 60, 90+°C = 40
+            # Avalon Nano: <70°C = 100, 70-80°C = 90, 80-90°C = 75, 90-95°C = 60, 95+°C = 40
             if avg_temp < 70:
                 score = 100
             elif avg_temp < 80:
-                score = 100 - ((avg_temp - 70) * 2)
+                score = 100 - ((avg_temp - 70) * 1)
             elif avg_temp < 90:
-                score = 80 - ((avg_temp - 80) * 2)
+                score = 90 - ((avg_temp - 80) * 1.5)
+            elif avg_temp < 95:
+                score = 75 - ((avg_temp - 90) * 3)
             else:
-                score = max(40 - ((avg_temp - 90) * 1), 0)
+                score = max(40 - ((avg_temp - 95) * 2), 0)
             
             # Penalize for extreme spikes (>100°C)
             if max_temp > 100:
