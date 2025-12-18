@@ -59,7 +59,18 @@ class BitaxeAdapter(MinerAdapter):
                             "uptime": data.get("uptimeSeconds"),
                             "asic_model": data.get("ASICModel"),
                             "version": data.get("version"),
-                            "current_mode": current_mode
+                            "current_mode": current_mode,
+                            "best_diff": data.get("bestDiff"),
+                            "best_session_diff": data.get("bestSessionDiff"),
+                            "free_heap": data.get("freeHeap"),
+                            "core_voltage": data.get("coreVoltage"),
+                            "core_voltage_actual": data.get("coreVoltageActual"),
+                            "wifi_rssi": data.get("wifiStatus"),
+                            "fan_speed": data.get("fanSpeed"),
+                            "fan_rpm": data.get("fanRpm"),
+                            "vr_temp": data.get("vrTemp"),
+                            "small_core_count": data.get("smallCoreCount"),
+                            "difficulty": data.get("difficulty")
                         }
                     )
         except Exception as e:

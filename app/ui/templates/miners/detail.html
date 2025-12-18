@@ -103,6 +103,42 @@
                         <div class="stat-label">24h Cost</div>
                         <div class="stat-value" id="cost-24h">--</div>
                     </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Best Share</div>
+                        <div class="stat-value" id="best-share">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Uptime</div>
+                        <div class="stat-value" id="uptime">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">HW Errors</div>
+                        <div class="stat-value" id="hw-errors">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Utility</div>
+                        <div class="stat-value" id="utility">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Found Blocks 🎉</div>
+                        <div class="stat-value" id="found-blocks">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Frequency</div>
+                        <div class="stat-value" id="frequency">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Voltage</div>
+                        <div class="stat-value" id="voltage">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">WiFi Signal</div>
+                        <div class="stat-value" id="wifi-signal">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Firmware</div>
+                        <div class="stat-value" id="firmware">--</div>
+                    </div>
                 </div>
                 
                 <!-- XMRig CPU Miner Stats -->
@@ -605,6 +641,65 @@ async function loadTelemetry() {
                 : '--';
             document.getElementById('shares-accepted').textContent = telemetry.shares_accepted || 0;
             document.getElementById('shares-rejected').textContent = telemetry.shares_rejected || 0;
+            
+            // Populate additional stats
+            const extra = telemetry.extra_data || {};
+            
+            // Best share (Avalon) or Best difficulty (Bitaxe)
+            const bestShare = extra.best_share || extra.best_diff || extra.best_session_diff;
+            document.getElementById('best-share').textContent = bestShare 
+                ? (bestShare > 1000000 ? (bestShare / 1000000).toFixed(2) + 'M' : bestShare.toLocaleString())
+                : '--';
+            
+            // Uptime
+            const uptime = extra.elapsed || extra.uptime;
+            if (uptime) {
+                const days = Math.floor(uptime / 86400);
+                const hours = Math.floor((uptime % 86400) / 3600);
+                const minutes = Math.floor((uptime % 3600) / 60);
+                document.getElementById('uptime').textContent = days > 0 
+                    ? `${days}d ${hours}h` 
+                    : `${hours}h ${minutes}m`;
+            } else {
+                document.getElementById('uptime').textContent = '--';
+            }
+            
+            // Hardware errors
+            document.getElementById('hw-errors').textContent = extra.hardware_errors !== undefined 
+                ? extra.hardware_errors 
+                : '--';
+            
+            // Utility (shares per minute)
+            document.getElementById('utility').textContent = extra.utility 
+                ? extra.utility.toFixed(2) + '/min' 
+                : '--';
+            
+            // Found blocks
+            const foundBlocks = extra.found_blocks || 0;
+            document.getElementById('found-blocks').textContent = foundBlocks;
+            if (foundBlocks > 0) {
+                document.getElementById('found-blocks').style.color = '#fbbf24';
+                document.getElementById('found-blocks').style.fontWeight = 'bold';
+            }
+            
+            // Frequency
+            document.getElementById('frequency').textContent = extra.frequency 
+                ? extra.frequency + ' MHz' 
+                : '--';
+            
+            // Voltage
+            const voltage = extra.voltage || extra.core_voltage || extra.core_voltage_actual;
+            document.getElementById('voltage').textContent = voltage 
+                ? (voltage > 100 ? voltage + ' mV' : voltage.toFixed(2) + ' V')
+                : '--';
+            
+            // WiFi signal (RSSI)
+            document.getElementById('wifi-signal').textContent = extra.wifi_rssi 
+                ? extra.wifi_rssi + ' dBm' 
+                : '--';
+            
+            // Firmware version
+            document.getElementById('firmware').textContent = extra.version || extra.asic_model || '--';
         }
         
         document.getElementById('last-updated').textContent = new Date().toLocaleString();

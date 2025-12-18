@@ -52,6 +52,23 @@ class AvalonNanoAdapter(MinerAdapter):
                         pool_in_use = pool.get("URL")
                         break
             
+            # Extract additional useful stats
+            extra_stats = {
+                "summary": summary_data,
+                "current_mode": current_mode,
+                "best_share": summary_data.get("Best Share"),
+                "hardware_errors": summary_data.get("Hardware Errors", 0),
+                "utility": summary_data.get("Utility"),  # Shares per minute
+                "found_blocks": summary_data.get("Found Blocks", 0),
+                "elapsed": summary_data.get("Elapsed"),  # Uptime in seconds
+                "difficulty_accepted": summary_data.get("Difficulty Accepted"),
+                "difficulty_rejected": summary_data.get("Difficulty Rejected"),
+                "work_utility": summary_data.get("Work Utility"),
+                "total_mh": summary_data.get("Total MH"),
+                "remote_failures": summary_data.get("Remote Failures", 0),
+                "network_blocks": summary_data.get("Network Blocks")
+            }
+            
             return MinerTelemetry(
                 miner_id=self.miner_id,
                 hashrate=hashrate,
@@ -60,7 +77,7 @@ class AvalonNanoAdapter(MinerAdapter):
                 shares_accepted=shares_accepted,
                 shares_rejected=shares_rejected,
                 pool_in_use=pool_in_use,
-                extra_data={"summary": summary_data, "current_mode": current_mode}
+                extra_data=extra_stats
             )
         except Exception as e:
             print(f"❌ Failed to get telemetry from Avalon Nano {self.ip_address}: {e}")
