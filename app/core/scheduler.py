@@ -1505,6 +1505,7 @@ class SchedulerService:
             # Check if auto-optimization is enabled
             enabled = app_config.get("energy_optimization.enabled", False)
             if not enabled:
+                logger.debug("Energy optimization reconciliation skipped: not enabled")
                 return
             
             price_threshold = app_config.get("energy_optimization.price_threshold", 15.0)
@@ -1514,10 +1515,13 @@ class SchedulerService:
                 recommendation = await EnergyOptimizationService.should_mine_now(db, price_threshold)
                 
                 if "error" in recommendation:
+                    logger.debug(f"Energy optimization reconciliation skipped: {recommendation.get('error')}")
                     return
                 
                 should_mine = recommendation["should_mine"]
                 current_price = recommendation["current_price_pence"]
+                
+                logger.info(f"⚡ Energy reconciliation check: price={current_price}p, threshold={price_threshold}p, should_mine={should_mine}")
                 
                 # Get all enabled miners that support mode changes
                 result = await db.execute(
@@ -1527,6 +1531,8 @@ class SchedulerService:
                 )
                 miners = result.scalars().all()
                 
+                logger.info(f"⚡ Checking {len(miners)} miners for energy optimization state")
+                
                 mode_map = {
                     "avalon_nano_3": {"low": "low", "high": "high"},
                     "avalon_nano": {"low": "low", "high": "high"},
@@ -1535,22 +1541,30 @@ class SchedulerService:
                 }
                 
                 reconciled_count = 0
+                checked_count = 0
                 
                 for miner in miners:
                     if miner.miner_type not in mode_map:
+                        logger.debug(f"Skipping {miner.name}: type {miner.miner_type} not in mode_map")
                         continue
                     
                     expected_mode = mode_map[miner.miner_type]["high"] if should_mine else mode_map[miner.miner_type]["low"]
                     
                     adapter = get_adapter(miner)
                     if not adapter:
+                        logger.warning(f"No adapter for {miner.name}")
                         continue
                     
                     try:
                         # Get actual current mode from miner hardware
                         current_mode = await adapter.get_mode()
+                        checked_count += 1
                         
-                        if current_mode and current_mode != expected_mode:
+                        if current_mode is None:
+                            logger.debug(f"{miner.name}: could not determine current mode")
+                        elif current_mode == expected_mode:
+                            logger.debug(f"{miner.name}: already in correct mode '{expected_mode}'")
+                        else:
                             logger.info(
                                 f"🔄 Reconciling energy optimization: {miner.name} is in mode '{current_mode}' "
                                 f"but should be '{expected_mode}' (price: {current_price}p, threshold: {price_threshold}p)"
@@ -1567,12 +1581,14 @@ class SchedulerService:
                                 logger.warning(f"✗ Failed to reconcile {miner.name} to mode '{expected_mode}'")
                     
                     except Exception as e:
-                        logger.debug(f"Could not reconcile {miner.name}: {e}")
+                        logger.warning(f"Error checking {miner.name}: {e}")
                         continue
                 
                 if reconciled_count > 0:
                     await db.commit()
-                    logger.info(f"✅ Energy optimization reconciliation: {reconciled_count} miners reconciled")
+                    logger.info(f"✅ Energy reconciliation complete: {reconciled_count}/{checked_count} miners reconciled")
+                else:
+                    logger.info(f"✅ Energy reconciliation complete: All {checked_count} miners already in correct state")
         
         except Exception as e:
             logger.error(f"Failed to reconcile energy optimization: {e}")
