@@ -210,6 +210,13 @@ class SchedulerService:
             name="Immediate Avalon pool slots sync"
         )
         
+        # Trigger immediate energy optimization reconciliation
+        self.scheduler.add_job(
+            self._reconcile_energy_optimization,
+            id="reconcile_energy_optimization_immediate",
+            name="Immediate energy optimization reconciliation"
+        )
+        
         # Update auto-discovery job interval based on config
         self._update_discovery_schedule()
     
