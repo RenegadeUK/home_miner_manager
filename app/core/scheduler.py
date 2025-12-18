@@ -73,6 +73,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._reconcile_energy_optimization,
+            IntervalTrigger(minutes=5),
+            id="reconcile_energy_optimization",
+            name="Reconcile miners with energy optimization state"
+        )
+        
+        self.scheduler.add_job(
             self._purge_old_telemetry,
             IntervalTrigger(hours=6),
             id="purge_old_telemetry",
@@ -1483,6 +1490,92 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to auto-optimize miners: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _reconcile_energy_optimization(self):
+        """Reconcile miners that are out of sync with energy optimization state"""
+        from core.config import app_config
+        from core.database import AsyncSessionLocal, Miner
+        from core.energy import EnergyOptimizationService
+        from adapters import get_adapter
+        from sqlalchemy import select
+        
+        try:
+            # Check if auto-optimization is enabled
+            enabled = app_config.get("energy_optimization.enabled", False)
+            if not enabled:
+                return
+            
+            price_threshold = app_config.get("energy_optimization.price_threshold", 15.0)
+            
+            async with AsyncSessionLocal() as db:
+                # Get current price recommendation
+                recommendation = await EnergyOptimizationService.should_mine_now(db, price_threshold)
+                
+                if "error" in recommendation:
+                    return
+                
+                should_mine = recommendation["should_mine"]
+                current_price = recommendation["current_price_pence"]
+                
+                # Get all enabled miners that support mode changes
+                result = await db.execute(
+                    select(Miner)
+                    .where(Miner.enabled == True)
+                    .where(Miner.miner_type != 'nmminer')
+                )
+                miners = result.scalars().all()
+                
+                mode_map = {
+                    "avalon_nano_3": {"low": "low", "high": "high"},
+                    "avalon_nano": {"low": "low", "high": "high"},
+                    "bitaxe": {"low": "eco", "high": "turbo"},
+                    "nerdqaxe": {"low": "eco", "high": "turbo"}
+                }
+                
+                reconciled_count = 0
+                
+                for miner in miners:
+                    if miner.miner_type not in mode_map:
+                        continue
+                    
+                    expected_mode = mode_map[miner.miner_type]["high"] if should_mine else mode_map[miner.miner_type]["low"]
+                    
+                    adapter = get_adapter(miner)
+                    if not adapter:
+                        continue
+                    
+                    try:
+                        # Get actual current mode from miner hardware
+                        current_mode = await adapter.get_mode()
+                        
+                        if current_mode and current_mode != expected_mode:
+                            logger.info(
+                                f"🔄 Reconciling energy optimization: {miner.name} is in mode '{current_mode}' "
+                                f"but should be '{expected_mode}' (price: {current_price}p, threshold: {price_threshold}p)"
+                            )
+                            
+                            # Apply correct mode
+                            success = await adapter.set_mode(expected_mode)
+                            
+                            if success:
+                                miner.current_mode = expected_mode
+                                reconciled_count += 1
+                                logger.info(f"✓ Reconciled {miner.name} to mode '{expected_mode}'")
+                            else:
+                                logger.warning(f"✗ Failed to reconcile {miner.name} to mode '{expected_mode}'")
+                    
+                    except Exception as e:
+                        logger.debug(f"Could not reconcile {miner.name}: {e}")
+                        continue
+                
+                if reconciled_count > 0:
+                    await db.commit()
+                    logger.info(f"✅ Energy optimization reconciliation: {reconciled_count} miners reconciled")
+        
+        except Exception as e:
+            logger.error(f"Failed to reconcile energy optimization: {e}")
             import traceback
             traceback.print_exc()
     
