@@ -152,8 +152,36 @@ class HealthScoringService:
             # Penalize for extreme spikes (>100°C)
             if max_temp > 100:
                 score = score * 0.8
+        elif miner_type and 'bitaxe' in miner_type.lower():
+            # Bitaxe: <55°C = 100, 55-65°C = 85, 65-70°C = 60, 70+°C = 40
+            if avg_temp < 55:
+                score = 100
+            elif avg_temp < 65:
+                score = 100 - ((avg_temp - 55) * 1.5)
+            elif avg_temp < 70:
+                score = 85 - ((avg_temp - 65) * 5)
+            else:
+                score = max(40 - ((avg_temp - 70) * 2), 0)
+            
+            # Penalize for spikes (>75°C)
+            if max_temp > 75:
+                score = score * 0.8
+        elif miner_type and 'nerdqaxe' in miner_type.lower():
+            # NerdQaxe: <60°C = 100, 60-70°C = 85, 70-75°C = 60, 75+°C = 40
+            if avg_temp < 60:
+                score = 100
+            elif avg_temp < 70:
+                score = 100 - ((avg_temp - 60) * 1.5)
+            elif avg_temp < 75:
+                score = 85 - ((avg_temp - 70) * 5)
+            else:
+                score = max(40 - ((avg_temp - 75) * 2), 0)
+            
+            # Penalize for spikes (>80°C)
+            if max_temp > 80:
+                score = score * 0.8
         else:
-            # Other miners: <60°C = 100, 60-70°C = 80, 70-80°C = 60, 80+°C = 40
+            # Generic fallback: <60°C = 100, 60-70°C = 80, 70-80°C = 60, 80+°C = 40
             if avg_temp < 60:
                 score = 100
             elif avg_temp < 70:
