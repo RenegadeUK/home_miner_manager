@@ -14,6 +14,7 @@ pricing, MQTT export, and a modular dashboard. It runs entirely as a single Dock
 with a /config volume containing all persistent data.
 2. High-Level Copilot Rules
 Copilot MUST:
+- **BEFORE adding new functionality, ALWAYS check and understand what is already in place** - review existing code, patterns, validation logic, and similar features to avoid duplication or conflicts.
 - Follow FastAPI + SQLite + MQTT + APScheduler architecture.
 - Store ALL data in /config (config.yaml, data.db, logs/).
 - Use WEB_PORT env var (default 8080).
