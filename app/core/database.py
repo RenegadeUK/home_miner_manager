@@ -27,6 +27,7 @@ class Miner(Base):
     firmware_version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    last_mode_change: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Track when mode was last changed
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

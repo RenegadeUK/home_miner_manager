@@ -88,6 +88,9 @@ async def execute_bulk_operation(
                 
                 if adapter:
                     success = await adapter.set_mode(request.params["mode"])
+                    if success:
+                        miner.current_mode = request.params["mode"]
+                        miner.last_mode_change = datetime.utcnow()
                     message = f"Mode set to {request.params['mode']}" if success else "Failed to set mode"
                 else:
                     message = "Failed to create adapter"
@@ -174,6 +177,9 @@ async def execute_bulk_operation(
                             success = await adapter._apply_custom_settings(profile.settings)
                         elif miner.miner_type == "avalon_nano" and "mode" in profile.settings:
                             success = await adapter.set_mode(profile.settings["mode"])
+                            if success:
+                                miner.current_mode = profile.settings["mode"]
+                                miner.last_mode_change = datetime.utcnow()
                         
                         message = f"Applied profile {profile.name}" if success else "Failed to apply profile"
                     else:

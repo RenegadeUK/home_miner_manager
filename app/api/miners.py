@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import List
 from pydantic import BaseModel
+from datetime import datetime
 
 from core.database import get_db, Miner, Pool
 from adapters import create_adapter, get_supported_types
@@ -177,6 +178,7 @@ async def set_miner_mode(miner_id: int, mode: str, db: AsyncSession = Depends(ge
     
     # Update database
     miner.current_mode = mode
+    miner.last_mode_change = datetime.utcnow()
     await db.commit()
     
     # Wait for device to stabilize and get updated telemetry
@@ -514,6 +516,7 @@ async def bulk_set_mode(
             
             await adapter.set_mode(request.mode)
             miner.current_mode = request.mode
+            miner.last_mode_change = datetime.utcnow()
             success += 1
         except Exception as e:
             print(f"Failed to set mode for miner {miner_id}: {e}")

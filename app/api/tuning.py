@@ -193,6 +193,9 @@ async def apply_profile(
         # For Avalon, set mode if specified
         if "mode" in profile.settings:
             success = await adapter.set_mode(profile.settings["mode"])
+            if success:
+                miner.current_mode = profile.settings["mode"]
+                miner.last_mode_change = datetime.utcnow()
     
     if not success:
         raise HTTPException(status_code=500, detail="Failed to apply profile settings")

@@ -401,3 +401,14 @@ async def run_migrations():
             print("✓ Created monthly_miner_stats table with indexes")
         except Exception:
             pass
+        
+        # Migration 19: Add last_mode_change column to miners for tracking mode changes
+        try:
+            await conn.execute(text("""
+                ALTER TABLE miners 
+                ADD COLUMN last_mode_change DATETIME
+            """))
+            print("✓ Added last_mode_change column to miners")
+        except Exception:
+            # Column already exists
+            pass

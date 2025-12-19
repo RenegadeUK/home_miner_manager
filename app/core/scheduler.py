@@ -710,6 +710,7 @@ class SchedulerService:
                     success = await adapter.set_mode(mode)
                     if success:
                         miner.current_mode = mode
+                        miner.last_mode_change = datetime.utcnow()
                         event = Event(
                             event_type="info",
                             source=f"automation_rule_{rule.id}",
@@ -1322,6 +1323,13 @@ class SchedulerService:
                         elif alert_config.alert_type == "low_hashrate":
                             drop_percent = alert_config.config.get("drop_percent", 30)
                             if latest_telemetry and latest_telemetry.hashrate:
+                                # Skip alert if mode changed in last 20 minutes (intentional hashrate change)
+                                if miner.last_mode_change:
+                                    time_since_mode_change = (datetime.utcnow() - miner.last_mode_change).total_seconds() / 60
+                                    if time_since_mode_change < 20:
+                                        print(f"⏭️ Skipping hashrate alert for {miner.name}: mode changed {time_since_mode_change:.1f} min ago")
+                                        continue
+                                
                                 # Get average hashrate from last 10 readings
                                 result = await db.execute(
                                     select(Telemetry)
@@ -1487,6 +1495,7 @@ class SchedulerService:
                                 if success:
                                     # Update database
                                     miner.current_mode = target_mode
+                                    miner.last_mode_change = datetime.utcnow()
                                     await db.commit()
                                     print(f"⚡ Auto-optimized {miner.name}: {current_mode} → {target_mode} (price: {current_price}p/kWh)")
                                 else:
