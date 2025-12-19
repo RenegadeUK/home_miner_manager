@@ -88,53 +88,102 @@
         <div class="detail-card-body">
             
             <div class="form-group">
-                <label class="form-label">Enable MQTT</label>
-                <select class="form-select" id="mqtt_enabled">
-                    <option value="false">Disabled</option>
-                    <option value="true">Enabled</option>
+                <label class="form-label">MQTT Mode</label>
+                <select class="form-select" id="mqtt_mode" onchange="handleModeChange()">
+                    <option value="disabled">Disabled</option>
+                    <option value="local">Enabled - Local (Built-in Broker)</option>
+                    <option value="remote">Enabled - Remote (External Broker)</option>
                 </select>
+                <small style="color: var(--text-secondary); display: block; margin-top: 0.5rem;">
+                    <strong>Local:</strong> Uses integrated MQTT broker (mqtt:1883)<br>
+                    <strong>Remote:</strong> Connect to external MQTT broker
+                </small>
             </div>
             
-            <div class="form-group">
-                <label class="form-label">MQTT Broker</label>
-                <input type="text" class="form-input" id="mqtt_broker" placeholder="localhost">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">MQTT Port</label>
-                <input type="number" class="form-input" id="mqtt_port" placeholder="1883">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Topic Prefix</label>
-                <input type="text" class="form-input" id="mqtt_topic_prefix" placeholder="miner">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Username (optional)</label>
-                <input type="text" class="form-input" id="mqtt_username" placeholder="Leave blank if no authentication required">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Password (optional)</label>
-                <input type="password" class="form-input" id="mqtt_password" placeholder="Leave blank if no authentication required">
+            <div id="broker_config">
+                <div class="form-group">
+                    <label class="form-label">MQTT Broker</label>
+                    <input type="text" class="form-input" id="mqtt_broker" placeholder="localhost">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">MQTT Port</label>
+                    <input type="number" class="form-input" id="mqtt_port" placeholder="1883">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Topic Prefix</label>
+                    <input type="text" class="form-input" id="mqtt_topic_prefix" placeholder="miner">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Username (optional)</label>
+                    <input type="text" class="form-input" id="mqtt_username" placeholder="Leave blank if no authentication required">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Password (optional)</label>
+                    <input type="password" class="form-input" id="mqtt_password" placeholder="Leave blank if no authentication required">
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
+function handleModeChange() {
+    const mode = document.getElementById('mqtt_mode').value;
+    const brokerConfig = document.getElementById('broker_config');
+    
+    if (mode === 'disabled') {
+        // Hide all broker config
+        brokerConfig.style.display = 'none';
+    } else if (mode === 'local') {
+        // Show config but auto-fill and make read-only
+        brokerConfig.style.display = 'block';
+        document.getElementById('mqtt_broker').value = 'mqtt';
+        document.getElementById('mqtt_broker').readOnly = true;
+        document.getElementById('mqtt_port').value = '1883';
+        document.getElementById('mqtt_port').readOnly = true;
+        document.getElementById('mqtt_topic_prefix').value = 'homelab';
+        document.getElementById('mqtt_username').value = '';
+        document.getElementById('mqtt_username').readOnly = true;
+        document.getElementById('mqtt_password').value = '';
+        document.getElementById('mqtt_password').readOnly = true;
+    } else {
+        // Remote mode - show and enable all fields
+        brokerConfig.style.display = 'block';
+        document.getElementById('mqtt_broker').readOnly = false;
+        document.getElementById('mqtt_port').readOnly = false;
+        document.getElementById('mqtt_username').readOnly = false;
+        document.getElementById('mqtt_password').readOnly = false;
+    }
+}
+
 async function loadSettings() {
     try {
         const response = await fetch('/api/settings/mqtt');
         const data = await response.json();
         
-        document.getElementById('mqtt_enabled').value = data.enabled ? 'true' : 'false';
+        // Determine mode based on settings
+        let mode = 'disabled';
+        if (data.enabled) {
+            if (data.broker === 'mqtt' && data.port === 1883) {
+                mode = 'local';
+            } else {
+                mode = 'remote';
+            }
+        }
+        
+        document.getElementById('mqtt_mode').value = mode;
         document.getElementById('mqtt_broker').value = data.broker || '';
         document.getElementById('mqtt_port').value = data.port || '1883';
         document.getElementById('mqtt_topic_prefix').value = data.topic_prefix || 'miner';
         document.getElementById('mqtt_username').value = data.username || '';
         document.getElementById('mqtt_password').value = data.password || '';
+        
+        // Apply mode-specific UI
+        handleModeChange();
     } catch (error) {
         console.error('Failed to load settings:', error);
         alert('Failed to load MQTT settings');
@@ -142,8 +191,10 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
+    const mode = document.getElementById('mqtt_mode').value;
+    
     const settings = {
-        enabled: document.getElementById('mqtt_enabled').value === 'true',
+        enabled: mode !== 'disabled',
         broker: document.getElementById('mqtt_broker').value,
         port: parseInt(document.getElementById('mqtt_port').value),
         topic_prefix: document.getElementById('mqtt_topic_prefix').value,
@@ -161,7 +212,7 @@ async function saveSettings() {
         });
         
         if (response.ok) {
-            alert('✅ MQTT settings saved successfully');
+            alert('✅ MQTT settings saved successfully. Restart the container to apply changes.');
         } else {
             const error = await response.json();
             alert('❌ Failed to save settings: ' + (error.detail || 'Unknown error'));
