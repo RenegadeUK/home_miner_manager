@@ -177,12 +177,29 @@ Rules stored in SQLite with JSON condition/action schema.
 11.6 Advanced Features ✅ PARTIALLY COMPLETED
 - ✅ Audit logging: track all configuration changes (database model, API endpoints, UI page with filtering)
 - ❌ Backup/restore: REMOVED - Copilot incapable of delivering usable implementation. OAuth complexity, poor UX, overly complicated for simple configuration export. Feature removed entirely.
+- ✅ Integrated MQTT broker: Eclipse Mosquitto 2.0 in Docker stack for self-contained messaging infrastructure
 - Future: API webhooks: POST events to external services
 - Future: Multi-user support: different access levels (admin/viewer/operator)
 - Future: Two-factor authentication for admin access
 - Future: Rate limiting and API throttling
 
-11.7 Developer Experience
+11.7 Remote Agent Management 🚧 PLANNED
+- Windows agent: lightweight Python service for remote system control
+  - System control: shutdown, restart, sleep, hibernate, lock, log off, power plans
+  - Process management: start/stop applications, kill processes, launch scripts
+  - Monitoring: CPU/RAM/Disk usage, running processes, network stats, uptime
+  - File operations: run scheduled tasks, execute PowerShell/batch scripts
+  - MQTT communication: subscribe to commands, publish telemetry
+  - Security: API key authentication, command signing, whitelist, audit logging
+  - Local override: physical disable for safety
+- UI integration: Agents section with system stats cards and quick actions
+- Automation integration: "Shut down idle machines when electricity is expensive"
+- Wake-on-LAN: power on machines remotely
+- Agent installer: Windows Service, auto-start on boot
+- Cross-platform: Linux/macOS agent support
+- Fleet management: bulk agent commands, health monitoring
+
+11.8 Developer Experience
 - Plugin system: community-developed miner adapters
 - Auto-generated OpenAPI/Swagger documentation
 - Simulation mode: test automation rules without hardware
