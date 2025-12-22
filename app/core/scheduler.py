@@ -2,6 +2,7 @@
 APScheduler for periodic tasks
 """
 import logging
+import asyncio
 import aiohttp
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -444,7 +445,19 @@ class SchedulerService:
                         )
                         db.add(event)
                 
-                await db.commit()
+                # Commit with retry logic for database locks
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        await db.commit()
+                        break
+                    except Exception as commit_error:
+                        if "database is locked" in str(commit_error) and attempt < max_retries - 1:
+                            print(f"Database locked, retrying commit (attempt {attempt + 1}/{max_retries})...")
+                            await asyncio.sleep(0.5 * (attempt + 1))  # Exponential backoff
+                            await db.rollback()
+                        else:
+                            raise
         
         except Exception as e:
             print(f"❌ Error in telemetry collection: {e}")
