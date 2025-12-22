@@ -408,9 +408,7 @@ engine = create_async_engine(
         "timeout": 30,  # 30 second timeout for database locks
         "check_same_thread": False
     },
-    pool_pre_ping=True,  # Verify connections before using them
-    pool_size=20,  # Allow more concurrent connections
-    max_overflow=10  # Allow up to 10 additional connections during high load
+    pool_pre_ping=True  # Verify connections before using them
 )
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
