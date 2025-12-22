@@ -418,13 +418,17 @@ class PoolStrategyService:
         # Check current mode from config
         current_mode = config.get("current_mode")
         
-        # If already in target mode, no action needed
+        # If already in target mode, no action needed (unless forced)
         if current_mode == target_mode and not force:
             logger.debug(f"Pro Mode: Already in {target_mode} mode")
             return {"switched": False, "reason": "already_in_target_mode", "mode": target_mode}
         
-        # Check dwell time (skip if forced or no previous switch)
-        if not force and strategy.last_switch:
+        # If no current mode set (first execution), proceed to set it
+        if not current_mode:
+            logger.info(f"Pro Mode: Initial execution, setting mode to {target_mode}")
+        
+        # Check dwell time (skip if forced, no previous switch, or first execution)
+        if not force and strategy.last_switch and current_mode:
             time_since_switch = datetime.utcnow() - strategy.last_switch
             dwell_timedelta = timedelta(hours=dwell_hours)
             
