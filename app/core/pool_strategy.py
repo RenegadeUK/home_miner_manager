@@ -393,7 +393,7 @@ class PoolStrategyService:
             logger.warning(f"Pro Mode: No current energy price available")
             return {"switched": False, "reason": "no_price_data"}
         
-        current_price = current_price_record.price_pence / 100.0  # Convert pence to pounds
+        current_price = current_price_record.price_pence  # Price is already in pence
         
         # Determine which pool should be active
         low_threshold = price_threshold + 0.5
@@ -464,7 +464,13 @@ class PoolStrategyService:
             config["current_mode"] = target_mode
             strategy.config = config
             strategy.last_switch = datetime.utcnow()
+            
+            # Mark config as modified to ensure SQLAlchemy detects the change
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(strategy, "config")
+            
             await self.db.commit()
+            await self.db.refresh(strategy)
             
             # Log the switch
             reason = f"Pro Mode: Switched to {target_mode} mode (price: {current_price:.2f}p, threshold: {price_threshold:.2f}p)"
