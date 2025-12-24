@@ -189,6 +189,12 @@ class SolopoolService:
             # Payments are ordered newest first
             last_block_timestamp = payments[0].get("timestamp")
         
+        # Get total paid from stats.paid field (already in atomic units)
+        stats_obj_paid = stats_obj.get("paid", 0)
+        payments_total = stats.get("paymentsTotal", 0)
+        # Use stats.paid if available, otherwise use paymentsTotal
+        total_paid = stats_obj_paid if stats_obj_paid > 0 else payments_total
+        
         return {
             "hashrate": hashrate_formatted,
             "hashrate_raw": hashrate,
@@ -196,7 +202,7 @@ class SolopoolService:
             "workers": workers_online,
             "workersTotal": workers_total,
             "shares": total_shares,
-            "paid": stats.get("paymentsTotal", 0),  # In satoshis (or atomic units for XMR)
+            "paid": total_paid,  # In atomic units (satoshis for BTC/BCH, smallest unit for DGB, atomic units for XMR)
             "lastShare": stats_obj.get("lastShare"),
             "lastBlockTimestamp": last_block_timestamp,  # Timestamp of last block found
             "current_luck": current_luck,  # Current round luck (what UI shows)
@@ -317,19 +323,19 @@ class SolopoolService:
         
         # Format into human-readable units
         if ettb_seconds < 60:
-            return {"value": int(ettb_seconds), "unit": "seconds", "formatted": f"{int(ettb_seconds)}s"}
+            return {"value": int(ettb_seconds), "unit": "seconds", "formatted": f"{int(ettb_seconds)}s", "seconds": int(ettb_seconds)}
         elif ettb_seconds < 3600:
             minutes = ettb_seconds / 60
-            return {"value": round(minutes, 1), "unit": "minutes", "formatted": f"{round(minutes, 1)}m"}
+            return {"value": round(minutes, 1), "unit": "minutes", "formatted": f"{round(minutes, 1)}m", "seconds": int(ettb_seconds)}
         elif ettb_seconds < 86400:
             hours = ettb_seconds / 3600
-            return {"value": round(hours, 1), "unit": "hours", "formatted": f"{round(hours, 1)}h"}
+            return {"value": round(hours, 1), "unit": "hours", "formatted": f"{round(hours, 1)}h", "seconds": int(ettb_seconds)}
         elif ettb_seconds < 31536000:  # Less than a year
             days = ettb_seconds / 86400
-            return {"value": round(days, 1), "unit": "days", "formatted": f"{round(days, 1)}d"}
+            return {"value": round(days, 1), "unit": "days", "formatted": f"{round(days, 1)}d", "seconds": int(ettb_seconds)}
         else:
             years = ettb_seconds / 31536000
-            return {"value": round(years, 1), "unit": "years", "formatted": f"{round(years, 1)}y"}
+            return {"value": round(years, 1), "unit": "years", "formatted": f"{round(years, 1)}y", "seconds": int(ettb_seconds)}
     
     @staticmethod
     def calculate_ticket_count(network_hashrate: float, user_hashrate: float) -> Optional[Dict[str, Any]]:
@@ -359,4 +365,25 @@ class SolopoolService:
         else:
             # For very small percentages, use scientific notation
             return {"percentage": percentage, "formatted": f"{percentage:.2e}%"}
-
+    
+    @staticmethod
+    def atomic_to_coin(atomic_units: float, coin: str) -> float:
+        """
+        Convert atomic units to decimal coin amount
+        
+        Args:
+            atomic_units: Amount in smallest unit (satoshis, atomic units, etc)
+            coin: Coin type ("BTC", "BCH", "DGB", "XMR")
+        
+        Returns:
+            Decimal coin amount
+        """
+        decimals = {
+            "BTC": 8,   # Bitcoin uses 8 decimals (satoshis)
+            "BCH": 8,   # Bitcoin Cash uses 8 decimals (satoshis)
+            "DGB": 9,   # DigiByte uses 9 decimals
+            "XMR": 12   # Monero uses 12 decimals (atomic units)
+        }
+        
+        coin_decimals = decimals.get(coin.upper(), 8)  # Default to 8 if unknown
+        return atomic_units / (10 ** coin_decimals)

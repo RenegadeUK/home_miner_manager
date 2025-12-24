@@ -191,32 +191,31 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             
             solopool_users_checked.add(username)
             
-            # Fetch stats for this user
-            stats = None
-            coin_price = 0
-            block_reward = 0
-            
+            # Fetch account stats and calculate actual paid amounts
             if is_bch and bch_price_gbp > 0:
-                stats = await SolopoolService.get_bch_account_stats(username)
-                coin_price = bch_price_gbp
-                block_reward = 6.25  # BCH block reward
+                raw_stats = await SolopoolService.get_bch_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_bch = SolopoolService.atomic_to_coin(stats.get("paid", 0), "BCH")
+                    earnings_pounds_24h += total_paid_bch * bch_price_gbp
             elif is_dgb and dgb_price_gbp > 0:
-                stats = await SolopoolService.get_dgb_account_stats(username)
-                coin_price = dgb_price_gbp
-                block_reward = 665  # DGB block reward (approximate)
+                raw_stats = await SolopoolService.get_dgb_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_dgb = SolopoolService.atomic_to_coin(stats.get("paid", 0), "DGB")
+                    earnings_pounds_24h += total_paid_dgb * dgb_price_gbp
             elif is_btc and btc_price_gbp > 0:
-                stats = await SolopoolService.get_btc_account_stats(username)
-                coin_price = btc_price_gbp
-                block_reward = 3.125  # BTC block reward (post-2024 halving)
+                raw_stats = await SolopoolService.get_btc_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_btc = SolopoolService.atomic_to_coin(stats.get("paid", 0), "BTC")
+                    earnings_pounds_24h += total_paid_btc * btc_price_gbp
             elif is_xmr and xmr_price_gbp > 0:
-                stats = await SolopoolService.get_xmr_account_stats(username)
-                coin_price = xmr_price_gbp
-                block_reward = 0.6  # XMR block reward (approximate)
-            
-            if stats and "blocks_24h" in stats:
-                blocks_found = stats["blocks_24h"]
-                if blocks_found > 0:
-                    earnings_pounds_24h += blocks_found * block_reward * coin_price
+                raw_stats = await SolopoolService.get_xmr_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_xmr = SolopoolService.atomic_to_coin(stats.get("paid", 0), "XMR")
+                    earnings_pounds_24h += total_paid_xmr * xmr_price_gbp
         
     except Exception as e:
         logging.error(f"Error calculating 24h earnings: {e}")
@@ -704,32 +703,31 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
             
             solopool_users_checked.add(username)
             
-            # Fetch stats for this user
-            stats = None
-            coin_price = 0
-            block_reward = 0
-            
+            # Fetch account stats and calculate actual paid amounts
             if is_bch and bch_price_gbp > 0:
-                stats = await SolopoolService.get_bch_account_stats(username)
-                coin_price = bch_price_gbp
-                block_reward = 6.25  # BCH block reward
+                raw_stats = await SolopoolService.get_bch_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_bch = SolopoolService.atomic_to_coin(stats.get("paid", 0), "BCH")
+                    earnings_pounds_24h += total_paid_bch * bch_price_gbp
             elif is_dgb and dgb_price_gbp > 0:
-                stats = await SolopoolService.get_dgb_account_stats(username)
-                coin_price = dgb_price_gbp
-                block_reward = 665.0  # DGB block reward
+                raw_stats = await SolopoolService.get_dgb_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_dgb = SolopoolService.atomic_to_coin(stats.get("paid", 0), "DGB")
+                    earnings_pounds_24h += total_paid_dgb * dgb_price_gbp
             elif is_btc and btc_price_gbp > 0:
-                stats = await SolopoolService.get_btc_account_stats(username)
-                coin_price = btc_price_gbp
-                block_reward = 3.125  # BTC block reward (post-halving 2024)
+                raw_stats = await SolopoolService.get_btc_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_btc = SolopoolService.atomic_to_coin(stats.get("paid", 0), "BTC")
+                    earnings_pounds_24h += total_paid_btc * btc_price_gbp
             elif is_xmr and xmr_price_gbp > 0:
-                stats = await SolopoolService.get_xmr_account_stats(username)
-                coin_price = xmr_price_gbp
-                block_reward = 0.6  # XMR block reward (approximate)
-            
-            if stats and "blocks_24h" in stats:
-                blocks_found = stats["blocks_24h"]
-                if blocks_found > 0:
-                    earnings_pounds_24h += blocks_found * block_reward * coin_price
+                raw_stats = await SolopoolService.get_xmr_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    total_paid_xmr = SolopoolService.atomic_to_coin(stats.get("paid", 0), "XMR")
+                    earnings_pounds_24h += total_paid_xmr * xmr_price_gbp
         
     except Exception as e:
         logging.error(f"Error calculating 24h earnings in /all: {e}")
