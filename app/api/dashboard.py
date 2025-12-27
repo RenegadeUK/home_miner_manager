@@ -729,6 +729,7 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
         
         # 2. SupportXMR Pool earnings (24h delta from snapshots)
         supportxmr_enabled = app_config.get("supportxmr_enabled", False)
+        logging.info(f"🔍 SupportXMR check: enabled={supportxmr_enabled}, xmr_price_gbp={xmr_price_gbp}")
         if supportxmr_enabled and xmr_price_gbp > 0:
             from core.supportxmr import SupportXMRService
             from core.database import SupportXMRSnapshot
@@ -738,10 +739,14 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
             all_pools_check = result.scalars().all()
             supportxmr_pools = [p for p in all_pools_check if SupportXMRService.is_supportxmr_pool(p.url, p.port)]
             
+            logging.info(f"💰 SupportXMR: found {len(supportxmr_pools)} pools")
+            
             for pool in supportxmr_pools:
                 wallet_address = SupportXMRService.extract_address(pool.user)
                 if not wallet_address:
                     continue
+                
+                logging.info(f"💰 Processing wallet: ...{wallet_address[-8:]}")
                 
                 # Get 24h earnings from snapshots
                 twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
@@ -763,12 +768,18 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
                 )
                 recent_snapshot = recent_result.scalar_one_or_none()
                 
+                logging.info(f"💰 Snapshots: old={old_snapshot is not None}, recent={recent_snapshot is not None}")
+                
                 if old_snapshot and recent_snapshot:
                     # Calculate 24h XMR earnings
                     current_total = recent_snapshot.amount_due + recent_snapshot.amount_paid
                     old_total = old_snapshot.amount_due + old_snapshot.amount_paid
                     xmr_earned_24h = max(0, current_total - old_total)
-                    earnings_pounds_24h += xmr_earned_24h * xmr_price_gbp
+                    xmr_earned_gbp = xmr_earned_24h * xmr_price_gbp
+                    logging.info(f"💰 Wallet ...{wallet_address[-8:]}: {xmr_earned_24h:.6f} XMR = £{xmr_earned_gbp:.4f}")
+                    logging.info(f"💰 Before add: earnings_pounds_24h = £{earnings_pounds_24h:.4f}")
+                    earnings_pounds_24h += xmr_earned_gbp
+                    logging.info(f"💰 After add: earnings_pounds_24h = £{earnings_pounds_24h:.4f}")
         
         # 3. Solopool earnings (blocks found in last 24h)
         from core.solopool import SolopoolService
