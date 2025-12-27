@@ -56,6 +56,10 @@
 <div id="braiins-stats" style="display: none; margin-top: 0.5rem;">
 </div>
 
+<!-- SupportXMR Pool Stats (only shown if enabled and miners on SupportXMR) -->
+<div id="supportxmr-stats" style="display: none; margin-top: 0.5rem;">
+</div>
+
 <!-- Solopool Stats (only shown if enabled and miners on Solopool) -->
 <div id="solopool-stats" style="display: none; margin-top: 0.5rem;">
 </div>
@@ -64,12 +68,16 @@
 .stats-grid { gap: 0.5rem !important; margin-bottom: 0 !important; }
 .stats-grid + .stats-grid { margin-top: 0.5rem !important; }
 #braiins-stats > .stats-grid:first-child,
+#supportxmr-stats > .stats-grid:first-child,
 #solopool-stats > .stats-grid:first-child { margin-top: 0 !important; }
 #braiins-stats .stat-card,
+#supportxmr-stats .stat-card,
 #solopool-stats .stat-card { padding: 0.35rem 0.5rem !important; }
 #braiins-stats .stat-label,
+#supportxmr-stats .stat-label,
 #solopool-stats .stat-label { font-size: 0.7rem !important; margin-bottom: 0.15rem !important; }
 #braiins-stats .stat-value,
+#supportxmr-stats .stat-value,
 #solopool-stats .stat-value { font-size: 1rem !important; line-height: 1.3 !important; }
 </style>
 
@@ -163,6 +171,96 @@ async function loadBraiinsStats() {
     } catch (error) {
         console.error('Failed to load Braiins stats:', error);
         document.getElementById('braiins-stats').style.display = 'none';
+    }
+}
+
+// Load SupportXMR stats
+async function loadSupportXMRStats() {
+    try {
+        const response = await fetch('/api/settings/supportxmr/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('supportxmr-stats');
+        
+        if (!data.enabled || !data.stats || data.miners_using === 0) {
+            statsDiv.style.display = 'none';
+            return;
+        }
+        
+        statsDiv.style.display = 'block';
+        
+        const stats = data.stats;
+        const address = data.address || '';
+        const shortAddress = address.length > 12 ? address.substring(0, 8) + '...' + address.substring(address.length - 4) : address;
+        
+        // Get XMR price in GBP with cache age indicator
+        let xmrPriceGBP = 0;
+        let xmrCacheAgeIndicator = '';
+        
+        // Helper function to get cache age indicator with color
+        const getCacheIndicator = (ageMinutes) => {
+            if (!ageMinutes && ageMinutes !== 0) return '';
+            let color = '#28a745'; // green
+            if (ageMinutes >= 120) color = '#dc3545'; // red
+            else if (ageMinutes >= 30) color = '#ffc107'; // amber
+            return `<span style="font-size: 0.7rem; color: ${color}; margin-left: 4px;">●</span>`;
+        };
+        
+        try {
+            const priceResponse = await fetch('/api/settings/crypto-prices');
+            if (priceResponse.ok) {
+                const priceData = await priceResponse.json();
+                if (priceData.success) {
+                    xmrPriceGBP = priceData.monero || 0;
+                    xmrCacheAgeIndicator = getCacheIndicator(priceData.age_minutes);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to fetch XMR price:', e);
+        }
+        
+        // Calculate GBP values
+        const todayRewardsXMR = parseFloat(stats.today_rewards);
+        const todayRewardsGBP = xmrPriceGBP > 0 ? (todayRewardsXMR * xmrPriceGBP).toFixed(2) : '0.00';
+        const amountDueXMR = parseFloat(stats.amount_due);
+        const amountDueGBP = xmrPriceGBP > 0 ? (amountDueXMR * xmrPriceGBP).toFixed(2) : '0.00';
+        const amountPaidXMR = parseFloat(stats.amount_paid);
+        const amountPaidGBP = xmrPriceGBP > 0 ? (amountPaidXMR * xmrPriceGBP).toFixed(2) : '0.00';
+        
+        // SupportXMR logo (using XMR symbol)
+        const supportXMRLogo = '<span style="color: #ff6600; font-weight: bold; margin-right: 4px;">⟠</span>';
+        
+        // Create clickable link to SupportXMR dashboard
+        const supportXMRUrl = address ? `https://supportxmr.com/#/dashboard` : '#';
+        const onclickAttr = address ? `onclick="window.open('${supportXMRUrl}', '_blank')"` : '';
+        const clickableStyle = address ? 'cursor: pointer;' : '';
+        
+        const tilesHTML = `
+            <div class="stats-grid">
+                <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
+                    <div class="stat-label">${supportXMRLogo}Workers (SupportXMR)</div>
+                    <div class="stat-value" style="font-size: 1.5rem;">${stats.worker_count || 0}</div>
+                    ${stats.hashrate ? `<div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">${stats.hashrate}</div>` : ''}
+                </div>
+                <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
+                    <div class="stat-label">${supportXMRLogo}Today's Reward</div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${todayRewardsXMR.toFixed(6)} XMR<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${todayRewardsGBP}${xmrCacheAgeIndicator}</span></div>
+                </div>
+                <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
+                    <div class="stat-label">${supportXMRLogo}Amount Due</div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${stats.amount_due} XMR<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${amountDueGBP}${xmrCacheAgeIndicator}</span></div>
+                </div>
+                <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
+                    <div class="stat-label">${supportXMRLogo}Total Paid</div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${stats.amount_paid} XMR<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${amountPaidGBP}${xmrCacheAgeIndicator}</span></div>
+                </div>
+            </div>
+        `;
+        
+        statsDiv.innerHTML = tilesHTML;
+    } catch (error) {
+        console.error('Failed to load SupportXMR stats:', error);
+        document.getElementById('supportxmr-stats').style.display = 'none';
     }
 }
 
@@ -519,6 +617,7 @@ async function loadDashboard() {
 
         // Load pool integration stats
         await loadBraiinsStats();
+        await loadSupportXMRStats();
         await loadSolopoolStats();
     } catch (error) {
         console.error('Failed to load dashboard:', error);

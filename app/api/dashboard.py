@@ -162,7 +162,50 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                 btc_earned_24h = braiins_stats["today_reward"] / 100000000
                 earnings_pounds_24h += btc_earned_24h * btc_price_gbp
         
-        # 2. Solopool earnings (blocks found in last 24h)
+        # 2. SupportXMR Pool earnings (24h delta from snapshots)
+        supportxmr_enabled = app_config.get("supportxmr_enabled", False)
+        if supportxmr_enabled and xmr_price_gbp > 0:
+            from core.supportxmr import SupportXMRService
+            from core.database import SupportXMRSnapshot
+            
+            # Get all SupportXMR pools
+            result = await db.execute(select(Pool))
+            all_pools = result.scalars().all()
+            supportxmr_pools = [p for p in all_pools if SupportXMRService.is_supportxmr_pool(p.url, p.port)]
+            
+            for pool in supportxmr_pools:
+                wallet_address = SupportXMRService.extract_address(pool.user)
+                if not wallet_address:
+                    continue
+                
+                # Get 24h earnings from snapshots
+                twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+                snapshot_result = await db.execute(
+                    select(SupportXMRSnapshot)
+                    .where(SupportXMRSnapshot.wallet_address == wallet_address)
+                    .where(SupportXMRSnapshot.timestamp >= twenty_four_hours_ago)
+                    .order_by(SupportXMRSnapshot.timestamp.asc())
+                    .limit(1)
+                )
+                old_snapshot = snapshot_result.scalar_one_or_none()
+                
+                # Get most recent snapshot
+                recent_result = await db.execute(
+                    select(SupportXMRSnapshot)
+                    .where(SupportXMRSnapshot.wallet_address == wallet_address)
+                    .order_by(SupportXMRSnapshot.timestamp.desc())
+                    .limit(1)
+                )
+                recent_snapshot = recent_result.scalar_one_or_none()
+                
+                if old_snapshot and recent_snapshot:
+                    # Calculate 24h XMR earnings
+                    current_total = recent_snapshot.amount_due + recent_snapshot.amount_paid
+                    old_total = old_snapshot.amount_due + old_snapshot.amount_paid
+                    xmr_earned_24h = max(0, current_total - old_total)
+                    earnings_pounds_24h += xmr_earned_24h * xmr_price_gbp
+        
+        # 3. Solopool earnings (blocks found in last 24h)
         # Check if any miners are using Solopool and fetch their stats
         from core.solopool import SolopoolService
         from core.database import Pool
@@ -684,7 +727,50 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
                 btc_earned_24h = braiins_stats["today_reward"] / 100000000
                 earnings_pounds_24h += btc_earned_24h * btc_price_gbp
         
-        # 2. Solopool earnings (blocks found in last 24h)
+        # 2. SupportXMR Pool earnings (24h delta from snapshots)
+        supportxmr_enabled = app_config.get("supportxmr_enabled", False)
+        if supportxmr_enabled and xmr_price_gbp > 0:
+            from core.supportxmr import SupportXMRService
+            from core.database import SupportXMRSnapshot
+            
+            # Get all SupportXMR pools
+            result = await db.execute(select(Pool))
+            all_pools_check = result.scalars().all()
+            supportxmr_pools = [p for p in all_pools_check if SupportXMRService.is_supportxmr_pool(p.url, p.port)]
+            
+            for pool in supportxmr_pools:
+                wallet_address = SupportXMRService.extract_address(pool.user)
+                if not wallet_address:
+                    continue
+                
+                # Get 24h earnings from snapshots
+                twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
+                snapshot_result = await db.execute(
+                    select(SupportXMRSnapshot)
+                    .where(SupportXMRSnapshot.wallet_address == wallet_address)
+                    .where(SupportXMRSnapshot.timestamp >= twenty_four_hours_ago)
+                    .order_by(SupportXMRSnapshot.timestamp.asc())
+                    .limit(1)
+                )
+                old_snapshot = snapshot_result.scalar_one_or_none()
+                
+                # Get most recent snapshot
+                recent_result = await db.execute(
+                    select(SupportXMRSnapshot)
+                    .where(SupportXMRSnapshot.wallet_address == wallet_address)
+                    .order_by(SupportXMRSnapshot.timestamp.desc())
+                    .limit(1)
+                )
+                recent_snapshot = recent_result.scalar_one_or_none()
+                
+                if old_snapshot and recent_snapshot:
+                    # Calculate 24h XMR earnings
+                    current_total = recent_snapshot.amount_due + recent_snapshot.amount_paid
+                    old_total = old_snapshot.amount_due + old_snapshot.amount_paid
+                    xmr_earned_24h = max(0, current_total - old_total)
+                    earnings_pounds_24h += xmr_earned_24h * xmr_price_gbp
+        
+        # 3. Solopool earnings (blocks found in last 24h)
         from core.solopool import SolopoolService
         
         # Get all pools to check for Solopool configurations
