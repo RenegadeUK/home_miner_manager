@@ -260,10 +260,18 @@ async function loadMiners() {
         const response = await fetch('/api/dashboard/all');
         const data = await response.json();
         
-        // Sort miners alphabetically by name (case-insensitive)
-        const miners = data.miners.sort((a, b) => 
-            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-        );
+        // Sort miners: ASIC miners first (alphabetically), then XMRig miners (alphabetically)
+        const miners = data.miners.sort((a, b) => {
+            const aIsXMRig = a.miner_type.toLowerCase() === 'xmrig';
+            const bIsXMRig = b.miner_type.toLowerCase() === 'xmrig';
+            
+            // If one is XMRig and the other isn't, non-XMRig goes first
+            if (aIsXMRig && !bIsXMRig) return 1;
+            if (!aIsXMRig && bIsXMRig) return -1;
+            
+            // Both same type, sort alphabetically by name
+            return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+        });
         const minersGrid = document.getElementById('miners-grid');
         
         if (miners.length === 0) {
@@ -281,8 +289,14 @@ async function loadMiners() {
             return;
         }
         
-        const tilesHTML = miners.map(m => `
-            <div class="miner-tile" data-miner-id="${m.id}" style="position: relative;">
+        const tilesHTML = miners.map(m => {
+            // Add red border if health score is below 50 (failed health check)
+            const borderStyle = (m.health_score !== null && m.health_score < 50) 
+                ? 'border: 2px solid #ef4444 !important;' 
+                : '';
+            
+            return `
+            <div class="miner-tile" data-miner-id="${m.id}" style="position: relative; ${borderStyle}">
                 <input type="checkbox" class="miner-checkbox" onchange="toggleMinerSelection(${m.id}, this.checked)">
                 <div class="miner-tile-header">
                     <div class="miner-tile-icon">${getMinerIcon(m.miner_type)}</div>
@@ -323,7 +337,8 @@ async function loadMiners() {
                     <button class="btn btn-danger btn-sm" onclick="deleteMiner(${m.id}, '${m.name}')">Delete</button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
         
         minersGrid.innerHTML = tilesHTML + `
             <a href="/miners/add" class="add-miner-tile">

@@ -670,6 +670,19 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
         if miner.enabled:
             total_cost_24h_pence += miner_cost_24h
         
+        # Get latest health score for this miner
+        health_score = None
+        try:
+            result = await db.execute(
+                select(HealthScore.overall_score)
+                .where(HealthScore.miner_id == miner.id)
+                .order_by(HealthScore.timestamp.desc())
+                .limit(1)
+            )
+            health_score = result.scalar()
+        except Exception:
+            pass
+        
         miners_data.append({
             "id": miner.id,
             "name": miner.name,
@@ -681,7 +694,8 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
             "hashrate_unit": hashrate_unit,
             "power": power,
             "pool": pool_display,
-            "cost_24h": round(miner_cost_24h / 100, 2)  # Convert to pounds
+            "cost_24h": round(miner_cost_24h / 100, 2),  # Convert to pounds
+            "health_score": health_score
         })
     
     # Calculate 24h earnings (from Braiins Pool + Solopool blocks found)
