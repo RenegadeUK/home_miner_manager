@@ -135,8 +135,19 @@ function getMinerIcon(type) {
     return icons[type] || '⛏️';
 }
 
-function formatHashrate(hashrate) {
+function formatHashrate(hashrate, unit) {
     if (!hashrate) return '—';
+    
+    // If unit is provided, use it directly
+    if (unit) {
+        // Convert to appropriate scale for readability
+        if (unit === 'GH/s' && hashrate >= 1000) {
+            return (hashrate / 1000).toFixed(2) + ' TH/s';
+        }
+        return hashrate.toFixed(2) + ' ' + unit;
+    }
+    
+    // Fallback: assume H/s and convert
     if (hashrate >= 1e12) return (hashrate / 1e12).toFixed(2) + ' TH/s';
     if (hashrate >= 1e9) return (hashrate / 1e9).toFixed(2) + ' GH/s';
     if (hashrate >= 1e6) return (hashrate / 1e6).toFixed(2) + ' MH/s';
@@ -187,7 +198,7 @@ async function loadMiners() {
                 <div class="analytics-tile-body">
                     <div class="analytics-tile-stat">
                         <div class="analytics-tile-label">Current Hashrate</div>
-                        <div class="analytics-tile-value">${formatHashrate(m.hashrate)}</div>
+                        <div class="analytics-tile-value">${formatHashrate(m.hashrate, m.hashrate_unit)}</div>
                     </div>
                     <div class="analytics-tile-stat">
                         <div class="analytics-tile-label">Health Score</div>
