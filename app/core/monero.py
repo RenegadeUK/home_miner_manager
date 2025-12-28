@@ -197,7 +197,8 @@ class MoneroWalletService:
     @staticmethod
     async def get_total_balance(db: AsyncSession) -> float:
         """
-        Calculate total received balance in XMR
+        Calculate total received balance in XMR (sum of all incoming transactions)
+        This represents all-time rewards, doesn't account for withdrawals
         """
         if not MoneroWalletService.is_enabled():
             return 0.0
@@ -214,6 +215,44 @@ class MoneroWalletService:
         
         total_xmr = sum(tx.amount_xmr for tx in transactions)
         return total_xmr
+    
+    @staticmethod
+    async def get_current_balance() -> float:
+        """
+        Get actual current spendable balance from blockchain
+        This queries the live balance accounting for withdrawals
+        """
+        if not MoneroWalletService.is_enabled():
+            return 0.0
+        
+        wallet_address = MoneroWalletService.get_wallet_address()
+        view_key = MoneroWalletService.get_view_key()
+        
+        if not wallet_address or not view_key:
+            return 0.0
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Use xmrchain.net API to get current balance
+                url = "https://xmrchain.net/api/balance"
+                params = {
+                    "address": wallet_address,
+                    "viewkey": view_key
+                }
+                
+                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        # Balance is returned in atomic units (piconero)
+                        balance_atomic = data.get("total_received", 0) - data.get("total_sent", 0)
+                        balance_xmr = float(balance_atomic) / 1e12
+                        return max(0.0, balance_xmr)  # Ensure non-negative
+                    else:
+                        logger.warning(f"Failed to fetch balance: HTTP {response.status}")
+                        return 0.0
+        except Exception as e:
+            logger.error(f"Error fetching Monero balance: {e}")
+            return 0.0
     
     @staticmethod
     async def get_stats(db: AsyncSession) -> Dict[str, Any]:
@@ -250,7 +289,10 @@ class MoneroWalletService:
         all_transactions = result.scalars().all()
         
         # Calculate stats
-        balance_xmr = sum(tx.amount_xmr for tx in all_transactions)
+        total_received_xmr = sum(tx.amount_xmr for tx in all_transactions)
+        
+        # Get actual current balance from blockchain
+        current_balance = await MoneroWalletService.get_current_balance()
         
         cutoff_24h = datetime.utcnow() - timedelta(hours=24)
         earnings_24h = [tx for tx in all_transactions if tx.timestamp >= cutoff_24h]
@@ -262,7 +304,8 @@ class MoneroWalletService:
         return {
             "enabled": True,
             "wallet_address": wallet_address[:10] + "..." + wallet_address[-10:],  # Truncated for display
-            "balance_xmr": round(balance_xmr, 6),
+            "balance_xmr": round(current_balance, 6),  # Current spendable balance
+            "total_received_xmr": round(total_received_xmr, 6),  # All-time rewards
             "earnings_24h_xmr": round(earnings_24h_xmr, 6),
             "transaction_count": len(all_transactions),
             "last_payout": last_payout,
