@@ -637,6 +637,7 @@ async def analytics_detail(request: Request, miner_id: int, db: AsyncSession = D
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
             {"label": "Analytics", "url": "/analytics"},
+            {"label": "Miners", "url": "/analytics/miners"},
             {"label": miner_name, "url": f"/analytics/{miner_id}"}
         ]
     })
