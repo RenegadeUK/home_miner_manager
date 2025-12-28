@@ -604,14 +604,30 @@ async function loadP2PoolStats() {
             const luckPercent = Math.round(data.current_effort || 0);
             const sharesFound = data.shares_found || 0;
             
-            // Time since last share (use average P2Pool share time: ~10 seconds for mini, scale by luck)
-            const avgShareTime = 10; // seconds
-            const expectedShareTime = avgShareTime * (luckPercent / 100);
+            // Time since last share with color coding
             let timeSinceShareHTML = '';
             if (data.last_share_timestamp) {
                 const timeSinceShare = Math.floor(Date.now() / 1000) - data.last_share_timestamp;
-                const shareColor = getBlockTimeColor(timeSinceShare, expectedShareTime);
-                timeSinceShareHTML = ` - <span style="color: ${shareColor};">${formatTimeSince(data.last_share_timestamp)}</span>`;
+                const avgShareTime = 10; // P2Pool mini average share time
+                const expectedShareTime = avgShareTime * (luckPercent / 100);
+                
+                // Color coding based on time vs expected
+                let shareColor = '#666';
+                if (expectedShareTime && timeSinceShare !== null) {
+                    const ratio = timeSinceShare / expectedShareTime;
+                    if (ratio < 0.5) shareColor = '#28a745';      // Green - very recent
+                    else if (ratio < 1.0) shareColor = '#90d96c'; // Light green
+                    else if (ratio < 1.5) shareColor = '#ffc107'; // Amber
+                    else if (ratio < 2.0) shareColor = '#fd7e14'; // Orange
+                    else shareColor = '#dc3545';                   // Red - overdue
+                }
+                
+                // Format time since
+                const minutes = Math.floor(timeSinceShare / 60);
+                const seconds = timeSinceShare % 60;
+                const timeStr = minutes > 0 ? `${minutes}m ${seconds}s ago` : `${seconds}s ago`;
+                
+                timeSinceShareHTML = ` - <span style="color: ${shareColor};">${timeStr}</span>`;
             }
             
             tilesHTML += `
