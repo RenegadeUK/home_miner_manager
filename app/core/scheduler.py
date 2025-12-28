@@ -186,6 +186,13 @@ class SchedulerService:
             name="Create SupportXMR wallet snapshots"
         )
         
+        self.scheduler.add_job(
+            self._sync_p2pool_transactions,
+            IntervalTrigger(minutes=5),
+            id="sync_p2pool_transactions",
+            name="Sync P2Pool wallet transactions"
+        )
+        
         # Start NMMiner UDP listener
         self.scheduler.add_job(
             self._start_nmminer_listener,
@@ -1915,6 +1922,21 @@ class SchedulerService:
             import traceback
             traceback.print_exc()
     
+    async def _sync_p2pool_transactions(self):
+        """Sync P2Pool wallet transactions from Monero blockchain"""
+        try:
+            from core.database import AsyncSessionLocal
+            from core.monero import MoneroWalletService
+            
+            async with AsyncSessionLocal() as db:
+                new_count = await MoneroWalletService.sync_transactions(db)
+                if new_count > 0:
+                    logger.info(f"✅ Synced {new_count} new P2Pool transaction(s)")
+        
+        except Exception as e:
+            logger.error(f"Failed to sync P2Pool transactions: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 

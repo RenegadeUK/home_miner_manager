@@ -175,6 +175,20 @@
                 </p>
             </div>
 
+            <div class="info-box" style="background: rgba(139, 92, 246, 0.1); border-color: #8b5cf6;">
+                <div class="info-box-title" style="color: #8b5cf6;">📊 Local P2Pool Statistics</div>
+                <p style="color: var(--text-secondary); margin: 0.5rem 0; font-size: 0.875rem;">
+                    For detailed local P2Pool mining statistics (hashrate, shares, pool info), you can run the 
+                    <strong>P2Pool API</strong> service alongside your P2Pool node. This provides real-time stats 
+                    directly from your local P2Pool instance.
+                </p>
+                <p style="margin: 0.5rem 0;">
+                    <a href="https://github.com/RenegadeUK/p2pool-api" target="_blank" style="color: #8b5cf6; text-decoration: none; font-weight: 600;">
+                        → View P2Pool API on GitHub
+                    </a>
+                </p>
+            </div>
+
             <div class="form-group">
                 <label class="form-label">
                     <input type="checkbox" id="p2pool_enabled">
@@ -191,10 +205,10 @@
                     type="text" 
                     id="wallet_address" 
                     class="form-input" 
-                    placeholder="45FmybpCJQFULjo..."
+                    placeholder="Your 95-character Monero wallet address"
                     maxlength="95"
                 >
-                <p class="form-hint">Your primary Monero wallet address (95 characters)</p>
+                <p class="form-hint">Standard Monero address starting with 4 (95 characters total)</p>
             </div>
 
             <div class="form-group">
@@ -203,11 +217,11 @@
                     type="password" 
                     id="view_key" 
                     class="form-input" 
-                    placeholder="e39a76ab6aeee8c48f0526c7c8d9e766..."
+                    placeholder="64-character hexadecimal secret view key"
                     maxlength="64"
                 >
                 <p class="form-hint">
-                    64-character hex string. Get this from your wallet: <code>Settings → Show Keys → Secret View Key</code>
+                    Read-only key for viewing incoming transactions. Get from wallet: <code>Settings → Show Keys → Secret View Key</code>
                 </p>
             </div>
 
@@ -217,11 +231,40 @@
                     type="text" 
                     id="node_url" 
                     class="form-input" 
-                    placeholder="http://10.200.204.88:18081"
-                    value="http://10.200.204.88:18081"
+                    placeholder="http://your-node-ip:18081"
                 >
                 <p class="form-hint">
-                    URL of your Monero daemon RPC (default port: 18081). Can be local or remote node.
+                    URL of your Monero daemon RPC endpoint (default port: 18081). Can be local or remote synchronized node.
+                </p>
+            </div>
+
+            <hr style="margin: 2rem 0; border: none; border-top: 1px solid var(--border-color);">
+
+            <h4 style="margin-bottom: 1rem; color: var(--text-primary);">P2Pool API Integration (Optional)</h4>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.875rem;">
+                Enable real-time mining statistics from your local P2Pool node (workers, hashrate, shares, effort).
+            </p>
+
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="p2pool_api_enabled">
+                    Enable P2Pool API Integration
+                </label>
+                <p class="form-hint">
+                    Show live mining stats on dashboard
+                </p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">P2Pool API URL</label>
+                <input 
+                    type="text" 
+                    id="api_url" 
+                    class="form-input" 
+                    placeholder="http://your-p2pool-api-ip:5000"
+                >
+                <p class="form-hint">
+                    URL of your P2Pool API service (see GitHub link above for setup)
                 </p>
             </div>
 
@@ -234,7 +277,8 @@
             </div>
 
             <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
-            <button class="btn btn-secondary" onclick="testConnection()">Test Connection</button>
+            <button class="btn btn-secondary" onclick="testConnection()">Test Monero Node</button>
+            <button class="btn btn-secondary" onclick="testApiConnection()">Test P2Pool API</button>
         </div>
     </div>
 </div>
@@ -251,7 +295,9 @@ async function loadSettings() {
         if (data.success) {
             document.getElementById('p2pool_enabled').checked = data.enabled || false;
             document.getElementById('wallet_address').value = data.wallet_address || '';
-            document.getElementById('node_url').value = data.node_url || 'http://10.200.204.88:18081';
+            document.getElementById('node_url').value = data.node_url || '';
+            document.getElementById('p2pool_api_enabled').checked = data.api_enabled || false;
+            document.getElementById('api_url').value = data.api_url || '';
             // Don't populate view key for security - user must re-enter
         }
     } catch (error) {
@@ -265,6 +311,8 @@ async function saveSettings() {
     const walletAddress = document.getElementById('wallet_address').value.trim();
     const viewKey = document.getElementById('view_key').value.trim();
     const nodeUrl = document.getElementById('node_url').value.trim();
+    const apiEnabled = document.getElementById('p2pool_api_enabled').checked;
+    const apiUrl = document.getElementById('api_url').value.trim();
     
     // Validation
     if (enabled) {
@@ -284,6 +332,13 @@ async function saveSettings() {
         }
     }
     
+    if (apiEnabled) {
+        if (!apiUrl || !apiUrl.startsWith('http')) {
+            showError('Please enter a valid P2Pool API URL (http:// or https://)');
+            return;
+        }
+    }
+    
     try {
         const response = await fetch('/api/settings/p2pool', {
             method: 'POST',
@@ -292,7 +347,9 @@ async function saveSettings() {
                 enabled,
                 wallet_address: walletAddress,
                 view_key: viewKey,
-                node_url: nodeUrl
+                node_url: nodeUrl,
+                api_enabled: apiEnabled,
+                api_url: apiUrl
             })
         });
         
@@ -334,6 +391,34 @@ async function testConnection() {
         }
     } catch (error) {
         showError('Connection test failed: ' + error.message);
+    }
+}
+
+// Test connection to P2Pool API
+async function testApiConnection() {
+    const apiUrl = document.getElementById('api_url').value.trim();
+    
+    if (!apiUrl) {
+        showError('Please enter a P2Pool API URL first');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/p2pool/test-api', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ api_url: apiUrl })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`✓ P2Pool API Connection successful!\n\nStatus: ${data.status}\nLog Count: ${data.log_count}\nAPI Version: Online`);
+        } else {
+            showError('API connection failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        showError('API connection test failed: ' + error.message);
     }
 }
 

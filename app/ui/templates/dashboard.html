@@ -64,21 +64,29 @@
 <div id="solopool-stats" style="display: none; margin-top: 0.5rem;">
 </div>
 
+<!-- P2Pool Stats (only shown if enabled) -->
+<div id="p2pool-stats" style="display: none; margin-top: 0.5rem;">
+</div>
+
 <style>
 .stats-grid { gap: 0.5rem !important; margin-bottom: 0 !important; }
 .stats-grid + .stats-grid { margin-top: 0.5rem !important; }
 #braiins-stats > .stats-grid:first-child,
 #supportxmr-stats > .stats-grid:first-child,
-#solopool-stats > .stats-grid:first-child { margin-top: 0 !important; }
+#solopool-stats > .stats-grid:first-child,
+#p2pool-stats > .stats-grid:first-child { margin-top: 0 !important; }
 #braiins-stats .stat-card,
 #supportxmr-stats .stat-card,
-#solopool-stats .stat-card { padding: 0.35rem 0.5rem !important; }
+#solopool-stats .stat-card,
+#p2pool-stats .stat-card { padding: 0.35rem 0.5rem !important; }
 #braiins-stats .stat-label,
 #supportxmr-stats .stat-label,
-#solopool-stats .stat-label { font-size: 0.7rem !important; margin-bottom: 0.15rem !important; }
+#solopool-stats .stat-label,
+#p2pool-stats .stat-label { font-size: 0.7rem !important; margin-bottom: 0.15rem !important; }
 #braiins-stats .stat-value,
 #supportxmr-stats .stat-value,
-#solopool-stats .stat-value { font-size: 1rem !important; line-height: 1.3 !important; }
+#solopool-stats .stat-value,
+#p2pool-stats .stat-value { font-size: 1rem !important; line-height: 1.3 !important; }
 </style>
 
 {% endblock %}
@@ -529,6 +537,122 @@ async function loadSolopoolStats() {
     }
 }
 
+// Load P2Pool stats
+async function loadP2PoolStats() {
+    try {
+        const response = await fetch('/api/settings/p2pool/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('p2pool-stats');
+        
+        if (!data.enabled) {
+            statsDiv.style.display = 'none';
+            return;
+        }
+        
+        statsDiv.style.display = 'block';
+        
+        // Fetch XMR price in GBP from our backend
+        let xmrPriceGBP = 0;
+        let cacheAgeIndicator = '';
+        
+        const getCacheIndicator = (ageMinutes) => {
+            if (!ageMinutes && ageMinutes !== 0) return '';
+            let color = '#28a745'; // green
+            if (ageMinutes >= 120) color = '#dc3545'; // red
+            else if (ageMinutes >= 30) color = '#ffc107'; // amber
+            return `<span style="font-size: 0.7rem; color: ${color}; margin-left: 4px;">●</span>`;
+        };
+        
+        try {
+            const priceResponse = await fetch('/api/settings/crypto-prices');
+            const priceData = await priceResponse.json();
+            if (priceData.success) {
+                xmrPriceGBP = priceData.monero || 0;
+                cacheAgeIndicator = getCacheIndicator(priceData.age_minutes);
+            }
+        } catch (error) {
+            console.error('Failed to fetch XMR price:', error);
+        }
+        
+        // P2Pool logo (Monero with P2 text)
+        const p2poolLogo = `<span style="display: inline-flex; align-items: center; gap: 6px;"><svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;"><circle cx="16" cy="16" r="16" fill="#ff6600"/><path fill="#fff" d="M16 5L6 15v6h3v-6l7-7 7 7v6h3v-6l-10-10z"/><path fill="#fff" d="M13 18v8h6v-8l-3-3-3 3z"/></svg><span style="font-weight: 600; font-size: 0.85rem;">P2Pool</span></span>`;
+        
+        const todayGBP = xmrPriceGBP > 0 ? ((data.earnings_24h_xmr || 0) * xmrPriceGBP).toFixed(2) : '0.00';
+        const balanceGBP = xmrPriceGBP > 0 ? ((data.balance_xmr || 0) * xmrPriceGBP).toFixed(2) : '0.00';
+        
+        // Build tiles based on what's enabled
+        let tilesHTML = '';
+        
+        // Tile 1: Workers (if API enabled)
+        if (data.api_enabled && data.workers !== null) {
+            tilesHTML += `
+                <div class="stat-card">
+                    <div class="stat-label">Workers</div>
+                    <div class="stat-value">${data.workers || 0}<br><small style="color: var(--text-secondary);">${data.local_hashrate_formatted || '0 H/s'}</small></div>
+                </div>
+            `;
+        }
+        
+        // Tile 2: Today's Reward (if wallet enabled)
+        if (data.wallet_enabled) {
+            tilesHTML += `
+                <div class="stat-card">
+                    <div class="stat-label">Today's Reward</div>
+                    <div class="stat-value">${(data.earnings_24h_xmr || 0).toFixed(6)} XMR${cacheAgeIndicator}<br><small style="color: var(--text-secondary);">£${todayGBP}</small></div>
+                </div>
+            `;
+        }
+        
+        // Tile 3: Current Balance (if wallet enabled)
+        if (data.wallet_enabled) {
+            tilesHTML += `
+                <div class="stat-card">
+                    <div class="stat-label">Current Balance</div>
+                    <div class="stat-value">${(data.balance_xmr || 0).toFixed(6)} XMR<br><small style="color: var(--text-secondary);">£${balanceGBP}</small></div>
+                </div>
+            `;
+        }
+        
+        // Tile 4: All-time Reward (if wallet enabled) - same as balance for now
+        if (data.wallet_enabled) {
+            tilesHTML += `
+                <div class="stat-card">
+                    <div class="stat-label">All-time Reward</div>
+                    <div class="stat-value">${(data.balance_xmr || 0).toFixed(6)} XMR<br><small style="color: var(--text-secondary);">£${balanceGBP}</small></div>
+                </div>
+            `;
+        }
+        
+        // If we have fewer than 4 tiles and API is enabled, add pool stats
+        const tileCount = (tilesHTML.match(/<div class="stat-card">/g) || []).length;
+        
+        if (tileCount < 4 && data.api_enabled) {
+            // Add pool hashrate if we have room
+            if (data.pool_hashrate_formatted) {
+                tilesHTML += `
+                    <div class="stat-card">
+                        <div class="stat-label">Pool Hashrate</div>
+                        <div class="stat-value">${data.pool_hashrate_formatted}<br><small style="color: var(--text-secondary);">${data.pool_miners || 0} miners</small></div>
+                    </div>
+                `;
+            }
+        }
+        
+        statsDiv.innerHTML = `
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+                <div class="stat-card">
+                    <div class="stat-label">${p2poolLogo}</div>
+                </div>
+                ${tilesHTML}
+            </div>
+        `;
+    } catch (error) {
+        console.error('Failed to load P2Pool stats:', error);
+        document.getElementById('p2pool-stats').style.display = 'none';
+    }
+}
+
 // Load dashboard data
 async function loadDashboard() {
     try {
@@ -626,6 +750,7 @@ async function loadDashboard() {
         await loadBraiinsStats();
         await loadSupportXMRStats();
         await loadSolopoolStats();
+        await loadP2PoolStats();
     } catch (error) {
         console.error('Failed to load dashboard:', error);
     }

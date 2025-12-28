@@ -817,6 +817,8 @@ class P2PoolSettings(BaseModel):
     wallet_address: Optional[str] = None
     view_key: Optional[str] = None
     node_url: Optional[str] = "http://localhost:18081"
+    api_enabled: Optional[bool] = False
+    api_url: Optional[str] = None
 
 
 @router.get("/p2pool")
@@ -826,7 +828,9 @@ async def get_p2pool_settings():
         "success": True,
         "enabled": app_config.get("p2pool_enabled", False),
         "wallet_address": app_config.get("p2pool_wallet_address", ""),
-        "node_url": app_config.get("p2pool_node_url", "http://10.200.204.88:18081")
+        "node_url": app_config.get("p2pool_node_url", ""),
+        "api_enabled": app_config.get("p2pool_api_enabled", False),
+        "api_url": app_config.get("p2pool_api_url", "")
         # Don't return view_key for security
     }
 
@@ -836,6 +840,7 @@ async def save_p2pool_settings(settings: P2PoolSettings):
     """Save P2Pool Monero wallet tracking settings"""
     try:
         app_config.set("p2pool_enabled", settings.enabled)
+        app_config.set("p2pool_api_enabled", settings.api_enabled or False)
         
         if settings.enabled:
             # Validate inputs
@@ -852,6 +857,12 @@ async def save_p2pool_settings(settings: P2PoolSettings):
             app_config.set("p2pool_wallet_address", settings.wallet_address)
             app_config.set("p2pool_view_key", settings.view_key)
             app_config.set("p2pool_node_url", settings.node_url)
+        
+        if settings.api_enabled:
+            if not settings.api_url or not settings.api_url.startswith('http'):
+                return {"success": False, "error": "Invalid P2Pool API URL"}
+            
+            app_config.set("p2pool_api_url", settings.api_url)
         
         app_config.save()
         
@@ -891,4 +902,48 @@ async def test_p2pool_connection(data: dict):
                     return {"success": False, "error": f"HTTP {response.status}"}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+
+@router.post("/p2pool/test-api")
+async def test_p2pool_api_connection(data: dict):
+    """Test connection to P2Pool API"""
+    api_url = data.get("api_url", "")
+    
+    if not api_url:
+        return {"success": False, "error": "API URL is required"}
+    
+    try:
+        import aiohttp
+        
+        # Try to connect to P2Pool API status endpoint
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{api_url}/api/status", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                if response.status == 200:
+                    info = await response.json()
+                    return {
+                        "success": True,
+                        "status": info.get("status", "unknown"),
+                        "log_count": info.get("log_count", 0),
+                        "message": "Connection successful"
+                    }
+                else:
+                    return {"success": False, "error": f"HTTP {response.status}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/p2pool/stats")
+async def get_p2pool_stats(db: AsyncSession = Depends(get_db)):
+    """Get P2Pool combined wallet + API stats"""
+    from core.monero import P2PoolAPIService
+    
+    try:
+        stats = await P2PoolAPIService.get_combined_stats(db)
+        return stats
+    except Exception as e:
+        logger.error(f"Error getting P2Pool stats: {e}")
+        return {
+            "enabled": False,
+            "error": str(e)
+        }
 

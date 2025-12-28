@@ -412,3 +412,31 @@ async def run_migrations():
         except Exception:
             # Column already exists
             pass
+        
+        # Migration 20: Create p2pool_transactions table for Monero wallet tracking
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS p2pool_transactions (
+                    id INTEGER PRIMARY KEY,
+                    wallet_address VARCHAR(95) NOT NULL,
+                    tx_hash VARCHAR(64) NOT NULL UNIQUE,
+                    amount_xmr REAL NOT NULL,
+                    block_height INTEGER NOT NULL,
+                    confirmations INTEGER DEFAULT 0,
+                    timestamp DATETIME NOT NULL,
+                    unlock_time INTEGER DEFAULT 0,
+                    is_confirmed BOOLEAN DEFAULT 0,
+                    created_at DATETIME DEFAULT (datetime('now'))
+                );
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_p2pool_wallet 
+                ON p2pool_transactions(wallet_address);
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_p2pool_timestamp 
+                ON p2pool_transactions(timestamp);
+            """))
+            print("✓ Created p2pool_transactions table with indexes")
+        except Exception:
+            pass

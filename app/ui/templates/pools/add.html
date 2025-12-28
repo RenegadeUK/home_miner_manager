@@ -133,6 +133,9 @@ small {
                 <optgroup label="Braiins Pool - Bitcoin (BTC)">
                     <option value="braiins-btc">Braiins Pool BTC</option>
                 </optgroup>
+                <optgroup label="P2Pool - Monero (XMR) [CPU ONLY]">
+                    <option value="p2pool-local">P2Pool (Local Node)</option>
+                </optgroup>
                 <optgroup label="SupportXMR - Monero (XMR) [CPU ONLY]">
                     <option value="supportxmr">SupportXMR Pool (XMR)</option>
                 </optgroup>
@@ -251,6 +254,11 @@ const POOL_PRESETS = {
     'braiins-btc': {
         name: 'Braiins Pool BTC',
         url: 'stratum.braiins.com',
+        port: 3333
+    },
+    'p2pool-local': {
+        name: 'P2Pool (Local Node)',
+        url: 'localhost',
         port: 3333
     },
     'supportxmr': {
