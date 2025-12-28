@@ -623,9 +623,17 @@ async function loadP2PoolStats() {
                 }
                 
                 // Format time since
-                const minutes = Math.floor(timeSinceShare / 60);
+                const hours = Math.floor(timeSinceShare / 3600);
+                const minutes = Math.floor((timeSinceShare % 3600) / 60);
                 const seconds = timeSinceShare % 60;
-                const timeStr = minutes > 0 ? `${minutes}m ${seconds}s ago` : `${seconds}s ago`;
+                let timeStr;
+                if (hours > 0) {
+                    timeStr = minutes > 0 ? `${hours}h ${minutes}m ago` : `${hours}h ago`;
+                } else if (minutes > 0) {
+                    timeStr = `${minutes}m ${seconds}s ago`;
+                } else {
+                    timeStr = `${seconds}s ago`;
+                }
                 
                 timeSinceShareHTML = ` - <span style="color: ${shareColor};">${timeStr}</span>`;
             }
