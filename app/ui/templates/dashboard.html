@@ -601,7 +601,7 @@ async function loadP2PoolStats() {
         
         // Tile 2: Current Round Luck (if API enabled)
         if (data.api_enabled && data.current_effort !== null) {
-            const luckPercent = (data.current_effort || 0).toFixed(1);
+            const luckPercent = Math.round(data.current_effort || 0);
             const sharesFound = data.shares_found || 0;
             tilesHTML += `
                 <div class="stat-card">
