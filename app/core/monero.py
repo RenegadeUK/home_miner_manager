@@ -403,6 +403,9 @@ class P2PoolAPIService:
         # Get wallet stats (existing functionality)
         wallet_stats = await MoneroWalletService.get_stats(db)
         
+        # Get full wallet address for external links (not truncated)
+        full_wallet_address = MoneroWalletService.get_wallet_address()
+        
         # Get API stats if enabled
         local_stats = await P2PoolAPIService.fetch_local_stats()
         pool_stats = await P2PoolAPIService.fetch_pool_stats()
@@ -413,8 +416,10 @@ class P2PoolAPIService:
             "api_enabled": P2PoolAPIService.is_api_enabled(),
             
             # Wallet tracking (blockchain)
-            "wallet_address": wallet_stats.get("wallet_address"),
+            "wallet_address": wallet_stats.get("wallet_address"),  # Truncated for display
+            "full_wallet_address": full_wallet_address,  # Full address for links
             "balance_xmr": wallet_stats.get("balance_xmr", 0),
+            "total_received_xmr": wallet_stats.get("total_received_xmr", 0),
             "earnings_24h_xmr": wallet_stats.get("earnings_24h_xmr", 0),
             "transaction_count": wallet_stats.get("transaction_count", 0),
             "last_payout": wallet_stats.get("last_payout"),
