@@ -806,3 +806,89 @@ async def update_crypto_prices_cache():
             logger.info(f"Crypto price cache updated from {prices['source']}")
     else:
         logger.warning(f"Failed to update crypto price cache: {prices.get('error')}")
+
+
+# ============================================================================
+# P2Pool Monero Wallet Tracking
+# ============================================================================
+
+class P2PoolSettings(BaseModel):
+    enabled: bool
+    wallet_address: Optional[str] = None
+    view_key: Optional[str] = None
+    node_url: Optional[str] = "http://localhost:18081"
+
+
+@router.get("/p2pool")
+async def get_p2pool_settings():
+    """Get P2Pool Monero wallet tracking settings"""
+    return {
+        "success": True,
+        "enabled": app_config.get("p2pool_enabled", False),
+        "wallet_address": app_config.get("p2pool_wallet_address", ""),
+        "node_url": app_config.get("p2pool_node_url", "http://10.200.204.88:18081")
+        # Don't return view_key for security
+    }
+
+
+@router.post("/p2pool")
+async def save_p2pool_settings(settings: P2PoolSettings):
+    """Save P2Pool Monero wallet tracking settings"""
+    try:
+        app_config.set("p2pool_enabled", settings.enabled)
+        
+        if settings.enabled:
+            # Validate inputs
+            if not settings.wallet_address or len(settings.wallet_address) != 95:
+                return {"success": False, "error": "Invalid wallet address (must be 95 characters)"}
+            
+            if not settings.view_key or len(settings.view_key) != 64:
+                return {"success": False, "error": "Invalid view key (must be 64 characters)"}
+            
+            if not settings.node_url or not settings.node_url.startswith('http'):
+                return {"success": False, "error": "Invalid node URL"}
+            
+            # Store settings (view key will be encrypted by config module)
+            app_config.set("p2pool_wallet_address", settings.wallet_address)
+            app_config.set("p2pool_view_key", settings.view_key)
+            app_config.set("p2pool_node_url", settings.node_url)
+        
+        app_config.save()
+        
+        return {
+            "success": True,
+            "message": "P2Pool settings saved successfully"
+        }
+    except Exception as e:
+        logger.error(f"Failed to save P2Pool settings: {e}")
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/p2pool/test")
+async def test_p2pool_connection(data: dict):
+    """Test connection to Monero node"""
+    node_url = data.get("node_url", "")
+    
+    if not node_url:
+        return {"success": False, "error": "Node URL is required"}
+    
+    try:
+        import aiohttp
+        
+        # Try to connect to node
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{node_url}/get_info", timeout=aiohttp.ClientTimeout(total=5)) as response:
+                if response.status == 200:
+                    info = await response.json()
+                    return {
+                        "success": True,
+                        "height": info.get("height", 0),
+                        "status": info.get("status", ""),
+                        "synchronized": not info.get("busy_syncing", True),
+                        "message": "Connection successful"
+                    }
+                else:
+                    return {"success": False, "error": f"HTTP {response.status}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+

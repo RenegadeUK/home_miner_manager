@@ -512,6 +512,20 @@ async def pool_integrations_settings(request: Request):
     })
 
 
+@router.get("/settings/p2pool", response_class=HTMLResponse)
+async def p2pool_settings(request: Request):
+    """P2Pool Monero Wallet Tracking page"""
+    return templates.TemplateResponse("settings/p2pool.html", {
+        "request": request,
+        "page_title": "P2Pool Monero",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Settings", "url": "/settings"},
+            {"label": "P2Pool Monero", "url": "/settings/p2pool"}
+        ]
+    })
+
+
 @router.get("/settings/logs", response_class=HTMLResponse)
 async def logs_settings(request: Request):
     """System logs page"""
