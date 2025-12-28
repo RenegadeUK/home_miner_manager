@@ -265,10 +265,13 @@
         const sidebar = document.getElementById('sidebar');
         const mobileOverlay = document.getElementById('mobile-overlay');
         
-        // Initialize sidebar as open on desktop
+        // Restore sidebar state from localStorage (defaults to open on desktop)
+        const sidebarOpen = localStorage.getItem('sidebarOpen');
         if (window.innerWidth > 768) {
-            sidebar.classList.add('active');
-            document.body.classList.add('sidebar-open');
+            if (sidebarOpen === null || sidebarOpen === 'true') {
+                sidebar.classList.add('active');
+                document.body.classList.add('sidebar-open');
+            }
         }
         
         function toggleMobileMenu() {
@@ -277,6 +280,9 @@
             // Update body class for desktop layout
             if (window.innerWidth > 768) {
                 document.body.classList.toggle('sidebar-open');
+                // Save state to localStorage
+                const isOpen = sidebar.classList.contains('active');
+                localStorage.setItem('sidebarOpen', isOpen);
             } else {
                 mobileOverlay.classList.toggle('active');
             }
