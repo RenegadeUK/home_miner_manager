@@ -29,8 +29,6 @@ class NMMinerAdapter(MinerAdapter):
         Note: Telemetry collection happens via UDP listener service,
         not direct polling.
         """
-        print(f"🔍 NMMiner.get_telemetry() called for miner_id={self.miner_id}, ip={self.ip_address}")
-        print(f"   last_telemetry present: {self.last_telemetry is not None}")
         
         # Try UDP broadcast data first
         if self.last_telemetry:
@@ -128,7 +126,7 @@ class NMMinerAdapter(MinerAdapter):
                 db_telemetry = result.scalar_one_or_none()
                 
                 if db_telemetry:
-                    print(f"📊 Using database fallback telemetry for NMMiner {self.miner_id}")
+                    pass  # Using database fallback telemetry
                     return MinerTelemetry(
                         miner_id=self.miner_id,
                         hashrate=db_telemetry.hashrate,
@@ -139,11 +137,9 @@ class NMMinerAdapter(MinerAdapter):
                         pool_in_use=db_telemetry.pool_in_use,
                     )
                 else:
-                    print(f"⚠️ No database telemetry found for NMMiner {self.miner_id}")
+                    pass  # No database telemetry found
         except Exception as e:
-            print(f"⚠️ Failed to fetch database telemetry fallback: {e}")
-        
-        print(f"❌ NMMiner.get_telemetry() returning None for miner_id={self.miner_id}")
+            pass  # Failed to fetch database telemetry fallback
         return None
     
     def update_telemetry(self, telemetry_data: Dict):
@@ -156,7 +152,7 @@ class NMMinerAdapter(MinerAdapter):
     
     async def set_mode(self, mode: str) -> bool:
         """NMMiner does not support mode tuning"""
-        print("⚠️ NMMiner does not support mode changes")
+        pass  # NMMiner does not support mode changes
         return False
     
     async def get_available_modes(self) -> List[str]:
@@ -189,15 +185,14 @@ class NMMinerAdapter(MinerAdapter):
             sock.sendto(json.dumps(config).encode(), (target_ip, self.CONFIG_PORT))
             sock.close()
             
-            print(f"📤 Sent pool config to NMMiner at {target_ip}")
             return True
         except Exception as e:
-            print(f"❌ Failed to switch pool on NMMiner: {e}")
+            pass  # Failed to switch pool
             return False
     
     async def restart(self) -> bool:
         """NMMiner restart not supported via UDP"""
-        print("⚠️ NMMiner restart not supported")
+        pass  # NMMiner restart not supported
         return False
     
     async def is_online(self) -> bool:
@@ -262,13 +257,7 @@ class NMMinerUDPListener:
                 # Use IP from JSON payload (not UDP source address, which may be NATted)
                 miner_ip = telemetry.get("ip")
                 if not miner_ip:
-                    print(f"⚠️ NMMiner telemetry missing 'ip' field, using packet source {addr[0]}")
                     miner_ip = addr[0]
-                
-                # DEBUG: Log raw telemetry data
-                print(f"📡 Received NMMiner telemetry from {miner_ip} (packet source: {addr[0]}):")
-                print(f"   Keys: {list(telemetry.keys())}")
-                print(f"   Data: {json.dumps(telemetry, indent=2)}")
                 
                 # Add timestamp
                 from datetime import datetime
@@ -282,12 +271,10 @@ class NMMinerUDPListener:
                     # Schedule telemetry save (don't await in datagram_received)
                     asyncio.create_task(self.listener._save_telemetry(adapter, telemetry))
                 else:
-                    print(f"📡 Received NMMiner telemetry from unknown IP: {miner_ip}")
+                    pass  # Unknown NMMiner IP
             
             except Exception as e:
-                print(f"⚠️ Error processing NMMiner telemetry: {e}")
-                import traceback
-                traceback.print_exc()
+                pass  # Error processing telemetry
     
     async def _save_telemetry(self, adapter: NMMinerAdapter, data: Dict):
         """Save NMMiner telemetry to database"""
@@ -327,7 +314,7 @@ class NMMinerUDPListener:
             )
         
         except Exception as e:
-            print(f"⚠️ Failed to save NMMiner telemetry: {e}")
+            pass  # Failed to save telemetry
     
     def stop(self):
         """Stop UDP listener"""
