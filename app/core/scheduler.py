@@ -34,7 +34,7 @@ class SchedulerService:
         
         self.scheduler.add_job(
             self._collect_telemetry,
-            IntervalTrigger(seconds=30),
+            IntervalTrigger(seconds=60),
             id="collect_telemetry",
             name="Collect miner telemetry"
         )
