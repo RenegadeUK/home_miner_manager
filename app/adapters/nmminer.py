@@ -135,20 +135,34 @@ class NMMinerUDPListener:
         """Start UDP listener"""
         self.running = True
         
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(("0.0.0.0", NMMinerAdapter.TELEMETRY_PORT))
-        sock.setblocking(False)
+        # Create UDP socket using asyncio protocol
+        loop = asyncio.get_event_loop()
+        
+        # Create UDP endpoint
+        transport, protocol = await loop.create_datagram_endpoint(
+            lambda: self._UDPProtocol(self),
+            local_addr=("0.0.0.0", NMMinerAdapter.TELEMETRY_PORT)
+        )
         
         print(f"📡 NMMiner UDP listener started on port {NMMinerAdapter.TELEMETRY_PORT}")
         
-        while self.running:
+        # Keep running until stopped
+        try:
+            while self.running:
+                await asyncio.sleep(1)
+        finally:
+            transport.close()
+    
+    class _UDPProtocol(asyncio.DatagramProtocol):
+        """Internal UDP protocol handler"""
+        
+        def __init__(self, listener):
+            self.listener = listener
+            super().__init__()
+        
+        def datagram_received(self, data, addr):
+            """Handle received UDP datagram"""
             try:
-                data, addr = await asyncio.wait_for(
-                    asyncio.get_event_loop().sock_recvfrom(sock, 4096),
-                    timeout=1.0
-                )
-                
                 # Parse JSON telemetry
                 telemetry = json.loads(data.decode())
                 source_ip = addr[0]
@@ -158,21 +172,19 @@ class NMMinerUDPListener:
                 telemetry["_received_at"] = datetime.utcnow()
                 
                 # Update adapter if exists
-                if source_ip in self.adapters:
-                    adapter = self.adapters[source_ip]
+                if source_ip in self.listener.adapters:
+                    adapter = self.listener.adapters[source_ip]
                     adapter.update_telemetry(telemetry)
                     
-                    # Save to database
-                    await self._save_telemetry(adapter, telemetry)
+                    # Schedule telemetry save (don't await in datagram_received)
+                    asyncio.create_task(self.listener._save_telemetry(adapter, telemetry))
                 else:
                     print(f"📡 Received NMMiner telemetry from unknown IP: {source_ip}")
-                
-            except asyncio.TimeoutError:
-                continue
+            
             except Exception as e:
-                print(f"⚠️ Error in NMMiner UDP listener: {e}")
-        
-        sock.close()
+                print(f"⚠️ Error processing NMMiner telemetry: {e}")
+                import traceback
+                traceback.print_exc()
     
     async def _save_telemetry(self, adapter: NMMinerAdapter, data: Dict):
         """Save NMMiner telemetry to database"""

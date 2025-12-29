@@ -20,6 +20,7 @@ class SchedulerService:
     def __init__(self):
         self.scheduler = AsyncIOScheduler()
         self.nmminer_listener = None
+        self.nmminer_adapters = {}  # Shared adapter registry for NMMiner devices
     
     def start(self):
         """Start scheduler"""
@@ -1002,14 +1003,14 @@ class SchedulerService:
                     print("📡 No NMMiner devices configured, skipping UDP listener")
                     return
                 
-                # Create adapter registry
-                adapters = {}
+                # Create adapter registry (shared across system)
+                self.nmminer_adapters = {}
                 for miner in nmminers:
                     adapter = NMMinerAdapter(miner.id, miner.name, miner.ip_address, miner.port, miner.config)
-                    adapters[miner.ip_address] = adapter
+                    self.nmminer_adapters[miner.ip_address] = adapter
                 
-                # Start UDP listener
-                self.nmminer_listener = NMMinerUDPListener(adapters)
+                # Start UDP listener with shared adapters
+                self.nmminer_listener = NMMinerUDPListener(self.nmminer_adapters)
                 
                 # Run in background (non-blocking)
                 import asyncio
@@ -1941,3 +1942,7 @@ class SchedulerService:
 
 
 scheduler = SchedulerService()
+
+# Make scheduler accessible to adapters
+from adapters import set_scheduler_service
+set_scheduler_service(scheduler)

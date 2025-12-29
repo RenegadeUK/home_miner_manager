@@ -18,6 +18,18 @@ ADAPTER_REGISTRY = {
     "xmrig": XMRigAdapter
 }
 
+# Global reference to scheduler service for accessing shared NMMiner adapters
+_scheduler_service = None
+
+def set_scheduler_service(service):
+    """Set the scheduler service reference for adapter access"""
+    global _scheduler_service
+    _scheduler_service = service
+
+def get_scheduler_service():
+    """Get the scheduler service reference"""
+    return _scheduler_service
+
 
 def create_adapter(
     miner_type: str,
@@ -29,6 +41,7 @@ def create_adapter(
 ) -> Optional[MinerAdapter]:
     """
     Factory function to create appropriate miner adapter.
+    For NMMiner devices, returns the shared adapter instance from the UDP listener.
     
     Args:
         miner_type: Type of miner (avalon_nano, bitaxe, nerdqaxe, nmminer, xmrig)
@@ -41,6 +54,16 @@ def create_adapter(
     Returns:
         MinerAdapter instance or None if type not found
     """
+    # For NMMiner, return the shared adapter from the UDP listener
+    if miner_type == "nmminer":
+        scheduler = get_scheduler_service()
+        if scheduler and ip_address in scheduler.nmminer_adapters:
+            return scheduler.nmminer_adapters[ip_address]
+        else:
+            print(f"⚠️ NMMiner adapter not found for {ip_address} - UDP listener may not be running")
+            # Return a placeholder adapter (won't have telemetry data yet)
+            return NMMinerAdapter(miner_id, miner_name, ip_address, port, config)
+    
     adapter_class = ADAPTER_REGISTRY.get(miner_type)
     
     if not adapter_class:
