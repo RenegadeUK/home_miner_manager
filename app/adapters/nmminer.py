@@ -172,8 +172,8 @@ class NMMinerAdapter(MinerAdapter):
             # Construct username as pool_user.miner_name
             full_username = f"{pool_user}.{self.miner_name}"
             
-            # Construct full pool URL with port
-            full_pool_url = f"{pool_url}:{pool_port}"
+            # Construct full pool URL with stratum+tcp:// prefix and port
+            full_pool_url = f"stratum+tcp://{pool_url}:{pool_port}"
             
             config = {
                 "PrimaryPool": full_pool_url,
