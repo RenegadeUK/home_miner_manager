@@ -754,7 +754,7 @@ async function loadCKPoolStats() {
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">${coinLogo}Current Round Luck</div>
-                    <div class="stat-value" style="font-size: 1.5rem;">${luckData.round_luck.toFixed(1)}%</div>
+                    <div class="stat-value" style="font-size: 1.5rem;">${Math.round(luckData.round_luck)}%</div>
                     <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">Shares: ${luckData.blocks_submitted_24h.toLocaleString()}</div>
                 </div>
                 <div class="stat-card">
