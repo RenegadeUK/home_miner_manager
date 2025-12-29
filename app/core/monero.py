@@ -1,41 +1,52 @@
 """
-Monero wallet monitoring service for P2Pool and other XMR mining pools
+Monero P2Pool monitoring service - auto-detects P2Pool pools and tracks payouts
 """
 import aiohttp
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import app_config
-from core.database import P2PoolTransaction
+from core.database import P2PoolTransaction, Pool
 
 logger = logging.getLogger(__name__)
 
 
 class MoneroWalletService:
-    """Service for monitoring Monero wallet transactions via daemon RPC"""
+    """Service for monitoring Monero wallet transactions from P2Pool"""
     
     @staticmethod
-    def is_enabled() -> bool:
-        """Check if P2Pool wallet monitoring is enabled"""
-        return app_config.get("p2pool_enabled", False)
+    def is_p2pool_pool(pool_url: str, pool_port: int) -> bool:
+        """Check if a pool is a P2Pool instance"""
+        # P2Pool mini uses port 3333, main uses 3333
+        # Common local IPs or p2pool in the hostname
+        if pool_port == 3333:
+            if "p2pool" in pool_url.lower():
+                return True
+            # Check for local/private IPs
+            if pool_url.startswith("10.") or pool_url.startswith("192.168.") or pool_url.startswith("172."):
+                return True
+        return False
     
     @staticmethod
-    def get_wallet_address() -> Optional[str]:
-        """Get configured wallet address"""
-        return app_config.get("p2pool_wallet_address")
-    
-    @staticmethod
-    def get_view_key() -> Optional[str]:
-        """Get configured private view key"""
-        return app_config.get("p2pool_view_key")
-    
-    @staticmethod
-    def get_node_url() -> str:
-        """Get configured Monero node URL"""
-        return app_config.get("p2pool_node_url", "http://localhost:18081")
+    async def get_p2pool_wallets(db: AsyncSession) -> Set[str]:
+        """Get all unique wallet addresses from P2Pool pools"""
+        result = await db.execute(
+            select(Pool).where(Pool.enabled == True)
+        )
+        pools = result.scalars().all()
+        
+        wallets = set()
+        for pool in pools:
+            if MoneroWalletService.is_p2pool_pool(pool.url, pool.port):
+                # P2Pool uses wallet address as the "user" field
+                if pool.user and len(pool.user) == 95:  # Monero address length
+                    wallets.add(pool.user)
+                    logger.debug(f"Found P2Pool wallet from pool {pool.name}: {pool.user[:10]}...")
+        
+        return wallets
     
     @staticmethod
     async def fetch_transactions(
@@ -93,132 +104,120 @@ class MoneroWalletService:
     @staticmethod
     async def sync_transactions(db: AsyncSession) -> int:
         """
-        Sync new transactions from the wallet
+        Sync new transactions from all P2Pool wallets (auto-detected from pools)
         Returns number of new transactions found
         """
-        if not MoneroWalletService.is_enabled():
+        # Get all P2Pool wallet addresses from configured pools
+        wallets = await MoneroWalletService.get_p2pool_wallets(db)
+        
+        if not wallets:
+            logger.debug("No P2Pool pools configured")
             return 0
         
-        wallet_address = MoneroWalletService.get_wallet_address()
-        view_key = MoneroWalletService.get_view_key()
-        node_url = MoneroWalletService.get_node_url()
+        total_new = 0
         
-        if not wallet_address or not view_key:
-            logger.warning("P2Pool enabled but wallet address or view key not configured")
-            return 0
-        
-        # Get last known block height
-        result = await db.execute(
-            select(P2PoolTransaction)
-            .where(P2PoolTransaction.wallet_address == wallet_address)
-            .order_by(P2PoolTransaction.block_height.desc())
-            .limit(1)
-        )
-        last_tx = result.scalar_one_or_none()
-        start_height = last_tx.block_height if last_tx else 0
-        
-        # Fetch new transactions
-        transactions = await MoneroWalletService.fetch_transactions(
-            wallet_address,
-            view_key,
-            node_url,
-            start_height
-        )
-        
-        new_count = 0
-        for tx_data in transactions:
-            # Check if transaction already exists
-            result = await db.execute(
-                select(P2PoolTransaction)
-                .where(P2PoolTransaction.tx_hash == tx_data["tx_hash"])
-            )
-            existing = result.scalar_one_or_none()
-            
-            if not existing:
-                # Add new transaction
-                new_tx = P2PoolTransaction(
-                    wallet_address=wallet_address,
-                    tx_hash=tx_data["tx_hash"],
-                    amount_xmr=tx_data["amount_xmr"],
-                    block_height=tx_data["block_height"],
-                    confirmations=tx_data["confirmations"],
-                    timestamp=tx_data["timestamp"],
-                    unlock_time=tx_data["unlock_time"],
-                    is_confirmed=tx_data["confirmations"] >= 10
+        for wallet_address in wallets:
+            try:
+                # Get last known block height for this wallet
+                result = await db.execute(
+                    select(P2PoolTransaction)
+                    .where(P2PoolTransaction.wallet_address == wallet_address)
+                    .order_by(P2PoolTransaction.block_height.desc())
+                    .limit(1)
                 )
-                db.add(new_tx)
-                new_count += 1
-            else:
-                # Update confirmations
-                existing.confirmations = tx_data["confirmations"]
-                existing.is_confirmed = tx_data["confirmations"] >= 10
+                last_tx = result.scalar_one_or_none()
+                start_height = last_tx.block_height if last_tx else 0
+                
+                # Fetch new transactions
+                transactions = await MoneroWalletService.fetch_transactions(
+                    wallet_address,
+                    None,  # view_key not needed
+                    None,  # node_url not needed
+                    start_height
+                )
+                
+                new_count = 0
+                for tx_data in transactions:
+                    # Check if transaction already exists
+                    result = await db.execute(
+                        select(P2PoolTransaction)
+                        .where(P2PoolTransaction.tx_hash == tx_data["tx_hash"])
+                    )
+                    existing = result.scalar_one_or_none()
+                    
+                    if not existing:
+                        # Add new transaction
+                        new_tx = P2PoolTransaction(
+                            wallet_address=wallet_address,
+                            tx_hash=tx_data["tx_hash"],
+                            amount_xmr=tx_data["amount_xmr"],
+                            block_height=tx_data["block_height"],
+                            confirmations=tx_data["confirmations"],
+                            timestamp=tx_data["timestamp"],
+                            unlock_time=tx_data["unlock_time"],
+                            is_confirmed=tx_data["confirmations"] >= 10
+                        )
+                        db.add(new_tx)
+                        new_count += 1
+                    else:
+                        # Update confirmations
+                        existing.confirmations = tx_data["confirmations"]
+                        existing.is_confirmed = tx_data["confirmations"] >= 10
+                
+                if new_count > 0:
+                    total_new += new_count
+                    logger.info(f"✓ Synced {new_count} new P2Pool transaction(s) for ...{wallet_address[-8:]}")
+            
+            except Exception as e:
+                logger.error(f"Failed to sync P2Pool wallet ...{wallet_address[-8:]}: {e}")
+                continue
         
-        if new_count > 0:
+        if total_new > 0:
             await db.commit()
-            logger.info(f"✓ Synced {new_count} new P2Pool transactions")
         
-        return new_count
+        return total_new
     
     @staticmethod
-    async def get_24h_earnings(db: AsyncSession) -> float:
+    async def get_24h_earnings(db: AsyncSession, wallet_address: Optional[str] = None) -> float:
         """
-        Calculate 24h earnings in XMR
+        Calculate 24h earnings in XMR for a specific wallet or all wallets
         """
-        if not MoneroWalletService.is_enabled():
-            return 0.0
-        
-        wallet_address = MoneroWalletService.get_wallet_address()
-        if not wallet_address:
-            return 0.0
-        
         cutoff_time = datetime.utcnow() - timedelta(hours=24)
         
-        result = await db.execute(
-            select(P2PoolTransaction)
-            .where(P2PoolTransaction.wallet_address == wallet_address)
-            .where(P2PoolTransaction.timestamp >= cutoff_time)
-        )
+        query = select(P2PoolTransaction).where(P2PoolTransaction.timestamp >= cutoff_time)
+        
+        if wallet_address:
+            query = query.where(P2PoolTransaction.wallet_address == wallet_address)
+        
+        result = await db.execute(query)
         transactions = result.scalars().all()
         
         total_xmr = sum(tx.amount_xmr for tx in transactions)
         return total_xmr
     
     @staticmethod
-    async def get_total_balance(db: AsyncSession) -> float:
+    async def get_total_balance(db: AsyncSession, wallet_address: Optional[str] = None) -> float:
         """
         Calculate total received balance in XMR (sum of all incoming transactions)
         This represents all-time rewards, doesn't account for withdrawals
         """
-        if not MoneroWalletService.is_enabled():
-            return 0.0
+        query = select(P2PoolTransaction)
         
-        wallet_address = MoneroWalletService.get_wallet_address()
-        if not wallet_address:
-            return 0.0
+        if wallet_address:
+            query = query.where(P2PoolTransaction.wallet_address == wallet_address)
         
-        result = await db.execute(
-            select(P2PoolTransaction)
-            .where(P2PoolTransaction.wallet_address == wallet_address)
-        )
+        result = await db.execute(query)
         transactions = result.scalars().all()
         
         total_xmr = sum(tx.amount_xmr for tx in transactions)
         return total_xmr
     
     @staticmethod
-    async def get_current_balance() -> float:
+    async def get_current_balance(wallet_address: str) -> float:
         """
-        Get current balance from sum of all P2Pool payouts
+        Get current balance from sum of all P2Pool payouts for a specific wallet
         Note: This doesn't account for withdrawals - shows total mined
         """
-        if not MoneroWalletService.is_enabled():
-            return 0.0
-        
-        wallet_address = MoneroWalletService.get_wallet_address()
-        
-        if not wallet_address:
-            return 0.0
-        
         try:
             async with aiohttp.ClientSession() as session:
                 # Use P2Pool Observer API
@@ -241,60 +240,67 @@ class MoneroWalletService:
     @staticmethod
     async def get_stats(db: AsyncSession) -> Dict[str, Any]:
         """
-        Get comprehensive P2Pool wallet stats
+        Get comprehensive P2Pool stats for all configured wallets
         """
-        if not MoneroWalletService.is_enabled():
+        # Get all P2Pool wallets from pools
+        wallets = await MoneroWalletService.get_p2pool_wallets(db)
+        
+        if not wallets:
             return {
                 "enabled": False,
-                "wallet_address": None,
-                "balance_xmr": 0.0,
-                "earnings_24h_xmr": 0.0,
+                "wallets": [],
+                "total_balance_xmr": 0.0,
+                "total_earnings_24h_xmr": 0.0,
                 "transaction_count": 0,
                 "last_payout": None
             }
         
-        wallet_address = MoneroWalletService.get_wallet_address()
-        if not wallet_address:
-            return {
-                "enabled": True,
-                "wallet_address": None,
-                "balance_xmr": 0.0,
-                "earnings_24h_xmr": 0.0,
-                "transaction_count": 0,
-                "last_payout": None
-            }
+        wallet_stats = []
+        total_balance = 0.0
+        total_24h = 0.0
+        total_tx_count = 0
+        latest_payout = None
         
-        # Get all transactions
-        result = await db.execute(
-            select(P2PoolTransaction)
-            .where(P2PoolTransaction.wallet_address == wallet_address)
-            .order_by(P2PoolTransaction.timestamp.desc())
-        )
-        all_transactions = result.scalars().all()
-        
-        # Calculate stats
-        total_received_xmr = sum(tx.amount_xmr for tx in all_transactions)
-        
-        # Get actual current balance from blockchain
-        current_balance = await MoneroWalletService.get_current_balance()
-        
-        cutoff_24h = datetime.utcnow() - timedelta(hours=24)
-        earnings_24h = [tx for tx in all_transactions if tx.timestamp >= cutoff_24h]
-        earnings_24h_xmr = sum(tx.amount_xmr for tx in earnings_24h)
-        
-        last_payout_tx = all_transactions[0] if all_transactions else None
-        last_payout = last_payout_tx.timestamp.isoformat() if last_payout_tx else None
+        for wallet_address in wallets:
+            # Get all transactions for this wallet
+            result = await db.execute(
+                select(P2PoolTransaction)
+                .where(P2PoolTransaction.wallet_address == wallet_address)
+                .order_by(P2PoolTransaction.timestamp.desc())
+            )
+            all_transactions = result.scalars().all()
+            
+            # Calculate stats
+            wallet_total = sum(tx.amount_xmr for tx in all_transactions)
+            
+            cutoff_24h = datetime.utcnow() - timedelta(hours=24)
+            recent = [tx for tx in all_transactions if tx.timestamp >= cutoff_24h]
+            wallet_24h = sum(tx.amount_xmr for tx in recent)
+            
+            wallet_stats.append({
+                "address": wallet_address,
+                "balance_xmr": wallet_total,
+                "earnings_24h_xmr": wallet_24h,
+                "transaction_count": len(all_transactions),
+                "last_payout": all_transactions[0].timestamp if all_transactions else None
+            })
+            
+            total_balance += wallet_total
+            total_24h += wallet_24h
+            total_tx_count += len(all_transactions)
+            
+            if all_transactions and (not latest_payout or all_transactions[0].timestamp > latest_payout):
+                latest_payout = all_transactions[0].timestamp
         
         return {
             "enabled": True,
-            "wallet_address": wallet_address[:10] + "..." + wallet_address[-10:],  # Truncated for display
-            "balance_xmr": round(current_balance, 6),  # Current spendable balance
-            "total_received_xmr": round(total_received_xmr, 6),  # All-time rewards
-            "earnings_24h_xmr": round(earnings_24h_xmr, 6),
-            "transaction_count": len(all_transactions),
-            "last_payout": last_payout,
-            "confirmed_balance": round(sum(tx.amount_xmr for tx in all_transactions if tx.is_confirmed), 6)
+            "wallets": wallet_stats,
+            "total_balance_xmr": round(total_balance, 6),
+            "total_earnings_24h_xmr": round(total_24h, 6),
+            "transaction_count": total_tx_count,
+            "last_payout": latest_payout.isoformat() if latest_payout else None
         }
+
     
     @staticmethod
     def format_xmr(amount: float) -> str:
