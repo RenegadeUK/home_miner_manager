@@ -268,6 +268,7 @@ class CKPoolBlock(Base):
     pool_ip: Mapped[str] = mapped_column(String(50))
     block_height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     block_hash: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    block_accepted: Mapped[bool] = mapped_column(Boolean, default=False, index=True)  # True if BLOCK ACCEPTED
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     log_entry: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Raw log line
 

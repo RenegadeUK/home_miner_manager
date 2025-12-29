@@ -228,10 +228,13 @@ class CKPoolService:
                 )
                 existing_entries = {row[0] for row in result.all()}
                 
-                # Parse log lines
+                # Parse log lines for both submitted and accepted blocks
                 new_blocks = 0
                 for line in log_content.split('\n'):
-                    if "Submitting block data" in line:
+                    is_submitted = "Submitting block data" in line
+                    is_accepted = "BLOCK ACCEPTED" in line
+                    
+                    if is_submitted or is_accepted:
                         # Avoid duplicate entries
                         if line in existing_entries:
                             continue
@@ -249,6 +252,7 @@ class CKPoolService:
                         block = CKPoolBlock(
                             pool_id=pool_id,
                             pool_ip=pool_ip,
+                            block_accepted=is_accepted,
                             timestamp=timestamp,
                             log_entry=line
                         )
@@ -289,4 +293,35 @@ class CKPoolService:
                 return count or 0
         except Exception as e:
             print(f"❌ Failed to get blocks_24h for pool {pool_id}: {e}")
+            return 0
+    
+    @staticmethod
+    async def get_blocks_accepted(pool_id: int, days: int) -> int:
+        """
+        Get count of ACCEPTED blocks (not just submitted) in last N days
+        
+        Args:
+            pool_id: Database ID of the pool
+            days: Number of days to look back
+            
+        Returns:
+            Number of blocks accepted
+        """
+        try:
+            from core.database import AsyncSessionLocal, CKPoolBlock
+            from sqlalchemy import select, func
+            from datetime import datetime, timedelta
+            
+            async with AsyncSessionLocal() as db:
+                cutoff = datetime.utcnow() - timedelta(days=days)
+                result = await db.execute(
+                    select(func.count(CKPoolBlock.id))
+                    .where(CKPoolBlock.pool_id == pool_id)
+                    .where(CKPoolBlock.block_accepted == True)
+                    .where(CKPoolBlock.timestamp >= cutoff)
+                )
+                count = result.scalar()
+                return count or 0
+        except Exception as e:
+            print(f"❌ Failed to get blocks_accepted for pool {pool_id}: {e}")
             return 0
