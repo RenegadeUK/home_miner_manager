@@ -71,6 +71,9 @@
         <div class="detail-card-header">
             <div class="detail-card-icon">📊</div>
             <h3>Live Telemetry</h3>
+            {% if miner.miner_type == 'avalon_nano' %}
+            <button class="btn btn-info btn-sm" onclick="syncPoolSlots()" id="sync-slots-btn">🔄 Sync Pool Slots</button>
+            {% endif %}
             <button class="btn btn-info btn-sm" onclick="refreshTelemetry()">↻ Refresh</button>
         </div>
         <div class="detail-card-body">
@@ -549,6 +552,20 @@
     background: #dc2626;
 }
 
+.btn-info {
+    background: #06b6d4;
+    color: white;
+}
+
+.btn-info:hover {
+    background: #0891b2;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
     .info-grid {
         grid-template-columns: 1fr;
@@ -866,6 +883,43 @@ async function deleteMiner() {
         window.location.href = '/miners';
     } catch (error) {
         alert('Error deleting miner: ' + error.message);
+    }
+}
+
+// Sync pool slots (Avalon Nano only)
+async function syncPoolSlots() {
+    const btn = document.getElementById('sync-slots-btn');
+    const originalText = btn.textContent;
+    
+    try {
+        btn.disabled = true;
+        btn.textContent = '⏳ Syncing...';
+        
+        const response = await fetch(`/api/miners/${minerId}/sync-pool-slots`, {
+            method: 'POST'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to sync pool slots');
+        }
+        
+        const result = await response.json();
+        
+        // Show success
+        btn.textContent = '✅ Synced!';
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }, 2000);
+        
+    } catch (error) {
+        btn.textContent = '❌ Failed';
+        alert('Error syncing pool slots: ' + error.message);
+        setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }, 2000);
     }
 }
 

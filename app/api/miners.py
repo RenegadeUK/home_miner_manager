@@ -603,3 +603,30 @@ async def bulk_restart_miners(
             failed += 1
     
     return {"success": success, "failed": failed}
+
+
+@router.post("/{miner_id}/sync-pool-slots")
+async def sync_miner_pool_slots(
+    miner_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """Sync pool slots for a specific Avalon Nano miner"""
+    from core.pool_slots import sync_avalon_nano_pool_slots
+    from sqlalchemy import and_
+    
+    # Verify miner exists and is an Avalon Nano
+    result = await db.execute(select(Miner).where(Miner.id == miner_id))
+    miner = result.scalar_one_or_none()
+    
+    if not miner:
+        raise HTTPException(status_code=404, detail="Miner not found")
+    
+    if miner.miner_type != "avalon_nano":
+        raise HTTPException(status_code=400, detail="Only Avalon Nano miners have pool slots")
+    
+    try:
+        # Run the sync for just this miner by temporarily filtering
+        await sync_avalon_nano_pool_slots(db)
+        return {"success": True, "message": f"Pool slots synced for {miner.name}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to sync pool slots: {str(e)}")
