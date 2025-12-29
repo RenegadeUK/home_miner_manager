@@ -720,12 +720,15 @@ async def get_ckpool_blocks_widget(db: AsyncSession = Depends(get_db)):
 async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db)):
     """Get CKPool all-time rewards (cumulative blocks × reward) with GBP value"""
     from core.ckpool import CKPoolService
+    from core.database import CKPoolBlock
+    from sqlalchemy import select as sql_select, func
     
     # Find all CKPool pools
     result = await db.execute(select(Pool))
     pools = result.scalars().all()
     
     total_blocks_all_time = 0
+    total_confirmed_rewards = 0.0
     pool_count = 0
     coin_type = None
     
@@ -735,11 +738,6 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db)):
             import asyncio
             asyncio.create_task(CKPoolService.fetch_and_cache_blocks(pool.url, pool.id))
             
-            # Get ALL accepted blocks (no time limit)
-            blocks = await CKPoolService.get_blocks_accepted(pool.id, days=36500)  # ~100 years
-            total_blocks_all_time += blocks
-            pool_count += 1
-            
             # Try to determine coin type from pool name
             pool_name_lower = pool.name.lower()
             if 'btc' in pool_name_lower or 'bitcoin' in pool_name_lower:
@@ -748,6 +746,32 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db)):
                 coin_type = 'BCH'
             elif 'dgb' in pool_name_lower or 'digibyte' in pool_name_lower:
                 coin_type = 'DGB'
+            
+            # Trigger explorer verification in background (non-blocking)
+            if coin_type:
+                asyncio.create_task(CKPoolService.update_confirmed_rewards(pool.id, coin_type))
+            
+            # Get ALL accepted blocks and sum confirmed rewards
+            blocks_result = await db.execute(
+                sql_select(CKPoolBlock)
+                .where(CKPoolBlock.pool_id == pool.id)
+                .where(CKPoolBlock.block_accepted == True)
+            )
+            blocks = blocks_result.scalars().all()
+            
+            for block in blocks:
+                total_blocks_all_time += 1
+                # Use confirmed reward if available, otherwise estimate
+                if block.confirmed_reward_coins and block.confirmed_from_explorer:
+                    total_confirmed_rewards += block.confirmed_reward_coins
+                else:
+                    # Fallback to estimated reward
+                    if coin_type == 'BTC' or coin_type == 'BCH':
+                        total_confirmed_rewards += 3.125
+                    elif coin_type == 'DGB':
+                        total_confirmed_rewards += 665
+            
+            pool_count += 1
     
     if pool_count == 0:
         return {
@@ -760,27 +784,9 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db)):
             "status": "offline"
         }
     
-    # Calculate total coins earned based on coin type
-    total_coins = 0.0
-    coin_symbol = "COIN"
-    block_reward = 0.0
-    
-    if coin_type == 'BTC':
-        block_reward = 3.125
-        total_coins = total_blocks_all_time * block_reward
-        coin_symbol = "BTC"
-    elif coin_type == 'BCH':
-        block_reward = 3.125
-        total_coins = total_blocks_all_time * block_reward
-        coin_symbol = "BCH"
-    elif coin_type == 'DGB':
-        block_reward = 665
-        total_coins = total_blocks_all_time * block_reward
-        coin_symbol = "DGB"
-    
     # Fetch current coin price and calculate GBP value
     value_gbp = 0.0
-    if coin_type and total_coins > 0:
+    if coin_type and total_confirmed_rewards > 0:
         try:
             import aiohttp
             async with aiohttp.ClientSession() as session:
@@ -798,21 +804,21 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db)):
                         if resp.status == 200:
                             data = await resp.json()
                             price_gbp = data.get(coin_id, {}).get("gbp", 0)
-                            value_gbp = total_coins * price_gbp
+                            value_gbp = total_confirmed_rewards * price_gbp
         except Exception as e:
             print(f"⚠️ Failed to fetch coin price: {e}")
     
     # Format coin display
+    coin_symbol = coin_type or "COIN"
     if coin_type == 'DGB':
-        coins_display = f"{total_coins:,.0f} {coin_symbol}"
+        coins_display = f"{total_confirmed_rewards:,.0f} {coin_symbol}"
     else:
-        coins_display = f"{total_coins:.8f} {coin_symbol}"
+        coins_display = f"{total_confirmed_rewards:.8f} {coin_symbol}"
     
     return {
         "total_blocks": total_blocks_all_time,
-        "total_coins": total_coins,
+        "total_coins": total_confirmed_rewards,
         "coin_type": coin_type,
-        "block_reward": block_reward,
         "value_gbp": round(value_gbp, 2),
         "coins_display": coins_display,
         "value_display": f"£{value_gbp:,.2f}",

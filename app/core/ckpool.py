@@ -229,9 +229,12 @@ class CKPoolService:
                 existing_entries = {row[0] for row in result.all()}
                 
                 # Parse log lines for both submitted and accepted blocks
+                # Pattern: "Submitting block <hash>" followed by "BLOCK ACCEPTED by network"
                 new_blocks = 0
-                for line in log_content.split('\n'):
-                    is_submitted = "Submitting block data" in line
+                lines = log_content.split('\n')
+                
+                for i, line in enumerate(lines):
+                    is_submitted = "Submitting block" in line
                     is_accepted = "BLOCK ACCEPTED" in line
                     
                     if is_submitted or is_accepted:
@@ -248,10 +251,26 @@ class CKPoolService:
                         else:
                             timestamp = datetime.utcnow()
                         
+                        # Extract block hash if this is a submission line
+                        block_hash = None
+                        if is_submitted:
+                            # Format: "Submitting block 0000000000000002ca3316f963d896e0fd6dcb0f8bd9f07e18ad205c27976d6d"
+                            hash_match = re.search(r'Submitting block ([0-9a-fA-F]{64})', line)
+                            if hash_match:
+                                block_hash = hash_match.group(1)
+                        
+                        # If this is BLOCK ACCEPTED, look back for the preceding "Submitting block" line
+                        if is_accepted and i > 0:
+                            prev_line = lines[i - 1]
+                            hash_match = re.search(r'Submitting block ([0-9a-fA-F]{64})', prev_line)
+                            if hash_match:
+                                block_hash = hash_match.group(1)
+                        
                         # Create block record
                         block = CKPoolBlock(
                             pool_id=pool_id,
                             pool_ip=pool_ip,
+                            block_hash=block_hash,
                             block_accepted=is_accepted,
                             timestamp=timestamp,
                             log_entry=line
@@ -325,3 +344,141 @@ class CKPoolService:
         except Exception as e:
             print(f"❌ Failed to get blocks_accepted for pool {pool_id}: {e}")
             return 0
+    
+    @staticmethod
+    async def verify_block_from_explorer(block_hash: str, coin_type: str, wallet_address: str = None) -> Optional[Dict[str, Any]]:
+        """
+        Verify block and get actual reward from blockchain explorer
+        
+        Args:
+            block_hash: Block hash to verify
+            coin_type: Coin type (BTC, BCH, DGB)
+            wallet_address: Optional wallet address to verify payout
+            
+        Returns:
+            Dict with {
+                "block_height": int,
+                "reward": float,
+                "confirmed": bool,
+                "wallet_match": bool (if wallet_address provided)
+            }
+        """
+        try:
+            import aiohttp
+            
+            # Explorer API endpoints
+            if coin_type == 'DGB':
+                # DigiExplorer API
+                url = f"https://digiexplorer.info/api/block/{block_hash}"
+            elif coin_type == 'BCH':
+                # BlockchairAPI
+                url = f"https://api.blockchair.com/bitcoin-cash/dashboards/block/{block_hash}"
+            elif coin_type == 'BTC':
+                # Blockchain.info API
+                url = f"https://blockchain.info/rawblock/{block_hash}"
+            else:
+                return None
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    if response.status != 200:
+                        return None
+                    
+                    data = await response.json()
+                    
+                    # Parse response based on coin type
+                    if coin_type == 'DGB':
+                        # DigiExplorer format
+                        block_height = data.get('height')
+                        # Coinbase transaction is first tx
+                        reward = 0.0
+                        if 'tx' in data and len(data['tx']) > 0:
+                            coinbase_tx = data['tx'][0]
+                            if 'vout' in coinbase_tx:
+                                for output in coinbase_tx['vout']:
+                                    reward += float(output.get('value', 0))
+                        
+                        return {
+                            "block_height": block_height,
+                            "reward": reward,
+                            "confirmed": True,
+                            "wallet_match": None  # TODO: Check wallet if provided
+                        }
+                    
+                    elif coin_type == 'BCH':
+                        # Blockchair format
+                        block_data = data.get('data', {}).get(block_hash, {}).get('block', {})
+                        block_height = block_data.get('id')
+                        reward = float(block_data.get('generation', 0)) / 100000000  # satoshis to BCH
+                        
+                        return {
+                            "block_height": block_height,
+                            "reward": reward,
+                            "confirmed": True,
+                            "wallet_match": None
+                        }
+                    
+                    elif coin_type == 'BTC':
+                        # Blockchain.info format
+                        block_height = data.get('height')
+                        # Coinbase tx
+                        reward = 0.0
+                        if 'tx' in data and len(data['tx']) > 0:
+                            coinbase_tx = data['tx'][0]
+                            if 'out' in coinbase_tx:
+                                for output in coinbase_tx['out']:
+                                    reward += float(output.get('value', 0)) / 100000000  # satoshis to BTC
+                        
+                        return {
+                            "block_height": block_height,
+                            "reward": reward,
+                            "confirmed": True,
+                            "wallet_match": None
+                        }
+        
+        except Exception as e:
+            print(f"❌ Failed to verify block {block_hash} from explorer: {e}")
+            return None
+    
+    @staticmethod
+    async def update_confirmed_rewards(pool_id: int, coin_type: str):
+        """
+        Update confirmed rewards for all accepted blocks that haven't been verified yet
+        
+        Args:
+            pool_id: Database ID of the pool
+            coin_type: Coin type (BTC, BCH, DGB)
+        """
+        try:
+            from core.database import AsyncSessionLocal, CKPoolBlock
+            from sqlalchemy import select
+            
+            async with AsyncSessionLocal() as db:
+                # Get all accepted blocks without confirmed rewards
+                result = await db.execute(
+                    select(CKPoolBlock)
+                    .where(CKPoolBlock.pool_id == pool_id)
+                    .where(CKPoolBlock.block_accepted == True)
+                    .where(CKPoolBlock.confirmed_from_explorer == False)
+                    .where(CKPoolBlock.block_hash.isnot(None))
+                )
+                unconfirmed_blocks = result.scalars().all()
+                
+                for block in unconfirmed_blocks:
+                    # Verify from explorer
+                    explorer_data = await CKPoolService.verify_block_from_explorer(
+                        block.block_hash,
+                        coin_type
+                    )
+                    
+                    if explorer_data and explorer_data.get('confirmed'):
+                        # Update database with confirmed reward
+                        block.confirmed_reward_coins = explorer_data['reward']
+                        block.block_height = explorer_data['block_height']
+                        block.confirmed_from_explorer = True
+                        print(f"✅ Confirmed block {block.block_hash[:16]}... reward: {explorer_data['reward']} {coin_type}")
+                
+                await db.commit()
+        
+        except Exception as e:
+            print(f"❌ Failed to update confirmed rewards: {e}")
