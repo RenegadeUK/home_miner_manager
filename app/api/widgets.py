@@ -552,8 +552,11 @@ async def get_ckpool_workers_widget(db: AsyncSession = Depends(get_db)):
 
 @router.get("/widgets/ckpool-luck")
 async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
-    """Get CKPool round luck (bestshare/difficulty) and blocks submitted in 24h"""
+    """Get CKPool round luck (bestshare/difficulty, reset on block found) and blocks submitted in 24h"""
     from core.ckpool import CKPoolService
+    from core.database import CKPoolBlock
+    from sqlalchemy import select as sql_select
+    from datetime import datetime, timedelta
     
     # Find all CKPool pools
     result = await db.execute(select(Pool))
@@ -562,7 +565,8 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
     best_share = 0
     difficulty = 0.0
     pool_count = 0
-    total_blocks_24h = 0
+    total_blocks_submitted_24h = 0
+    block_found_recently = False
     
     for pool in pools:
         if CKPoolService.is_ckpool(pool.url, pool.port):
@@ -570,37 +574,55 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
             import asyncio
             asyncio.create_task(CKPoolService.fetch_and_cache_blocks(pool.url, pool.id))
             
+            # Check if a block was ACCEPTED recently (since last bestshare would have been recorded)
+            # Look back a reasonable time - if block accepted in last hour, reset luck
+            recent_cutoff = datetime.utcnow() - timedelta(hours=1)
+            block_result = await db.execute(
+                sql_select(CKPoolBlock)
+                .where(CKPoolBlock.pool_id == pool.id)
+                .where(CKPoolBlock.block_accepted == True)
+                .where(CKPoolBlock.timestamp >= recent_cutoff)
+                .limit(1)
+            )
+            recent_block = block_result.scalar_one_or_none()
+            
+            if recent_block:
+                block_found_recently = True
+            
             # Get pool stats
             raw_stats = await CKPoolService.get_pool_stats(pool.url)
             if raw_stats:
                 stats = CKPoolService.format_stats_summary(raw_stats)
-                best_share = max(best_share, stats["best_share"])
+                # If block found recently, reset best_share to 0 (new round)
+                if not block_found_recently:
+                    best_share = max(best_share, stats["best_share"])
                 difficulty = stats["difficulty"]  # Use last pool's difficulty
                 pool_count += 1
             
-            # Get blocks submitted in last 24h
-            blocks_24h = await CKPoolService.get_blocks_24h(pool.id)
-            total_blocks_24h += blocks_24h
+            # Get blocks SUBMITTED (not accepted) in last 24h
+            blocks_submitted = await CKPoolService.get_blocks_24h(pool.id)
+            total_blocks_submitted_24h += blocks_submitted
     
     if pool_count == 0:
         return {
             "round_luck": 0.0,
             "best_share": 0,
             "difficulty": 0.0,
-            "blocks_24h": 0,
+            "blocks_submitted_24h": 0,
             "luck_display": "0%",
             "status": "offline"
         }
     
-    # Calculate round luck percentage
+    # Calculate round luck percentage (will be 0% if block found recently)
     round_luck = (best_share / difficulty * 100) if difficulty > 0 else 0.0
     
     return {
         "round_luck": round(round_luck, 2),
         "best_share": best_share,
         "difficulty": difficulty,
-        "blocks_24h": total_blocks_24h,
+        "blocks_submitted_24h": total_blocks_submitted_24h,
         "luck_display": f"{round_luck:.1f}%",
+        "block_found_recently": block_found_recently,
         "status": "online"
     }
 
