@@ -299,10 +299,15 @@ class CKPoolService:
         try:
             from core.database import AsyncSessionLocal, CKPoolBlock
             from sqlalchemy import select, func
-            from datetime import datetime, timedelta
+            from datetime import datetime
+            import pytz
             
             async with AsyncSessionLocal() as db:
-                cutoff = datetime.utcnow() - timedelta(hours=24)
+                # Hard cutoff: 29 December 2025 at 9am UK time (ONE-TIME)
+                uk_tz = pytz.timezone('Europe/London')
+                cutoff_9am = uk_tz.localize(datetime(2025, 12, 29, 9, 0, 0))
+                cutoff = cutoff_9am.astimezone(pytz.UTC).replace(tzinfo=None)
+                
                 result = await db.execute(
                     select(func.count(CKPoolBlock.id))
                     .where(CKPoolBlock.pool_id == pool_id)

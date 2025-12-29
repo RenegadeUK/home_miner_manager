@@ -557,6 +557,7 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
     from core.database import CKPoolBlock
     from sqlalchemy import select as sql_select
     from datetime import datetime, timedelta
+    import pytz
     
     # Find all CKPool pools
     result = await db.execute(select(Pool))
@@ -568,20 +569,23 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
     total_blocks_submitted_24h = 0
     block_found_recently = False
     
+    # Hard cutoff: 29 December 2025 at 9am UK time - ignore anything before this (ONE-TIME)
+    uk_tz = pytz.timezone('Europe/London')
+    cutoff_9am = uk_tz.localize(datetime(2025, 12, 29, 9, 0, 0))
+    cutoff_9am_utc = cutoff_9am.astimezone(pytz.UTC).replace(tzinfo=None)
+    
     for pool in pools:
         if CKPoolService.is_ckpool(pool.url, pool.port):
             # Fetch and cache blocks from log (non-blocking)
             import asyncio
             asyncio.create_task(CKPoolService.fetch_and_cache_blocks(pool.url, pool.id))
             
-            # Check if a block was ACCEPTED recently (since last bestshare would have been recorded)
-            # Look back a reasonable time - if block accepted in last hour, reset luck
-            recent_cutoff = datetime.utcnow() - timedelta(hours=1)
+            # Check if a block was ACCEPTED since 9am today
             block_result = await db.execute(
                 sql_select(CKPoolBlock)
                 .where(CKPoolBlock.pool_id == pool.id)
                 .where(CKPoolBlock.block_accepted == True)
-                .where(CKPoolBlock.timestamp >= recent_cutoff)
+                .where(CKPoolBlock.timestamp >= cutoff_9am_utc)
                 .limit(1)
             )
             recent_block = block_result.scalar_one_or_none()
@@ -593,9 +597,12 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
             raw_stats = await CKPoolService.get_pool_stats(pool.url)
             if raw_stats:
                 stats = CKPoolService.format_stats_summary(raw_stats)
-                # If block found recently, reset best_share to 0 (new round)
+                # If block found since 9am today, reset best_share to 0 (new round)
+                # If no block found since 9am, also reset to 0 (don't count old shares)
                 if not block_found_recently:
-                    best_share = max(best_share, stats["best_share"])
+                    # Only count best_share if we haven't found a block since 9am
+                    # But we still reset the display to start fresh from 9am each day
+                    best_share = 0  # Reset - only count shares from 9am onwards
                 difficulty = stats["difficulty"]  # Use last pool's difficulty
                 pool_count += 1
             

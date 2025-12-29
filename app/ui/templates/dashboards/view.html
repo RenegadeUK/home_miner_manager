@@ -280,6 +280,22 @@
                 <div class="widget-type-icon">🤖</div>
                 <div class="widget-type-label">Automation Status</div>
             </div>
+            <div class="widget-type-card" onclick="selectWidgetType('ckpool_workers')">
+                <div class="widget-type-icon">👷</div>
+                <div class="widget-type-label">CKPool Workers</div>
+            </div>
+            <div class="widget-type-card" onclick="selectWidgetType('ckpool_luck')">
+                <div class="widget-type-icon">🍀</div>
+                <div class="widget-type-label">CKPool Luck</div>
+            </div>
+            <div class="widget-type-card" onclick="selectWidgetType('ckpool_blocks')">
+                <div class="widget-type-icon">⛏️</div>
+                <div class="widget-type-label">CKPool Blocks</div>
+            </div>
+            <div class="widget-type-card" onclick="selectWidgetType('ckpool_reward')">
+                <div class="widget-type-icon">💰</div>
+                <div class="widget-type-label">CKPool Reward</div>
+            </div>
         </div>
 
         <div id="widget-config" style="display: none; margin-top: 1.5rem;">
@@ -488,6 +504,18 @@ async function updateWidgetData(widgetId, widgetType, config) {
             case 'automation_status':
                 endpoint = '/api/widgets/widgets/automation-status';
                 break;
+            case 'ckpool_workers':
+                endpoint = '/api/widgets/widgets/ckpool-workers';
+                break;
+            case 'ckpool_luck':
+                endpoint = '/api/widgets/widgets/ckpool-luck';
+                break;
+            case 'ckpool_blocks':
+                endpoint = '/api/widgets/widgets/ckpool-blocks';
+                break;
+            case 'ckpool_reward':
+                endpoint = '/api/widgets/widgets/ckpool-reward';
+                break;
         }
         
         const response = await fetch(endpoint);
@@ -635,6 +663,46 @@ function formatWidgetData(widgetType, data) {
                     ${data.enabled_rules} enabled, ${data.disabled_rules} disabled
                 </div>
             `;
+        case 'ckpool_workers':
+            return `
+                <div class="widget-stat">
+                    <div class="widget-stat-value">${data.workers}</div>
+                    <div class="widget-stat-label">Workers Online</div>
+                </div>
+                <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    1m: ${data.hashrate_display}
+                </div>
+            `;
+        case 'ckpool_luck':
+            return `
+                <div class="widget-stat">
+                    <div class="widget-stat-value">${data.round_luck}%</div>
+                    <div class="widget-stat-label">Round Luck</div>
+                </div>
+                <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    ${data.blocks_submitted_24h} blocks submitted (24h)
+                </div>
+            `;
+        case 'ckpool_blocks':
+            return `
+                <div class="widget-stat">
+                    <div class="widget-stat-value">${data.blocks_1d} / ${data.blocks_7d} / ${data.blocks_28d}</div>
+                    <div class="widget-stat-label">Blocks Found (1d/7d/28d)</div>
+                </div>
+                <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    24h value: ${data.value_display}
+                </div>
+            `;
+        case 'ckpool_reward':
+            return `
+                <div class="widget-stat">
+                    <div class="widget-stat-value">${data.coins_display}</div>
+                    <div class="widget-stat-label">All-Time Reward</div>
+                </div>
+                <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
+                    ${data.value_display}
+                </div>
+            `;
         default:
             return '<div>Unknown widget type</div>';
     }
@@ -653,7 +721,11 @@ function getWidgetTitle(widgetType, config) {
         'reject_rate': 'Reject Rate',
         'temperature_alert': 'Temperature Alerts',
         'profitability': 'Profitability',
-        'automation_status': 'Automation'
+        'automation_status': 'Automation',
+        'ckpool_workers': 'CKPool Workers',
+        'ckpool_luck': 'CKPool Luck',
+        'ckpool_blocks': 'CKPool Blocks',
+        'ckpool_reward': 'CKPool Reward'
     };
     return titles[widgetType] || 'Widget';
 }
