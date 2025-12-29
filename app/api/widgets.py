@@ -504,3 +504,189 @@ async def get_automation_status_widget(db: AsyncSession = Depends(get_db)):
         "disabled_rules": disabled_count,
         "status_display": f"{enabled_count}/{len(rules)} Active"
     }
+
+
+@router.get("/widgets/ckpool-hashrate")
+async def get_ckpool_hashrate_widget(db: AsyncSession = Depends(get_db)):
+    """Get CKPool local node hashrate and worker statistics"""
+    from core.ckpool import CKPoolService
+    
+    # Find all CKPool pools
+    result = await db.execute(select(Pool))
+    pools = result.scalars().all()
+    
+    ckpool_stats = []
+    for pool in pools:
+        if CKPoolService.is_ckpool(pool.url, pool.port):
+            raw_stats = await CKPoolService.get_pool_stats(pool.url)
+            if raw_stats:
+                stats = CKPoolService.format_stats_summary(raw_stats)
+                ckpool_stats.append({
+                    "pool_name": pool.name,
+                    "pool_ip": pool.url,
+                    "hashrate_1m": stats["hashrate_1m_gh"],
+                    "hashrate_5m": stats["hashrate_5m_gh"],
+                    "hashrate_15m": stats["hashrate_15m_gh"],
+                    "hashrate_1h": stats["hashrate_1h_gh"],
+                    "workers": stats["workers"],
+                    "workers_idle": stats["workers_idle"]
+                })
+    
+    if not ckpool_stats:
+        return {
+            "pools": [],
+            "total_hashrate_gh": 0,
+            "total_workers": 0,
+            "status": "no_pools"
+        }
+    
+    # Aggregate stats
+    total_hashrate = sum(p["hashrate_1m"] for p in ckpool_stats)
+    total_workers = sum(p["workers"] for p in ckpool_stats)
+    
+    return {
+        "pools": ckpool_stats,
+        "total_hashrate_gh": round(total_hashrate, 2),
+        "total_workers": total_workers,
+        "status": "online"
+    }
+
+
+@router.get("/widgets/ckpool-shares")
+async def get_ckpool_shares_widget(db: AsyncSession = Depends(get_db)):
+    """Get CKPool share statistics"""
+    from core.ckpool import CKPoolService
+    
+    # Find all CKPool pools
+    result = await db.execute(select(Pool))
+    pools = result.scalars().all()
+    
+    total_accepted = 0
+    total_rejected = 0
+    best_share = 0
+    pool_count = 0
+    
+    for pool in pools:
+        if CKPoolService.is_ckpool(pool.url, pool.port):
+            raw_stats = await CKPoolService.get_pool_stats(pool.url)
+            if raw_stats:
+                stats = CKPoolService.format_stats_summary(raw_stats)
+                total_accepted += stats["shares_accepted"]
+                total_rejected += stats["shares_rejected"]
+                best_share = max(best_share, stats["best_share"])
+                pool_count += 1
+    
+    if pool_count == 0:
+        return {
+            "accepted": 0,
+            "rejected": 0,
+            "reject_rate": 0.0,
+            "best_share": 0,
+            "status": "no_pools"
+        }
+    
+    total_shares = total_accepted + total_rejected
+    reject_rate = (total_rejected / total_shares * 100) if total_shares > 0 else 0.0
+    
+    return {
+        "accepted": total_accepted,
+        "rejected": total_rejected,
+        "reject_rate": round(reject_rate, 2),
+        "best_share": best_share,
+        "status": "online"
+    }
+
+
+@router.get("/widgets/ckpool-difficulty")
+async def get_ckpool_difficulty_widget(db: AsyncSession = Depends(get_db)):
+    """Get CKPool difficulty and SPS statistics"""
+    from core.ckpool import CKPoolService
+    
+    # Find all CKPool pools
+    result = await db.execute(select(Pool))
+    pools = result.scalars().all()
+    
+    ckpool_stats = []
+    for pool in pools:
+        if CKPoolService.is_ckpool(pool.url, pool.port):
+            raw_stats = await CKPoolService.get_pool_stats(pool.url)
+            if raw_stats:
+                stats = CKPoolService.format_stats_summary(raw_stats)
+                ckpool_stats.append({
+                    "pool_name": pool.name,
+                    "difficulty": stats["difficulty"],
+                    "sps_1m": stats["sps_1m"],
+                    "sps_5m": stats["sps_5m"],
+                    "sps_1h": stats["sps_1h"]
+                })
+    
+    if not ckpool_stats:
+        return {
+            "pools": [],
+            "avg_difficulty": 0.0,
+            "avg_sps": 0.0,
+            "status": "no_pools"
+        }
+    
+    # Calculate averages
+    avg_diff = sum(p["difficulty"] for p in ckpool_stats) / len(ckpool_stats)
+    avg_sps = sum(p["sps_1m"] for p in ckpool_stats) / len(ckpool_stats)
+    
+    return {
+        "pools": ckpool_stats,
+        "avg_difficulty": round(avg_diff, 4),
+        "avg_sps": round(avg_sps, 3),
+        "status": "online"
+    }
+
+
+@router.get("/widgets/ckpool-performance")
+async def get_ckpool_performance_widget(db: AsyncSession = Depends(get_db)):
+    """Get CKPool performance metrics across multiple timeframes"""
+    from core.ckpool import CKPoolService
+    
+    # Find all CKPool pools
+    result = await db.execute(select(Pool))
+    pools = result.scalars().all()
+    
+    ckpool_stats = []
+    for pool in pools:
+        if CKPoolService.is_ckpool(pool.url, pool.port):
+            raw_stats = await CKPoolService.get_pool_stats(pool.url)
+            if raw_stats:
+                stats = CKPoolService.format_stats_summary(raw_stats)
+                
+                # Calculate uptime
+                runtime_hours = stats["runtime"] / 3600
+                runtime_days = runtime_hours / 24
+                
+                ckpool_stats.append({
+                    "pool_name": pool.name,
+                    "pool_ip": pool.url,
+                    "runtime_hours": round(runtime_hours, 1),
+                    "runtime_days": round(runtime_days, 2),
+                    "hashrate_1h": stats["hashrate_1h_gh"],
+                    "hashrate_6h": stats["hashrate_6h_gh"],
+                    "hashrate_1d": stats["hashrate_1d_gh"],
+                    "hashrate_7d": stats["hashrate_7d_gh"],
+                    "users": stats["users"]
+                })
+    
+    if not ckpool_stats:
+        return {
+            "pools": [],
+            "total_uptime_hours": 0,
+            "avg_hashrate_1d": 0.0,
+            "status": "no_pools"
+        }
+    
+    # Aggregate metrics
+    total_uptime = sum(p["runtime_hours"] for p in ckpool_stats)
+    avg_hashrate_1d = sum(p["hashrate_1d"] for p in ckpool_stats) / len(ckpool_stats) if ckpool_stats else 0
+    
+    return {
+        "pools": ckpool_stats,
+        "total_uptime_hours": round(total_uptime, 1),
+        "avg_hashrate_1d": round(avg_hashrate_1d, 2),
+        "status": "online"
+    }
