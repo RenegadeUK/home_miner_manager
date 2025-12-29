@@ -506,64 +506,17 @@ async def get_automation_status_widget(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/widgets/ckpool-hashrate")
-async def get_ckpool_hashrate_widget(db: AsyncSession = Depends(get_db)):
-    """Get CKPool local node hashrate and worker statistics"""
+@router.get("/widgets/ckpool-workers")
+async def get_ckpool_workers_widget(db: AsyncSession = Depends(get_db)):
+    """Get CKPool worker count and 1m hashrate"""
     from core.ckpool import CKPoolService
     
     # Find all CKPool pools
     result = await db.execute(select(Pool))
     pools = result.scalars().all()
     
-    ckpool_stats = []
-    for pool in pools:
-        if CKPoolService.is_ckpool(pool.url, pool.port):
-            raw_stats = await CKPoolService.get_pool_stats(pool.url)
-            if raw_stats:
-                stats = CKPoolService.format_stats_summary(raw_stats)
-                ckpool_stats.append({
-                    "pool_name": pool.name,
-                    "pool_ip": pool.url,
-                    "hashrate_1m": stats["hashrate_1m_gh"],
-                    "hashrate_5m": stats["hashrate_5m_gh"],
-                    "hashrate_15m": stats["hashrate_15m_gh"],
-                    "hashrate_1h": stats["hashrate_1h_gh"],
-                    "workers": stats["workers"],
-                    "workers_idle": stats["workers_idle"]
-                })
-    
-    if not ckpool_stats:
-        return {
-            "pools": [],
-            "total_hashrate_gh": 0,
-            "total_workers": 0,
-            "status": "no_pools"
-        }
-    
-    # Aggregate stats
-    total_hashrate = sum(p["hashrate_1m"] for p in ckpool_stats)
-    total_workers = sum(p["workers"] for p in ckpool_stats)
-    
-    return {
-        "pools": ckpool_stats,
-        "total_hashrate_gh": round(total_hashrate, 2),
-        "total_workers": total_workers,
-        "status": "online"
-    }
-
-
-@router.get("/widgets/ckpool-shares")
-async def get_ckpool_shares_widget(db: AsyncSession = Depends(get_db)):
-    """Get CKPool share statistics"""
-    from core.ckpool import CKPoolService
-    
-    # Find all CKPool pools
-    result = await db.execute(select(Pool))
-    pools = result.scalars().all()
-    
-    total_accepted = 0
-    total_rejected = 0
-    best_share = 0
+    total_workers = 0
+    total_hashrate_1m = 0.0
     pool_count = 0
     
     for pool in pools:
@@ -571,28 +524,83 @@ async def get_ckpool_shares_widget(db: AsyncSession = Depends(get_db)):
             raw_stats = await CKPoolService.get_pool_stats(pool.url)
             if raw_stats:
                 stats = CKPoolService.format_stats_summary(raw_stats)
-                total_accepted += stats["shares_accepted"]
-                total_rejected += stats["shares_rejected"]
-                best_share = max(best_share, stats["best_share"])
+                total_workers += stats["workers"]
+                total_hashrate_1m += stats["hashrate_1m_gh"]
                 pool_count += 1
     
     if pool_count == 0:
         return {
-            "accepted": 0,
-            "rejected": 0,
-            "reject_rate": 0.0,
-            "best_share": 0,
-            "status": "no_pools"
+            "workers": 0,
+            "hashrate_1m_gh": 0.0,
+            "hashrate_display": "0 GH/s",
+            "status": "offline"
         }
     
-    total_shares = total_accepted + total_rejected
-    reject_rate = (total_rejected / total_shares * 100) if total_shares > 0 else 0.0
+    # Format hashrate display
+    if total_hashrate_1m >= 1000:
+        hashrate_display = f"{total_hashrate_1m / 1000:.2f} TH/s"
+    else:
+        hashrate_display = f"{total_hashrate_1m:.2f} GH/s"
     
     return {
-        "accepted": total_accepted,
-        "rejected": total_rejected,
-        "reject_rate": round(reject_rate, 2),
+        "workers": total_workers,
+        "hashrate_1m_gh": round(total_hashrate_1m, 2),
+        "hashrate_display": hashrate_display,
+        "status": "online"
+    }
+
+
+@router.get("/widgets/ckpool-luck")
+async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
+    """Get CKPool round luck (bestshare/difficulty) and blocks found in 24h"""
+    from core.ckpool import CKPoolService
+    
+    # Find all CKPool pools
+    result = await db.execute(select(Pool))
+    pools = result.scalars().all()
+    
+    best_share = 0
+    difficulty = 0.0
+    pool_count = 0
+    total_blocks_24h = 0
+    
+    for pool in pools:
+        if CKPoolService.is_ckpool(pool.url, pool.port):
+            # Fetch and cache blocks from log (non-blocking)
+            import asyncio
+            asyncio.create_task(CKPoolService.fetch_and_cache_blocks(pool.url, pool.id))
+            
+            # Get pool stats
+            raw_stats = await CKPoolService.get_pool_stats(pool.url)
+            if raw_stats:
+                stats = CKPoolService.format_stats_summary(raw_stats)
+                best_share = max(best_share, stats["best_share"])
+                difficulty = stats["difficulty"]  # Use last pool's difficulty
+                pool_count += 1
+            
+            # Get blocks found in last 24h
+            blocks_24h = await CKPoolService.get_blocks_24h(pool.id)
+            total_blocks_24h += blocks_24h
+    
+    if pool_count == 0:
+        return {
+            "round_luck": 0.0,
+            "best_share": 0,
+            "difficulty": 0.0,
+            "blocks_24h": 0,
+            "luck_display": "0%",
+            "status": "offline"
+        }
+    
+    # Calculate round luck percentage
+    round_luck = (best_share / difficulty * 100) if difficulty > 0 else 0.0
+    
+    return {
+        "round_luck": round(round_luck, 2),
         "best_share": best_share,
+        "difficulty": difficulty,
+        "blocks_24h": total_blocks_24h,
+        "luck_display": f"{round_luck:.1f}%",
         "status": "online"
     }
 

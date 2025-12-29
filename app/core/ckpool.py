@@ -194,3 +194,99 @@ class CKPoolService:
             "sps_15m": raw_stats.get("SPS15m", 0.0),
             "sps_1h": raw_stats.get("SPS1h", 0.0)
         }
+    
+    @staticmethod
+    async def fetch_and_cache_blocks(pool_ip: str, pool_id: int, api_port: int = DEFAULT_API_PORT):
+        """
+        Fetch ckpool.log from remote server and cache block finds to database
+        
+        Args:
+            pool_ip: IP address of the CKPool instance
+            pool_id: Database ID of the pool
+            api_port: HTTP API port (default 80)
+        """
+        try:
+            # Fetch the ckpool.log file
+            url = f"http://{pool_ip}:{api_port}/ckpool.log"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    if response.status != 200:
+                        print(f"⚠️ Could not fetch ckpool.log from {pool_ip}: HTTP {response.status}")
+                        return
+                    
+                    log_content = await response.text()
+            
+            # Parse log for "Submitting block data" entries
+            from core.database import AsyncSessionLocal, CKPoolBlock
+            from sqlalchemy import select
+            import re
+            
+            async with AsyncSessionLocal() as db:
+                # Get existing blocks to avoid duplicates
+                result = await db.execute(
+                    select(CKPoolBlock.log_entry).where(CKPoolBlock.pool_id == pool_id)
+                )
+                existing_entries = {row[0] for row in result.all()}
+                
+                # Parse log lines
+                new_blocks = 0
+                for line in log_content.split('\n'):
+                    if "Submitting block data" in line:
+                        # Avoid duplicate entries
+                        if line in existing_entries:
+                            continue
+                        
+                        # Extract timestamp from log line (format: [2025-12-29 09:15:23.456])
+                        timestamp_match = re.search(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
+                        if timestamp_match:
+                            from datetime import datetime
+                            timestamp_str = timestamp_match.group(1)
+                            timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                        else:
+                            timestamp = datetime.utcnow()
+                        
+                        # Create block record
+                        block = CKPoolBlock(
+                            pool_id=pool_id,
+                            pool_ip=pool_ip,
+                            timestamp=timestamp,
+                            log_entry=line
+                        )
+                        db.add(block)
+                        new_blocks += 1
+                
+                if new_blocks > 0:
+                    await db.commit()
+                    print(f"✅ Cached {new_blocks} new block(s) from CKPool {pool_ip}")
+        
+        except Exception as e:
+            print(f"❌ Failed to fetch/cache CKPool blocks from {pool_ip}: {e}")
+    
+    @staticmethod
+    async def get_blocks_24h(pool_id: int) -> int:
+        """
+        Get count of blocks found in last 24 hours for a CKPool instance
+        
+        Args:
+            pool_id: Database ID of the pool
+            
+        Returns:
+            Number of blocks found in last 24 hours
+        """
+        try:
+            from core.database import AsyncSessionLocal, CKPoolBlock
+            from sqlalchemy import select, func
+            from datetime import datetime, timedelta
+            
+            async with AsyncSessionLocal() as db:
+                cutoff = datetime.utcnow() - timedelta(hours=24)
+                result = await db.execute(
+                    select(func.count(CKPoolBlock.id))
+                    .where(CKPoolBlock.pool_id == pool_id)
+                    .where(CKPoolBlock.timestamp >= cutoff)
+                )
+                count = result.scalar()
+                return count or 0
+        except Exception as e:
+            print(f"❌ Failed to get blocks_24h for pool {pool_id}: {e}")
+            return 0

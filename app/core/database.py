@@ -259,6 +259,19 @@ class TuningProfile(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class CKPoolBlock(Base):
+    """CKPool blocks found tracking"""
+    __tablename__ = "ckpool_blocks"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pool_id: Mapped[int] = mapped_column(Integer, index=True)  # Reference to Pool table
+    pool_ip: Mapped[str] = mapped_column(String(50))
+    block_height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    block_hash: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    log_entry: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)  # Raw log line
+
+
 class PoolStrategy(Base):
     """Pool switching strategy configuration"""
     __tablename__ = "pool_strategies"
