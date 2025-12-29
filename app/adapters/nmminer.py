@@ -29,28 +29,31 @@ class NMMinerAdapter(MinerAdapter):
         Note: Telemetry collection happens via UDP listener service,
         not direct polling.
         """
+        print(f"🔍 NMMiner.get_telemetry() called for miner_id={self.miner_id}, ip={self.ip_address}")
+        print(f"   last_telemetry present: {self.last_telemetry is not None}")
+        
         # Try UDP broadcast data first
         if self.last_telemetry:
             try:
                 data = self.last_telemetry
                 
                 # Parse hashrate string (e.g., "1.0154MH/s" or "1013.4KH/s")
-                hashrate_gh = 0.0
+                hashrate_mh = 0.0
                 hashrate_str = data.get("HashRate", "0")
                 if isinstance(hashrate_str, str):
-                    # Remove units and convert to GH/s
-                    hashrate_str = hashrate_str.replace("MH/s", "").replace("KH/s", "").replace("H/s", "").strip()
+                    # Extract numeric value
+                    hashrate_clean = hashrate_str.replace("MH/s", "").replace("KH/s", "").replace("H/s", "").strip()
                     try:
-                        hashrate_val = float(hashrate_str)
-                        # NMMiner sends MH/s, we want GH/s
+                        hashrate_val = float(hashrate_clean)
+                        # Convert to MH/s
                         if "MH/s" in data.get("HashRate", ""):
-                            hashrate_gh = hashrate_val / 1000  # MH/s to GH/s
+                            hashrate_mh = hashrate_val  # Already MH/s
                         elif "KH/s" in data.get("HashRate", ""):
-                            hashrate_gh = hashrate_val / 1_000_000  # KH/s to GH/s
+                            hashrate_mh = hashrate_val / 1000  # KH/s to MH/s
                         else:
-                            hashrate_gh = hashrate_val / 1_000_000_000  # H/s to GH/s
+                            hashrate_mh = hashrate_val / 1_000_000  # H/s to MH/s
                     except ValueError:
-                        hashrate_gh = 0.0
+                        hashrate_mh = 0.0
                 
                 # Parse shares string (e.g., "0/0/0.0%" = "rejected/accepted/percent")
                 shares_accepted = 0
@@ -88,14 +91,14 @@ class NMMinerAdapter(MinerAdapter):
                 
                 return MinerTelemetry(
                     miner_id=self.miner_id,
-                    hashrate=hashrate_gh,
-                    hashrate_unit="GH/s",
+                    hashrate=hashrate_mh,
                     temperature=temperature,
                     power_watts=None,  # No power metrics available
                     shares_accepted=shares_accepted,
                     shares_rejected=shares_rejected,
                     pool_in_use=data.get("PoolInUse"),
                     extra_data={
+                        "hashrate_unit": "MH/s",
                         "rssi": data.get("RSSI"),
                         "uptime": uptime_seconds,
                         "firmware_version": data.get("Version"),
@@ -134,12 +137,13 @@ class NMMinerAdapter(MinerAdapter):
                         shares_accepted=db_telemetry.shares_accepted,
                         shares_rejected=db_telemetry.shares_rejected,
                         pool_in_use=db_telemetry.pool_in_use,
-                        extra_data=db_telemetry.data or {},
-                        timestamp=db_telemetry.timestamp
                     )
+                else:
+                    print(f"⚠️ No database telemetry found for NMMiner {self.miner_id}")
         except Exception as e:
             print(f"⚠️ Failed to fetch database telemetry fallback: {e}")
         
+        print(f"❌ NMMiner.get_telemetry() returning None for miner_id={self.miner_id}")
         return None
     
     def update_telemetry(self, telemetry_data: Dict):
