@@ -199,6 +199,9 @@ class CKPoolService:
             pool_ip: IP address of the CKPool instance
             pool_id: Database ID of the pool
             api_port: HTTP API port (default 80)
+            
+        Returns:
+            Latest network difficulty found in log, or 0.0 if not found
         """
         try:
             # Fetch the ckpool.log file
@@ -207,13 +210,14 @@ class CKPoolService:
                 async with session.get(url, timeout=10) as response:
                     if response.status != 200:
                         print(f"⚠️ Could not fetch ckpool.log from {pool_ip}: HTTP {response.status}")
-                        return
+                        return 0.0
                     
                     log_content = await response.text()
             
             # Parse log for "Submitting block data" entries
-            from core.database import AsyncSessionLocal, CKPoolBlock
+            from core.database import AsyncSessionLocal, CKPoolBlock, Pool
             from sqlalchemy import select
+            from datetime import datetime as dt
             import re
             
             async with AsyncSessionLocal() as db:
@@ -240,11 +244,10 @@ class CKPoolService:
                         # Extract timestamp from log line (format: [2025-12-29 09:15:23.456])
                         timestamp_match = re.search(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
                         if timestamp_match:
-                            from datetime import datetime
                             timestamp_str = timestamp_match.group(1)
-                            timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                            timestamp = dt.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
                         else:
-                            timestamp = datetime.utcnow()
+                            timestamp = dt.utcnow()
                         
                         # Extract block hash if this is a submission line
                         block_hash = None
@@ -285,14 +288,13 @@ class CKPoolService:
                 
                 # Update pool's network difficulty in database
                 if latest_network_diff > 0:
-                    from core.database import Pool
                     from sqlalchemy import select as sql_select
                     
                     pool_result = await db.execute(sql_select(Pool).where(Pool.id == pool_id))
                     pool = pool_result.scalar_one_or_none()
                     if pool:
                         pool.network_difficulty = latest_network_diff
-                        pool.network_difficulty_updated_at = datetime.utcnow()
+                        pool.network_difficulty_updated_at = dt.utcnow()
                         logger.info(f"Updated pool {pool_id} network difficulty to {latest_network_diff}")
                 
                 # Commit all changes (blocks + network difficulty)
