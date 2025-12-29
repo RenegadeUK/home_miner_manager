@@ -45,55 +45,47 @@ class MoneroWalletService:
         start_height: int = 0
     ) -> List[Dict[str, Any]]:
         """
-        Fetch transactions for a wallet using moneroexplorer.one API
+        Fetch P2Pool payouts using mini.p2pool.observer API
         
-        Uses the public API which requires view key to decrypt outputs
+        No view key needed - just wallet address
         """
         try:
             async with aiohttp.ClientSession() as session:
-                # Use moneroexplorer.one API to get outputs for wallet
-                url = f"https://moneroexplorer.one/api/outputs"
-                params = {
-                    "address": wallet_address,
-                    "viewkey": view_key,
-                    "limit": 100
-                }
+                # Use P2Pool Observer API - mini sidechain
+                url = f"https://mini.p2pool.observer/api/payouts/{wallet_address}"
                 
-                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
                     if response.status == 200:
                         data = await response.json()
-                        return MoneroWalletService._parse_transactions(data)
+                        return MoneroWalletService._parse_p2pool_payouts(data)
                     else:
-                        logger.warning(f"Failed to fetch transactions: HTTP {response.status}")
+                        logger.warning(f"Failed to fetch P2Pool payouts: HTTP {response.status}")
                         return []
         except Exception as e:
-            logger.error(f"Error fetching Monero transactions: {e}")
+            logger.error(f"Error fetching P2Pool payouts: {e}")
             return []
     
     @staticmethod
-    def _parse_transactions(data: Dict) -> List[Dict[str, Any]]:
-        """Parse transaction data from API response"""
+    def _parse_p2pool_payouts(data: List) -> List[Dict[str, Any]]:
+        """Parse P2Pool payout data from API response"""
         transactions = []
         
-        if not isinstance(data, dict):
+        if not isinstance(data, list):
             return transactions
         
-        # Parse outputs/blocks data structure
-        outputs = data.get("outputs", [])
-        
-        for output in outputs:
+        for payout in data:
             try:
                 tx = {
-                    "tx_hash": output.get("tx_hash", ""),
-                    "amount_xmr": float(output.get("amount", 0)) / 1e12,  # Convert from atomic units
-                    "block_height": int(output.get("block_no", 0)),
-                    "timestamp": datetime.fromtimestamp(int(output.get("timestamp", 0))),
-                    "unlock_time": int(output.get("unlock_time", 0)),
-                    "confirmations": int(output.get("confirmations", 0))
+                    "tx_hash": payout.get("coinbase_id", ""),
+                    "amount_xmr": float(payout.get("coinbase_reward", 0)) / 1e12,  # Convert from atomic units
+                    "block_height": int(payout.get("main_height", 0)),
+                    "timestamp": datetime.fromtimestamp(int(payout.get("timestamp", 0))),
+                    "unlock_time": int(payout.get("including_height", 0)) + 60,  # Monero unlocks after 60 blocks
+                    "confirmations": 10  # Assume confirmed if in API
                 }
                 transactions.append(tx)
             except Exception as e:
-                logger.error(f"Error parsing transaction: {e}")
+                logger.error(f"Error parsing P2Pool payout: {e}")
                 continue
         
         return transactions
@@ -216,39 +208,34 @@ class MoneroWalletService:
     @staticmethod
     async def get_current_balance() -> float:
         """
-        Get actual current spendable balance from blockchain
-        This queries the live balance accounting for withdrawals
+        Get current balance from sum of all P2Pool payouts
+        Note: This doesn't account for withdrawals - shows total mined
         """
         if not MoneroWalletService.is_enabled():
             return 0.0
         
         wallet_address = MoneroWalletService.get_wallet_address()
-        view_key = MoneroWalletService.get_view_key()
         
-        if not wallet_address or not view_key:
+        if not wallet_address:
             return 0.0
         
         try:
             async with aiohttp.ClientSession() as session:
-                # Use moneroexplorer.one API to get current balance
-                url = "https://moneroexplorer.one/api/balance"
-                params = {
-                    "address": wallet_address,
-                    "viewkey": view_key
-                }
+                # Use P2Pool Observer API
+                url = f"https://mini.p2pool.observer/api/payouts/{wallet_address}"
                 
-                async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
                     if response.status == 200:
                         data = await response.json()
-                        # Balance is returned in atomic units (piconero)
-                        balance_atomic = data.get("balance", {}).get("total", 0)
-                        balance_xmr = float(balance_atomic) / 1e12
-                        return max(0.0, balance_xmr)  # Ensure non-negative
+                        # Sum all payouts
+                        total_atomic = sum(payout.get("coinbase_reward", 0) for payout in data)
+                        balance_xmr = float(total_atomic) / 1e12
+                        return balance_xmr
                     else:
-                        logger.warning(f"Failed to fetch balance: HTTP {response.status}")
+                        logger.warning(f"Failed to fetch P2Pool balance: HTTP {response.status}")
                         return 0.0
         except Exception as e:
-            logger.error(f"Error fetching Monero balance: {e}")
+            logger.error(f"Error fetching P2Pool balance: {e}")
             return 0.0
     
     @staticmethod

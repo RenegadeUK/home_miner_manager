@@ -189,7 +189,7 @@ class SchedulerService:
         
         self.scheduler.add_job(
             self._sync_p2pool_transactions,
-            IntervalTrigger(minutes=5),
+            IntervalTrigger(hours=1),
             id="sync_p2pool_transactions",
             name="Sync P2Pool wallet transactions"
         )
