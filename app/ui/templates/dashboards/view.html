@@ -676,7 +676,7 @@ function formatWidgetData(widgetType, data) {
         case 'ckpool_luck':
             return `
                 <div class="widget-stat">
-                    <div class="widget-stat-value">${data.round_luck}%</div>
+                    <div class="widget-stat-value">${Math.round(data.round_luck)}%</div>
                     <div class="widget-stat-label">Round Luck</div>
                 </div>
                 <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
