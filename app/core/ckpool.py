@@ -198,7 +198,7 @@ class CKPoolService:
     @staticmethod
     async def fetch_and_cache_blocks(pool_ip: str, pool_id: int, api_port: int = DEFAULT_API_PORT):
         """
-        Fetch ckpool.log from remote server and cache block finds to database
+        Fetch ckpool.log from remote server and cache block submissions to database
         
         Args:
             pool_ip: IP address of the CKPool instance
@@ -257,7 +257,7 @@ class CKPoolService:
                 
                 if new_blocks > 0:
                     await db.commit()
-                    print(f"✅ Cached {new_blocks} new block(s) from CKPool {pool_ip}")
+                    print(f"✅ Cached {new_blocks} new block submission(s) from CKPool {pool_ip}")
         
         except Exception as e:
             print(f"❌ Failed to fetch/cache CKPool blocks from {pool_ip}: {e}")
@@ -265,13 +265,13 @@ class CKPoolService:
     @staticmethod
     async def get_blocks_24h(pool_id: int) -> int:
         """
-        Get count of blocks found in last 24 hours for a CKPool instance
+        Get count of blocks submitted in last 24 hours for a CKPool instance
         
         Args:
             pool_id: Database ID of the pool
             
         Returns:
-            Number of blocks found in last 24 hours
+            Number of blocks submitted in last 24 hours
         """
         try:
             from core.database import AsyncSessionLocal, CKPoolBlock

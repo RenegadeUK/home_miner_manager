@@ -552,7 +552,7 @@ async def get_ckpool_workers_widget(db: AsyncSession = Depends(get_db)):
 
 @router.get("/widgets/ckpool-luck")
 async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
-    """Get CKPool round luck (bestshare/difficulty) and blocks found in 24h"""
+    """Get CKPool round luck (bestshare/difficulty) and blocks submitted in 24h"""
     from core.ckpool import CKPoolService
     
     # Find all CKPool pools
@@ -578,7 +578,7 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
                 difficulty = stats["difficulty"]  # Use last pool's difficulty
                 pool_count += 1
             
-            # Get blocks found in last 24h
+            # Get blocks submitted in last 24h
             blocks_24h = await CKPoolService.get_blocks_24h(pool.id)
             total_blocks_24h += blocks_24h
     

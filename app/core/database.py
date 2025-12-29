@@ -260,7 +260,7 @@ class TuningProfile(Base):
 
 
 class CKPoolBlock(Base):
-    """CKPool blocks found tracking"""
+    """CKPool blocks submitted tracking"""
     __tablename__ = "ckpool_blocks"
     
     id: Mapped[int] = mapped_column(primary_key=True)
