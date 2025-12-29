@@ -597,13 +597,13 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
             raw_stats = await CKPoolService.get_pool_stats(pool.url)
             if raw_stats:
                 stats = CKPoolService.format_stats_summary(raw_stats)
-                # If block found since 9am today, reset best_share to 0 (new round)
-                # If no block found since 9am, also reset to 0 (don't count old shares)
-                if not block_found_recently:
-                    # Only count best_share if we haven't found a block since 9am
-                    # But we still reset the display to start fresh from 9am each day
-                    best_share = 0  # Reset - only count shares from 9am onwards
-                difficulty = stats["difficulty"]  # Use last pool's difficulty
+                # If block found recently, reset to 0 (new round started)
+                # Otherwise, use the current best_share from pool stats
+                if block_found_recently:
+                    best_share = 0  # New round after block found
+                else:
+                    best_share = stats.get("best_share", 0)  # Current round progress
+                difficulty = stats["difficulty"]
                 pool_count += 1
             
             # Get blocks SUBMITTED (not accepted) in last 24h
