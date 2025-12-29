@@ -631,7 +631,7 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db)):
         "best_share": best_share,
         "network_difficulty": network_difficulty,
         "blocks_submitted_24h": total_blocks_submitted_24h,
-        "luck_display": f"{round_luck:.1f}%",
+        "luck_display": f"{round_luck:.0f}%",
         "block_found_recently": block_found_recently,
         "status": "online"
     }
