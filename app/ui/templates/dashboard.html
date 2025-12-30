@@ -731,7 +731,7 @@ async function loadCKPoolStats() {
             return;
         }
         
-        // For each coin, build stat cards
+        // For each coin, build stat cards (only if workers > 0)
         let statCardsHtml = '';
         
         for (const coinType of coinsData.coins) {
@@ -747,6 +747,11 @@ async function loadCKPoolStats() {
             const luckData = await luckResp.json();
             const blocksData = await blocksResp.json();
             const rewardData = await rewardResp.json();
+            
+            // Skip if no workers connected for this coin
+            if (workersData.workers === 0) {
+                continue;
+            }
         
             
             // Coin-specific logos
@@ -782,6 +787,12 @@ async function loadCKPoolStats() {
                     <div class="stat-value" style="font-size: 1.25rem;">${rewardData.coins_display}<br><span style="font-size: 0.9rem; color: var(--text-secondary);">${rewardData.value_display}${cacheAgeIndicator}</span></div>
                 </div>
             `;
+        }
+        
+        // Hide section if no active workers on any coin
+        if (statCardsHtml === '') {
+            statsDiv.style.display = 'none';
+            return;
         }
         
         statsDiv.innerHTML = `<div class="stats-grid">${statCardsHtml}</div>`;
