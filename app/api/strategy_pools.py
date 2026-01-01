@@ -299,7 +299,9 @@ async def get_available_pools_for_strategy(
         ]
         
     else:
-        # MIXED device types
+        # MIXED device types - Avalon Nanos are the constraint, so limit to their slots
+        warning = f"Mixed devices selected ({len(avalon_miners)} Avalon Nano, {len(other_miners)} other miners). Showing pools available in Avalon Nano slots. Bitaxe/NMMiner can dynamically use any of these pools."
+        
         # Get Avalon pool slots
         avalon_miner_ids = [m.id for m in avalon_miners]
         result = await db.execute(
@@ -309,36 +311,59 @@ async def get_available_pools_for_strategy(
         )
         slots = list(result.scalars().all())
         
-        avalon_pool_ids = set()
-        if slots:
-            for slot in slots:
-                if slot.pool_id:
-                    avalon_pool_ids.add(slot.pool_id)
+        if not slots:
+            warning = f"Mixed devices selected ({len(avalon_miners)} Avalon Nano, {len(other_miners)} other miners). ⚠️ Avalon pool slots not yet synced. Please wait for slot sync (runs every 15 minutes)."
+            return AvailablePoolsResponse(
+                has_avalon_nano=True,
+                has_bitaxe_or_nerdqaxe=True,
+                has_mixed_types=True,
+                warning_message=warning,
+                pools=[]
+            )
         
-        # Set warning based on whether we have slot data
-        if not avalon_pool_ids:
-            warning = f"Mixed devices selected ({len(avalon_miners)} Avalon Nano, {len(other_miners)} Bitaxe/NerdQaxe). ⚠️ Avalon pool slots not yet synced - all pools shown but Avalon miners may only switch to pools in their configured slots."
-        else:
-            warning = f"Mixed devices selected ({len(avalon_miners)} Avalon Nano, {len(other_miners)} Bitaxe/NerdQaxe). Pools marked 'All Devices' work for both types; others work only for Bitaxe/NerdQaxe."
+        # Find pools that exist in ALL Avalon miners (intersection logic)
+        pool_id_counts = {}
+        for slot in slots:
+            if slot.pool_id:
+                pool_id_counts[slot.pool_id] = pool_id_counts.get(slot.pool_id, 0) + 1
         
-        # Get all enabled pools
+        # Pools that appear in all Avalon miners
+        common_pool_ids = [
+            pool_id for pool_id, count in pool_id_counts.items()
+            if count == len(avalon_miners)
+        ]
+        
+        if not common_pool_ids:
+            warning = f"Mixed devices selected. No common pools found across all {len(avalon_miners)} Avalon Nano miners. Each has different pools in their 3 slots."
+            return AvailablePoolsResponse(
+                has_avalon_nano=True,
+                has_bitaxe_or_nerdqaxe=True,
+                has_mixed_types=True,
+                warning_message=warning,
+                pools=[]
+            )
+        
+        # Get pool details for common pools
         result = await db.execute(
-            select(Pool).where(Pool.enabled == True).order_by(Pool.name)
+            select(Pool).where(
+                and_(
+                    Pool.id.in_(common_pool_ids),
+                    Pool.enabled == True
+                )
+            ).order_by(Pool.name)
         )
-        all_pools = result.scalars().all()
+        common_pools = result.scalars().all()
         
-        # Filter out XMR pools (CPU-only, not compatible with ASIC miners)
-        compatible_pools = [p for p in all_pools if not is_xmr_pool(p)]
+        # Filter out XMR pools
+        compatible_pools = [p for p in common_pools if not is_xmr_pool(p)]
         
-        # If we have slot data, mark pools appropriately
-        # If no slot data, assume all pools might work (with warning above)
         available_pools = [
             PoolOption(
                 id=p.id,
                 name=p.name,
                 url=p.url,
                 port=p.port,
-                available_for_all=(p.id in avalon_pool_ids) if avalon_pool_ids else True,
+                available_for_all=True,  # All shown pools work for all selected devices
                 avalon_only=False
             )
             for p in compatible_pools
