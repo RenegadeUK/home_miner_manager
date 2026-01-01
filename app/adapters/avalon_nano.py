@@ -47,12 +47,38 @@ class AvalonNanoAdapter(MinerAdapter):
             power_watts = self._calculate_power(estats)
             current_mode = self._detect_current_mode(estats)
             
-            # Get active pool
+            # Get active pool and difficulty
             pool_in_use = None
+            pool_difficulty = None
+            last_share_difficulty = None
+            work_difficulty = None
+            pool_rejected_pct = None
+            pool_stale_pct = None
+            stale_shares = None
             if pools and "POOLS" in pools:
                 for pool in pools["POOLS"]:
                     if pool.get("Status") == "Alive" and pool.get("Priority") == 0:
                         pool_in_use = pool.get("URL")
+                        last_share_difficulty = pool.get("Last Share Difficulty")
+                        work_difficulty = pool.get("Work Difficulty")
+                        pool_rejected_pct = pool.get("Pool Rejected%")
+                        pool_stale_pct = pool.get("Pool Stale%")
+                        stale_shares = pool.get("Stale")
+                        
+                        # Try to find pool difficulty from various possible fields
+                        pool_difficulty = (
+                            pool.get("Diff") or 
+                            pool.get("Difficulty") or 
+                            pool.get("Stratum Difficulty") or
+                            pool.get("Current Diff") or
+                            pool.get("Pool Diff")
+                        )
+                        
+                        # Debug: Log available pool fields once
+                        if pool_difficulty is None and not hasattr(self, '_logged_pool_fields'):
+                            logger.info(f"Available pool fields for {self.miner_name}: {list(pool.keys())}")
+                            self._logged_pool_fields = True
+                        
                         break
             
             # Extract additional useful stats
@@ -66,10 +92,19 @@ class AvalonNanoAdapter(MinerAdapter):
                 "elapsed": summary_data.get("Elapsed"),  # Uptime in seconds
                 "difficulty_accepted": summary_data.get("Difficulty Accepted"),
                 "difficulty_rejected": summary_data.get("Difficulty Rejected"),
+                "difficulty": pool_difficulty,  # Current pool difficulty
+                "last_share_difficulty": last_share_difficulty,  # Last submitted share difficulty
+                "work_difficulty": work_difficulty,  # Current work difficulty target
                 "work_utility": summary_data.get("Work Utility"),
                 "total_mh": summary_data.get("Total MH"),
                 "remote_failures": summary_data.get("Remote Failures", 0),
-                "network_blocks": summary_data.get("Network Blocks")
+                "get_failures": summary_data.get("Get Failures", 0),
+                "network_blocks": summary_data.get("Network Blocks"),
+                "stale_shares": stale_shares or summary_data.get("Stale", 0),
+                "pool_rejected_pct": pool_rejected_pct,
+                "pool_stale_pct": pool_stale_pct,
+                "device_hardware_pct": summary_data.get("Device Hardware%"),
+                "device_rejected_pct": summary_data.get("Device Rejected%")
             }
             
             return MinerTelemetry(

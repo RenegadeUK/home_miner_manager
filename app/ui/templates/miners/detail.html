@@ -102,6 +102,82 @@
                         <div class="stat-label">Rejected</div>
                         <div class="stat-value" id="shares-rejected">--</div>
                     </div>
+                    {% if miner.miner_type == 'avalon_nano' %}
+                    <div class="stat-box">
+                        <div class="stat-label">Diff. Accepted</div>
+                        <div class="stat-value" id="diff-accepted">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Diff. Rejected</div>
+                        <div class="stat-value" id="diff-rejected">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Pool Difficulty</div>
+                        <div class="stat-value" id="pool-difficulty">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Last Share Diff</div>
+                        <div class="stat-value" id="last-share-diff">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Work Difficulty</div>
+                        <div class="stat-value" id="work-difficulty">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Stale Shares</div>
+                        <div class="stat-value" id="stale-shares">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Pool Reject %</div>
+                        <div class="stat-value" id="pool-reject-pct">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Pool Stale %</div>
+                        <div class="stat-value" id="pool-stale-pct">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Device HW %</div>
+                        <div class="stat-value" id="device-hw-pct">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Device Reject %</div>
+                        <div class="stat-value" id="device-reject-pct">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Get Failures</div>
+                        <div class="stat-value" id="get-failures">--</div>
+                    </div>
+                    {% endif %}
+                    {% if miner.miner_type == 'bitaxe' or miner.miner_type == 'nerdqaxe' %}
+                    <div class="stat-box">
+                        <div class="stat-label">Pool Difficulty</div>
+                        <div class="stat-value" id="pool-difficulty">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Best Difficulty</div>
+                        <div class="stat-value" id="best-difficulty">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Best Session Diff</div>
+                        <div class="stat-value" id="best-session-diff">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Stratum Diff</div>
+                        <div class="stat-value" id="stratum-diff">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Network Difficulty</div>
+                        <div class="stat-value" id="network-diff">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Pool Response</div>
+                        <div class="stat-value" id="pool-response">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Error Rate</div>
+                        <div class="stat-value" id="error-rate">--</div>
+                    </div>
+                    {% endif %}
                     <div class="stat-box">
                         <div class="stat-label">24h Cost</div>
                         <div class="stat-value" id="cost-24h">--</div>
@@ -672,6 +748,106 @@ async function loadTelemetry(forceLive = false) {
             
             // Populate additional stats
             const extra = telemetry.extra_data || {};
+            
+            // Difficulty stats (Avalon Nano only)
+            if (document.getElementById('diff-accepted')) {
+                const diffAccepted = extra.difficulty_accepted || 0;
+                document.getElementById('diff-accepted').textContent = diffAccepted > 1000000 
+                    ? (diffAccepted / 1000000).toFixed(2) + 'M' 
+                    : diffAccepted.toLocaleString();
+            }
+            if (document.getElementById('diff-rejected')) {
+                const diffRejected = extra.difficulty_rejected || 0;
+                document.getElementById('diff-rejected').textContent = diffRejected > 1000000 
+                    ? (diffRejected / 1000000).toFixed(2) + 'M' 
+                    : diffRejected.toLocaleString();
+            }
+            if (document.getElementById('pool-difficulty')) {
+                const poolDiff = extra.difficulty || 0;
+                document.getElementById('pool-difficulty').textContent = poolDiff > 1000000 
+                    ? (poolDiff / 1000000).toFixed(2) + 'M' 
+                    : (poolDiff > 0 ? poolDiff.toLocaleString() : '--');
+            }
+            if (document.getElementById('last-share-diff')) {
+                const lastShareDiff = extra.last_share_difficulty || 0;
+                document.getElementById('last-share-diff').textContent = lastShareDiff > 1000000 
+                    ? (lastShareDiff / 1000000).toFixed(2) + 'M' 
+                    : (lastShareDiff > 0 ? lastShareDiff.toLocaleString() : '--');
+            }
+            if (document.getElementById('work-difficulty')) {
+                const workDiff = extra.work_difficulty || 0;
+                document.getElementById('work-difficulty').textContent = workDiff > 1000000 
+                    ? (workDiff / 1000000).toFixed(2) + 'M' 
+                    : (workDiff > 0 ? workDiff.toLocaleString() : '--');
+            }
+            if (document.getElementById('stale-shares')) {
+                document.getElementById('stale-shares').textContent = extra.stale_shares || 0;
+            }
+            if (document.getElementById('pool-reject-pct')) {
+                const poolRejectPct = extra.pool_rejected_pct;
+                document.getElementById('pool-reject-pct').textContent = poolRejectPct !== undefined && poolRejectPct !== null
+                    ? poolRejectPct.toFixed(2) + '%'
+                    : '--';
+            }
+            if (document.getElementById('pool-stale-pct')) {
+                const poolStalePct = extra.pool_stale_pct;
+                document.getElementById('pool-stale-pct').textContent = poolStalePct !== undefined && poolStalePct !== null
+                    ? poolStalePct.toFixed(2) + '%'
+                    : '--';
+            }
+            if (document.getElementById('device-hw-pct')) {
+                const deviceHwPct = extra.device_hardware_pct;
+                document.getElementById('device-hw-pct').textContent = deviceHwPct !== undefined && deviceHwPct !== null
+                    ? deviceHwPct.toFixed(4) + '%'
+                    : '--';
+            }
+            if (document.getElementById('device-reject-pct')) {
+                const deviceRejectPct = extra.device_rejected_pct;
+                document.getElementById('device-reject-pct').textContent = deviceRejectPct !== undefined && deviceRejectPct !== null
+                    ? deviceRejectPct.toFixed(2) + '%'
+                    : '--';
+            }
+            if (document.getElementById('get-failures')) {
+                document.getElementById('get-failures').textContent = extra.get_failures || 0;
+            }
+            
+            // Difficulty stats (Bitaxe/NerdQaxe)
+            if (document.getElementById('best-difficulty')) {
+                const bestDiff = extra.best_diff || 0;
+                document.getElementById('best-difficulty').textContent = bestDiff > 1000000 
+                    ? (bestDiff / 1000000).toFixed(2) + 'M' 
+                    : (bestDiff > 0 ? bestDiff.toLocaleString() : '--');
+            }
+            if (document.getElementById('best-session-diff')) {
+                const bestSessionDiff = extra.best_session_diff || 0;
+                document.getElementById('best-session-diff').textContent = bestSessionDiff > 1000000 
+                    ? (bestSessionDiff / 1000000).toFixed(2) + 'M' 
+                    : (bestSessionDiff > 0 ? bestSessionDiff.toLocaleString() : '--');
+            }
+            if (document.getElementById('stratum-diff')) {
+                const stratumDiff = extra.stratum_suggested_difficulty || 0;
+                document.getElementById('stratum-diff').textContent = stratumDiff > 1000000 
+                    ? (stratumDiff / 1000000).toFixed(2) + 'M' 
+                    : (stratumDiff > 0 ? stratumDiff.toLocaleString() : '--');
+            }
+            if (document.getElementById('network-diff')) {
+                const networkDiff = extra.network_difficulty || 0;
+                document.getElementById('network-diff').textContent = networkDiff > 1000000000 
+                    ? (networkDiff / 1000000000).toFixed(2) + 'B' 
+                    : networkDiff > 1000000 
+                        ? (networkDiff / 1000000).toFixed(2) + 'M' 
+                        : (networkDiff > 0 ? networkDiff.toLocaleString() : '--');
+            }
+            if (document.getElementById('pool-response')) {
+                const responseTime = extra.response_time || 0;
+                document.getElementById('pool-response').textContent = responseTime > 0 
+                    ? responseTime.toFixed(1) + ' ms' 
+                    : '--';
+            }
+            if (document.getElementById('error-rate')) {
+                const errorPct = extra.error_percentage || 0;
+                document.getElementById('error-rate').textContent = errorPct.toFixed(2) + '%';
+            }
             
             // Best share (Avalon) or Best difficulty (Bitaxe)
             const bestShare = extra.best_share || extra.best_diff || extra.best_session_diff;

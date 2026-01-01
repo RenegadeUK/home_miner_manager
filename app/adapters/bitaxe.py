@@ -70,7 +70,12 @@ class BitaxeAdapter(MinerAdapter):
                             "fan_rpm": data.get("fanRpm"),
                             "vr_temp": data.get("vrTemp"),
                             "small_core_count": data.get("smallCoreCount"),
-                            "difficulty": data.get("difficulty")
+                            "difficulty": data.get("poolDifficulty"),
+                            "network_difficulty": data.get("networkDifficulty"),
+                            "stratum_suggested_difficulty": data.get("stratumSuggestedDifficulty"),
+                            "response_time": data.get("responseTime"),
+                            "error_percentage": data.get("errorPercentage"),
+                            "block_height": data.get("blockHeight")
                         }
                     )
         except Exception as e:
