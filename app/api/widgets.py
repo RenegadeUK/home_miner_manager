@@ -605,6 +605,7 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str =
     total_blocks_submitted_24h = 0
     block_found_recently = False
     network_difficulty = 0.0
+    best_share_updated_at = None
     
     # Hard cutoff: 29 December 2025 at 9am UK time - ignore anything before this (ONE-TIME)
     uk_tz = pytz.timezone('Europe/London')
@@ -647,12 +648,29 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str =
             raw_stats = await CKPoolService.get_pool_stats(pool.url)
             if raw_stats:
                 stats = CKPoolService.format_stats_summary(raw_stats)
+                current_best_share = stats.get("best_share", 0)
+                
                 # If block found recently, reset to 0 (new round started)
-                # Otherwise, use the current best_share from pool stats
                 if block_found_recently:
                     best_share = 0  # New round after block found
+                    # Reset tracking in database
+                    pool.best_share = 0
+                    pool.best_share_updated_at = datetime.utcnow()
+                    await db.commit()
+                    best_share_updated_at = pool.best_share_updated_at
                 else:
-                    best_share = stats.get("best_share", 0)  # Current round progress
+                    best_share = current_best_share  # Current round progress
+                    
+                    # Track best_share improvements
+                    if pool.best_share is None or current_best_share > pool.best_share:
+                        # Best share improved!
+                        pool.best_share = current_best_share
+                        pool.best_share_updated_at = datetime.utcnow()
+                        await db.commit()
+                    
+                    # Use stored timestamp
+                    best_share_updated_at = pool.best_share_updated_at
+                
                 pool_count += 1
             
             # Get blocks SUBMITTED (not accepted) in last 24h
@@ -666,8 +684,36 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str =
             "network_difficulty": 0.0,
             "blocks_submitted_24h": 0,
             "luck_display": "0%",
+            "time_since_improvement": None,
             "status": "offline"
         }
+    
+    # Calculate time since last improvement (same format as P2Pool)
+    time_since_improvement = None
+    if best_share_updated_at:
+        elapsed = datetime.utcnow() - best_share_updated_at
+        total_seconds = int(elapsed.total_seconds())
+        days = total_seconds // 86400
+        hours = (total_seconds % 86400) // 3600
+        minutes = (total_seconds % 3600) // 60
+        seconds = total_seconds % 60
+        
+        if days > 0:
+            if hours > 0 and minutes > 0:
+                time_since_improvement = f"{days}d {hours}h {minutes}m"
+            elif hours > 0:
+                time_since_improvement = f"{days}d {hours}h"
+            else:
+                time_since_improvement = f"{days}d"
+        elif hours > 0:
+            if minutes > 0:
+                time_since_improvement = f"{hours}h {minutes}m"
+            else:
+                time_since_improvement = f"{hours}h"
+        elif minutes > 0:
+            time_since_improvement = f"{minutes}m {seconds}s"
+        else:
+            time_since_improvement = f"{seconds}s"
     
     # Calculate round luck percentage using network difficulty
     round_luck = (best_share / network_difficulty * 100) if network_difficulty > 0 else 0.0
@@ -679,6 +725,7 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str =
         "blocks_submitted_24h": total_blocks_submitted_24h,
         "luck_display": f"{round_luck:.0f}%",
         "block_found_recently": block_found_recently,
+        "time_since_improvement": time_since_improvement,
         "status": "online"
     }
 

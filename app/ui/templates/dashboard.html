@@ -817,7 +817,7 @@ async function loadCKPoolStats() {
                         <div class="stat-label">${coinLogo}Current Round Luck</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${Math.round(luckData.round_luck)}%
-                            <br><small style="color: var(--text-secondary); font-size: 0.875rem;">Shares: ${luckData.blocks_submitted_24h.toLocaleString()}</small>
+                            <br><small style="color: var(--text-secondary); font-size: 0.875rem;">${luckData.time_since_improvement || 'No improvement yet'}</small>
                         </div>
                     </div>
                     <div class="stat-card">

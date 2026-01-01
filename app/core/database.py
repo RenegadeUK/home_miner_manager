@@ -46,6 +46,8 @@ class Pool(Base):
     priority: Mapped[int] = mapped_column(Integer, default=0)  # For load balancing weight
     network_difficulty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # For CKPool: DGB network difficulty
     network_difficulty_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    best_share: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # For CKPool: current best share in round
+    best_share_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When best_share last improved
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

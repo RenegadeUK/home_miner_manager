@@ -460,3 +460,22 @@ async def run_migrations():
             print("✓ Added network_difficulty_updated_at column to pools")
         except Exception:
             pass
+        
+        # Migration: Add best_share tracking columns to pools table for CKPool
+        try:
+            await conn.execute(text("""
+                ALTER TABLE pools 
+                ADD COLUMN best_share FLOAT
+            """))
+            print("✓ Added best_share column to pools")
+        except Exception:
+            pass
+        
+        try:
+            await conn.execute(text("""
+                ALTER TABLE pools 
+                ADD COLUMN best_share_updated_at DATETIME
+            """))
+            print("✓ Added best_share_updated_at column to pools")
+        except Exception:
+            pass
