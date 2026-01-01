@@ -3,7 +3,8 @@ Solopool.org integration service
 """
 import aiohttp
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
+from core.utils import format_time_elapsed
 
 
 class SolopoolService:
