@@ -16,6 +16,33 @@ class CKPoolService:
     DEFAULT_API_PORT = 80
     
     @staticmethod
+    def calculate_effort_percent(hashrate_gh: float, time_seconds: int, network_difficulty: float) -> float:
+        """
+        Calculate mining effort percentage.
+        
+        Args:
+            hashrate_gh: Average hashrate in GH/s
+            time_seconds: Time elapsed in seconds
+            network_difficulty: Current network difficulty
+            
+        Returns:
+            Effort percentage (100% = exactly one difficulty worth of hashes)
+        """
+        if hashrate_gh <= 0 or time_seconds <= 0 or network_difficulty <= 0:
+            return 100.0  # Default if inputs invalid
+        
+        # Total hashes performed
+        total_hashes = hashrate_gh * 1_000_000_000 * time_seconds
+        
+        # Expected hashes for one difficulty (2^32 hashes per difficulty unit)
+        difficulty_hashes = network_difficulty * (2 ** 32)
+        
+        # Effort percentage
+        effort = (total_hashes / difficulty_hashes) * 100
+        
+        return round(effort, 2)
+    
+    @staticmethod
     def is_ckpool(pool_name: str) -> bool:
         """
         Check if a pool is a CKPool instance by name.
@@ -296,6 +323,79 @@ class CKPoolService:
                             log_entry=line
                         )
                         db.add(block)
+                        
+                        # Also write to metrics table if this is an accepted block with complete data
+                        if is_accepted and block_hash and block_height:
+                            try:
+                                from core.database import CKPoolBlockMetrics
+                                
+                                # Get pool info for coin extraction and network difficulty
+                                pool_result = await db.execute(select(Pool).where(Pool.id == pool_id))
+                                pool = pool_result.scalar_one_or_none()
+                                
+                                if pool:
+                                    # Extract coin from pool name
+                                    coin = "UNKNOWN"
+                                    pool_name_upper = (pool.name or "").upper()
+                                    if "DGB" in pool_name_upper:
+                                        coin = "DGB"
+                                    elif "BCH" in pool_name_upper:
+                                        coin = "BCH"
+                                    elif "BTC" in pool_name_upper or "BITCOIN" in pool_name_upper:
+                                        coin = "BTC"
+                                    
+                                    # Get network difficulty from pool (already updated or will be updated in this same function)
+                                    network_diff = pool.network_difficulty or latest_network_diff or 1.0
+                                    
+                                    # Get current hashrate from pool stats
+                                    pool_stats = await CKPoolService.get_pool_stats(pool_ip, api_port, use_cache=False)
+                                    hashrate_gh = 0.0
+                                    if pool_stats and "hashrate_1h_gh" in pool_stats:
+                                        hashrate_gh = pool_stats["hashrate_1h_gh"]
+                                    
+                                    # Calculate time since last accepted block
+                                    time_to_block_seconds = None
+                                    effort_percent = 100.0  # Default
+                                    
+                                    if hashrate_gh > 0 and network_diff > 0:
+                                        # Query last accepted block from metrics table
+                                        last_block_result = await db.execute(
+                                            select(CKPoolBlockMetrics)
+                                            .where(CKPoolBlockMetrics.pool_id == pool_id)
+                                            .where(CKPoolBlockMetrics.coin == coin)
+                                            .order_by(CKPoolBlockMetrics.timestamp.desc())
+                                            .limit(1)
+                                        )
+                                        last_block = last_block_result.scalar_one_or_none()
+                                        
+                                        if last_block:
+                                            time_diff = timestamp - last_block.timestamp
+                                            time_to_block_seconds = int(time_diff.total_seconds())
+                                            
+                                            # Calculate effort
+                                            if time_to_block_seconds > 0:
+                                                effort_percent = CKPoolService.calculate_effort_percent(
+                                                    hashrate_gh, time_to_block_seconds, network_diff
+                                                )
+                                    
+                                    # Create metrics entry
+                                    metrics = CKPoolBlockMetrics(
+                                        pool_id=pool_id,
+                                        coin=coin,
+                                        timestamp=timestamp,
+                                        block_height=block_height,
+                                        block_hash=block_hash,
+                                        effort_percent=effort_percent,
+                                        time_to_block_seconds=time_to_block_seconds,
+                                        confirmed_reward_coins=None  # Will be updated later via explorer
+                                    )
+                                    db.add(metrics)
+                                    logger.info(f"✅ Added CKPool metrics for block {block_height}: {effort_percent}% effort")
+                            
+                            except Exception as e:
+                                # Never let metrics write break the main block tracking
+                                logger.error(f"⚠️ Failed to write CKPool metrics for block {block_height}: {e}")
+                        
                         new_blocks += 1
                         
                         # Update tracking sets to avoid duplicates within same log parse
