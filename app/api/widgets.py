@@ -883,11 +883,12 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db), coin: str
             
             for block in blocks:
                 total_blocks_all_time += 1
-                # Use confirmed reward if available, otherwise estimate
+                # Use confirmed reward if available from blockchain explorer, otherwise use fallback
                 if block.confirmed_reward_coins and block.confirmed_from_explorer:
                     total_confirmed_rewards += block.confirmed_reward_coins
                 else:
                     # Fallback to estimated reward (current block rewards as of January 2025)
+                    # This applies to accepted blocks that haven't been verified via explorer yet
                     if coin_type == 'BTC' or coin_type == 'BCH':
                         total_confirmed_rewards += 3.125
                     elif coin_type == 'DGB':
@@ -933,7 +934,7 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db), coin: str
     # Format coin display
     coin_symbol = coin_type or "COIN"
     if coin_type == 'DGB':
-        coins_display = f"{total_confirmed_rewards:,.2f} {coin_symbol}"
+        coins_display = f"{total_confirmed_rewards:.8f} {coin_symbol}"
     else:
         coins_display = f"{total_confirmed_rewards:.8f} {coin_symbol}"
     

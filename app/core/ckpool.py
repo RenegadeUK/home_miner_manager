@@ -221,11 +221,12 @@ class CKPoolService:
             import re
             
             async with AsyncSessionLocal() as db:
-                # Get existing blocks to avoid duplicates
+                # Get existing blocks to avoid duplicates - check by timestamp + pool_id combination
                 result = await db.execute(
-                    select(CKPoolBlock.log_entry).where(CKPoolBlock.pool_id == pool_id)
+                    select(CKPoolBlock).where(CKPoolBlock.pool_id == pool_id)
                 )
-                existing_entries = {row[0] for row in result.all()}
+                existing_blocks = result.scalars().all()
+                existing_keys = {(b.timestamp, b.block_accepted) for b in existing_blocks}
                 
                 # Parse log lines for both submitted and accepted blocks
                 # Pattern: "Submitting block <hash>" followed by "BLOCK ACCEPTED by network"
@@ -237,10 +238,6 @@ class CKPoolService:
                     is_accepted = "BLOCK ACCEPTED" in line
                     
                     if is_submitted or is_accepted:
-                        # Avoid duplicate entries
-                        if line in existing_entries:
-                            continue
-                        
                         # Extract timestamp from log line (format: [2025-12-29 09:15:23.456])
                         timestamp_match = re.search(r'\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})', line)
                         if timestamp_match:
@@ -249,26 +246,34 @@ class CKPoolService:
                         else:
                             timestamp = dt.utcnow()
                         
+                        # Avoid duplicate entries by timestamp + accepted status
+                        if (timestamp, is_accepted) in existing_keys:
+                            continue
+                        
                         # Extract block hash if this is a submission line
                         block_hash = None
+                        block_height = None
+                        
                         if is_submitted:
                             # Format: "Submitting block 0000000000000002ca3316f963d896e0fd6dcb0f8bd9f07e18ad205c27976d6d"
                             hash_match = re.search(r'Submitting block ([0-9a-fA-F]{64})', line)
                             if hash_match:
                                 block_hash = hash_match.group(1)
                         
-                        # If this is BLOCK ACCEPTED, look back for the preceding "Submitting block" line
-                        if is_accepted and i > 0:
-                            prev_line = lines[i - 1]
-                            hash_match = re.search(r'Submitting block ([0-9a-fA-F]{64})', prev_line)
-                            if hash_match:
-                                block_hash = hash_match.group(1)
+                        # If this is BLOCK ACCEPTED, look for block height in the next line
+                        if is_accepted and i + 1 < len(lines):
+                            next_line = lines[i + 1]
+                            # Format: "Solved and confirmed block 22727020 by dgb1qkaeq5kc8td3t8sv94gv7wl0taqsseafvewf3dd.Blue"
+                            height_match = re.search(r'Solved and confirmed block (\d+)', next_line)
+                            if height_match:
+                                block_height = int(height_match.group(1))
                         
                         # Create block record
                         block = CKPoolBlock(
                             pool_id=pool_id,
                             pool_ip=pool_ip,
                             block_hash=block_hash,
+                            block_height=block_height,
                             block_accepted=is_accepted,
                             timestamp=timestamp,
                             log_entry=line
@@ -378,18 +383,20 @@ class CKPoolService:
             return 0
     
     @staticmethod
-    async def verify_block_from_explorer(block_hash: str, coin_type: str, wallet_address: str = None) -> Optional[Dict[str, Any]]:
+    async def verify_block_from_explorer(block_hash: str = None, block_height: int = None, coin_type: str = 'DGB', wallet_address: str = None) -> Optional[Dict[str, Any]]:
         """
         Verify block and get actual reward from blockchain explorer
         
         Args:
-            block_hash: Block hash to verify
+            block_hash: Block hash to verify (optional if block_height provided)
+            block_height: Block height to verify (optional if block_hash provided)
             coin_type: Coin type (BTC, BCH, DGB)
             wallet_address: Optional wallet address to verify payout
             
         Returns:
             Dict with {
                 "block_height": int,
+                "block_hash": str,
                 "reward": float,
                 "confirmed": bool,
                 "wallet_match": bool (if wallet_address provided)
@@ -398,6 +405,18 @@ class CKPoolService:
         try:
             import aiohttp
             
+            # If only height is provided, get the block hash first
+            if block_height and not block_hash:
+                if coin_type == 'DGB':
+                    height_url = f"https://digiexplorer.info/api/block-height/{block_height}"
+                    async with aiohttp.ClientSession() as session:
+                        async with session.get(height_url, timeout=10) as response:
+                            if response.status == 200:
+                                block_hash = (await response.text()).strip()
+                                logger.info(f"Resolved block height {block_height} to hash {block_hash[:16]}...")
+                            else:
+                                logger.error(f"Failed to resolve block height {block_height}")
+                                return None
             # Explorer API endpoints
             if coin_type == 'DGB':
                 # DigiExplorer API - use /txs endpoint to get transactions
@@ -454,6 +473,7 @@ class CKPoolService:
                         
                         return {
                             "block_height": block_height,
+                            "block_hash": block_hash,
                             "reward": reward,
                             "confirmed": True,
                             "wallet_match": None  # TODO: Check wallet if provided
@@ -514,23 +534,24 @@ class CKPoolService:
                     .where(CKPoolBlock.pool_id == pool_id)
                     .where(CKPoolBlock.block_accepted == True)
                     .where(CKPoolBlock.confirmed_from_explorer == False)
-                    .where(CKPoolBlock.block_hash.isnot(None))
                 )
                 unconfirmed_blocks = result.scalars().all()
                 
                 for block in unconfirmed_blocks:
-                    # Verify from explorer
+                    # Verify from explorer (using hash if available, otherwise height)
                     explorer_data = await CKPoolService.verify_block_from_explorer(
-                        block.block_hash,
-                        coin_type
+                        block_hash=block.block_hash,
+                        block_height=block.block_height,
+                        coin_type=coin_type
                     )
                     
                     if explorer_data and explorer_data.get('confirmed'):
                         # Update database with confirmed reward
                         block.confirmed_reward_coins = explorer_data['reward']
-                        block.block_height = explorer_data['block_height']
+                        block.block_height = explorer_data.get('block_height') or block.block_height
+                        block.block_hash = explorer_data.get('block_hash') or block.block_hash
                         block.confirmed_from_explorer = True
-                        print(f"✅ Confirmed block {block.block_hash[:16]}... reward: {explorer_data['reward']} {coin_type}")
+                        logger.info(f"✅ Confirmed block {block.block_height} reward: {explorer_data['reward']} {coin_type}")
                 
                 await db.commit()
         
