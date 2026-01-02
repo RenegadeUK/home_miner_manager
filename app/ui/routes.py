@@ -648,6 +648,24 @@ async def analytics_miners(request: Request):
     })
 
 
+@router.get("/analytics/ckpool", response_class=HTMLResponse)
+async def analytics_ckpool(request: Request, coin: str = "DGB"):
+    """CKPool mining analytics page"""
+    coin = coin.upper()
+    if coin not in ["BTC", "BCH", "DGB"]:
+        coin = "DGB"
+    
+    return templates.TemplateResponse("analytics/ckpool.html", {
+        "request": request,
+        "page_title": f"CKPool {coin} Analytics",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": f"{coin} Analytics", "url": f"/analytics/ckpool?coin={coin}"}
+        ],
+        "coin": coin
+    })
+
+
 @router.get("/analytics/{miner_id}", response_class=HTMLResponse)
 async def analytics_detail(request: Request, miner_id: int, db: AsyncSession = Depends(get_db)):
     """Analytics detail page for specific miner"""

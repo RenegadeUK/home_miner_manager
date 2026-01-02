@@ -794,31 +794,31 @@ async function loadCKPoolStats() {
             // Create a separate grid for this coin's 4 stat cards
             coinGridsHtml += `
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <a href="/analytics/ckpool?coin=${coinType}" class="stat-card" style="text-decoration: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-label">${coinLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${workersData.workers}
                             <br><small style="color: var(--text-secondary); font-size: 0.875rem;">${workersData.hashrate_display}</small>
                         </div>
-                    </div>
-                    <div class="stat-card">
+                    </a>
+                    <a href="/analytics/ckpool?coin=${coinType}" class="stat-card" style="text-decoration: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-label">${coinLogo}Mining Effort</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${effortData.effort_display}
                             <br><small style="color: var(--text-secondary); font-size: 0.875rem;">${effortData.time_since_last_block || 'Unknown'}</small>
                         </div>
-                    </div>
-                    <div class="stat-card">
+                    </a>
+                    <a href="/analytics/ckpool?coin=${coinType}" class="stat-card" style="text-decoration: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-label">${coinLogo}Blocks (24h/7d/30d)</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${blocksData.blocks_1d} / ${blocksData.blocks_7d} / ${blocksData.blocks_28d}
                             <br><small style="color: var(--text-secondary); font-size: 0.875rem;">${blocksData.value_display}${cacheAgeIndicator}</small>
                         </div>
-                    </div>
-                    <div class="stat-card">
+                    </a>
+                    <a href="/analytics/ckpool?coin=${coinType}" class="stat-card" style="text-decoration: none; cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
                         <div class="stat-label">${coinLogo}Total Paid</div>
                         <div class="stat-value" style="font-size: 1.25rem;">${rewardData.coins_display}<br><span style="font-size: 0.9rem; color: var(--text-secondary);">${rewardData.value_display}${cacheAgeIndicator}</span></div>
-                    </div>
+                    </a>
                 </div>
             `;
         }
