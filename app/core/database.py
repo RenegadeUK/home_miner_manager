@@ -3,7 +3,7 @@ SQLite database setup and models
 """
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import String, Integer, Float, DateTime, JSON, Boolean
+from sqlalchemy import String, Integer, Float, DateTime, JSON, Boolean, Index
 from datetime import datetime
 from typing import Optional
 from core.config import settings
@@ -76,7 +76,7 @@ class Telemetry(Base):
     __tablename__ = "telemetry"
     
     id: Mapped[int] = mapped_column(primary_key=True)
-    miner_id: Mapped[int] = mapped_column(Integer)
+    miner_id: Mapped[int] = mapped_column(Integer, index=True)  # Added index for performance
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     hashrate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     hashrate_unit: Mapped[Optional[str]] = mapped_column(String(10), nullable=True, default="GH/s")  # KH/s, MH/s, GH/s, TH/s
@@ -86,6 +86,11 @@ class Telemetry(Base):
     shares_rejected: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     pool_in_use: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Additional miner-specific data
+    
+    # Composite index for common query pattern (miner_id + timestamp)
+    __table_args__ = (
+        Index('ix_telemetry_miner_timestamp', 'miner_id', 'timestamp'),
+    )
 
 
 class EnergyPrice(Base):

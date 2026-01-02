@@ -479,3 +479,25 @@ async def run_migrations():
             print("✓ Added best_share_updated_at column to pools")
         except Exception:
             pass
+        
+        # Migration 19: Add indexes to telemetry table for performance optimization
+        # These indexes eliminate N+1 query problems and speed up common query patterns
+        try:
+            # Add single-column index on miner_id (for filtering by miner)
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_telemetry_miner_id 
+                ON telemetry(miner_id)
+            """))
+            print("✓ Added index on telemetry.miner_id")
+        except Exception as e:
+            print(f"⚠️  Index on telemetry.miner_id may already exist: {e}")
+        
+        try:
+            # Add composite index on (miner_id, timestamp) for efficient latest telemetry queries
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_telemetry_miner_timestamp 
+                ON telemetry(miner_id, timestamp)
+            """))
+            print("✓ Added composite index on telemetry(miner_id, timestamp)")
+        except Exception as e:
+            print(f"⚠️  Composite index on telemetry(miner_id, timestamp) may already exist: {e}")

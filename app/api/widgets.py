@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from core.database import get_db, Miner, Telemetry, EnergyPrice, Pool, PoolHealth
 from core.config import app_config
-from core.utils import format_time_elapsed
+from core.utils import format_time_elapsed, get_latest_telemetry_batch
 
 router = APIRouter()
 
@@ -84,20 +84,16 @@ async def get_total_hashrate_widget(db: AsyncSession = Depends(get_db)):
             "total_miners": 0
         }
     
-    # Get latest telemetry for each
+    # Get latest telemetry for all miners in SINGLE QUERY (batch optimization)
+    cutoff = datetime.utcnow() - timedelta(minutes=5)
+    telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners], cutoff)
+    
+    # Process in memory (fast)
     total_hashrate = 0
     active_count = 0
-    cutoff = datetime.utcnow() - timedelta(minutes=5)
     
     for miner in miners:
-        result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .where(Telemetry.timestamp >= cutoff)
-            .order_by(Telemetry.timestamp.desc())
-            .limit(1)
-        )
-        latest = result.scalar_one_or_none()
+        latest = telemetry_map.get(miner.id)
         if latest and latest.hashrate:
             total_hashrate += latest.hashrate
             active_count += 1
@@ -198,22 +194,28 @@ async def get_miners_list_widget(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Miner).order_by(Miner.name))
     miners = result.scalars().all()
     
-    miners_data = []
+    if not miners:
+        return {
+            "miners": [],
+            "total": 0,
+            "online": 0
+        }
+    
+    # Get latest telemetry for all miners in SINGLE QUERY (batch optimization)
     cutoff = datetime.utcnow() - timedelta(minutes=5)
+    telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners], cutoff)
+    
+    miners_data = []
+    online_count = 0
     
     for miner in miners:
-        # Get latest telemetry
-        result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .where(Telemetry.timestamp >= cutoff)
-            .order_by(Telemetry.timestamp.desc())
-            .limit(1)
-        )
-        latest = result.scalar_one_or_none()
+        latest = telemetry_map.get(miner.id)
         
         status = "online" if (miner.enabled and latest) else "offline"
         hashrate = latest.hashrate if latest else 0
+        
+        if status == "online":
+            online_count += 1
         
         miners_data.append({
             "id": miner.id,
@@ -228,7 +230,7 @@ async def get_miners_list_widget(db: AsyncSession = Depends(get_db)):
     return {
         "miners": miners_data,
         "total": len(miners_data),
-        "online": sum(1 for m in miners_data if m["status"] == "online")
+        "online": online_count
     }
 
 
@@ -265,26 +267,49 @@ async def get_daily_cost_widget(db: AsyncSession = Depends(get_db)):
             "period_hours": 24
         }
     
-    # Calculate cost (simplified - assumes constant power draw)
+    # CRITICAL OPTIMIZATION: Single batch query for ALL telemetry in 24h window
+    # This replaces the catastrophic nested loop (48 slots × N miners = 480+ queries)
+    miner_ids = [m.id for m in miners]
+    telemetry_result = await db.execute(
+        select(Telemetry)
+        .where(Telemetry.miner_id.in_(miner_ids))
+        .where(Telemetry.timestamp >= cutoff)
+        .order_by(Telemetry.miner_id, Telemetry.timestamp)
+    )
+    all_telemetry = telemetry_result.scalars().all()
+    
+    # Index telemetry by time slots in memory (O(N) complexity, very fast)
+    from collections import defaultdict
+    slot_telemetry = defaultdict(list)
+    
+    for t in all_telemetry:
+        # Find which price slot this telemetry belongs to
+        for price in prices:
+            if price.valid_from <= t.timestamp < price.valid_to:
+                slot_telemetry[price.valid_from].append(t)
+                break
+    
+    # Calculate cost for each slot (in-memory, fast)
     total_cost = 0
     for price in prices:
         slot_duration_hours = 0.5  # 30-minute slots
+        slot_data = slot_telemetry.get(price.valid_from, [])
         
-        # Get average power for all miners during this slot
-        total_power_kw = 0
-        for miner in miners:
-            result = await db.execute(
-                select(Telemetry)
-                .where(Telemetry.miner_id == miner.id)
-                .where(Telemetry.timestamp >= price.valid_from)
-                .where(Telemetry.timestamp < price.valid_to)
-                .limit(1)
-            )
-            telemetry = result.scalar_one_or_none()
-            if telemetry and telemetry.power_watts:
-                total_power_kw += telemetry.power_watts / 1000
+        if not slot_data:
+            continue
         
-        # Cost = power (kW) * duration (h) * price (pence/kWh) / 100 (to GBP)
+        # Average power across all miners in this slot
+        # Group by miner_id to get one reading per miner
+        miner_power = {}
+        for t in slot_data:
+            if t.power_watts:
+                # Keep most recent reading per miner in this slot
+                if t.miner_id not in miner_power or t.timestamp > miner_power[t.miner_id][1]:
+                    miner_power[t.miner_id] = (t.power_watts, t.timestamp)
+        
+        total_power_kw = sum(watts for watts, _ in miner_power.values()) / 1000
+        
+        # Cost = power (kW) × duration (h) × price (pence/kWh) ÷ 100 (to GBP)
         slot_cost = (total_power_kw * slot_duration_hours * price.price_pence) / 100
         total_cost += slot_cost
     
@@ -301,17 +326,22 @@ async def get_efficiency_widget(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Miner))
     miners = result.scalars().all()
     
+    if not miners:
+        return {
+            "efficiency": 0,
+            "efficiency_display": "0 J/TH",
+            "total_power": 0,
+            "total_hashrate": 0
+        }
+    
+    # Get latest telemetry for all miners in SINGLE QUERY (batch optimization)
+    telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners])
+    
     total_power_w = 0
     total_hashrate_th = 0
     
     for miner in miners:
-        telemetry_result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .order_by(Telemetry.timestamp.desc())
-            .limit(1)
-        )
-        latest = telemetry_result.scalar_one_or_none()
+        latest = telemetry_map.get(miner.id)
         
         if latest and latest.power_watts and latest.hashrate:
             total_power_w += latest.power_watts
@@ -345,17 +375,11 @@ async def get_uptime_widget(db: AsyncSession = Depends(get_db)):
             "total_count": 0
         }
     
-    online_count = 0
-    for miner in miners:
-        telemetry_result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .where(Telemetry.timestamp >= datetime.utcnow() - timedelta(minutes=5))
-            .limit(1)
-        )
-        if telemetry_result.scalar_one_or_none():
-            online_count += 1
+    # Get latest telemetry for all miners in SINGLE QUERY (batch optimization)
+    cutoff = datetime.utcnow() - timedelta(minutes=5)
+    telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners], cutoff)
     
+    online_count = len(telemetry_map)
     uptime_percent = (online_count / len(miners)) * 100
     
     return {
@@ -380,21 +404,18 @@ async def get_reject_rate_widget(db: AsyncSession = Depends(get_db)):
             "rejected_shares": 0
         }
     
+    # Get latest telemetry for all miners in SINGLE QUERY (batch optimization)
+    telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners])
+    
     total_shares = 0
     total_rejected = 0
     
     for miner in miners:
-        telemetry_result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .order_by(Telemetry.timestamp.desc())
-            .limit(1)
-        )
-        latest = telemetry_result.scalar_one_or_none()
+        latest = telemetry_map.get(miner.id)
         
         if latest:
-            accepted = latest.accepted_shares or 0
-            rejected = latest.rejected_shares or 0
+            accepted = latest.shares_accepted or 0
+            rejected = latest.shares_rejected or 0
             total_shares += (accepted + rejected)
             total_rejected += rejected
     
@@ -414,16 +435,20 @@ async def get_temperature_alert_widget(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Miner))
     miners = result.scalars().all()
     
+    if not miners:
+        return {
+            "alert_count": 0,
+            "hot_miners": [],
+            "status": "ok"
+        }
+    
+    # Get latest telemetry for all miners in SINGLE QUERY (batch optimization)
+    telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners])
+    
     hot_miners = []
     
     for miner in miners:
-        telemetry_result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .order_by(Telemetry.timestamp.desc())
-            .limit(1)
-        )
-        latest = telemetry_result.scalar_one_or_none()
+        latest = telemetry_map.get(miner.id)
         
         if latest and latest.temperature:
             # Type-aware thresholds
@@ -450,15 +475,22 @@ async def get_profitability_widget(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Miner))
     miners = result.scalars().all()
     
+    if not miners:
+        return {
+            "profit_btc": 0,
+            "profit_gbp": 0,
+            "profit_display": "£0.00",
+            "btc_mined": 0,
+            "energy_cost": 0,
+            "status": "loss"
+        }
+    
+    # Get latest telemetry for all miners in SINGLE QUERY (batch optimization)
+    telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners])
+    
     total_hashrate_th = 0
     for miner in miners:
-        telemetry_result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .order_by(Telemetry.timestamp.desc())
-            .limit(1)
-        )
-        latest = telemetry_result.scalar_one_or_none()
+        latest = telemetry_map.get(miner.id)
         if latest and latest.hashrate:
             total_hashrate_th += latest.hashrate / 1000
     
