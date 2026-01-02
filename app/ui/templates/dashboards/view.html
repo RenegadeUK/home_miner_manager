@@ -507,8 +507,8 @@ async function updateWidgetData(widgetId, widgetType, config) {
             case 'ckpool_workers':
                 endpoint = '/api/widgets/widgets/ckpool-workers';
                 break;
-            case 'ckpool_luck':
-                endpoint = '/api/widgets/widgets/ckpool-luck';
+            case 'ckpool_effort':
+                endpoint = '/api/widgets/widgets/ckpool-effort';
                 break;
             case 'ckpool_blocks':
                 endpoint = '/api/widgets/widgets/ckpool-blocks';
@@ -673,14 +673,14 @@ function formatWidgetData(widgetType, data) {
                     1m: ${data.hashrate_display}
                 </div>
             `;
-        case 'ckpool_luck':
+        case 'ckpool_effort':
             return `
                 <div class="widget-stat">
-                    <div class="widget-stat-value">${Math.round(data.round_luck)}%</div>
-                    <div class="widget-stat-label">Round Luck</div>
+                    <div class="widget-stat-value">${data.effort_display}</div>
+                    <div class="widget-stat-label">Mining Effort</div>
                 </div>
                 <div style="margin-top: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
-                    ${data.blocks_submitted_24h} blocks submitted (24h)
+                    ${data.time_since_last_block || 'Unknown'}
                 </div>
             `;
         case 'ckpool_blocks':
@@ -723,7 +723,7 @@ function getWidgetTitle(widgetType, config) {
         'profitability': 'Profitability',
         'automation_status': 'Automation',
         'ckpool_workers': 'CKPool Workers',
-        'ckpool_luck': 'CKPool Luck',
+        'ckpool_effort': 'CKPool Effort',
         'ckpool_blocks': 'CKPool Blocks',
         'ckpool_reward': 'CKPool Reward'
     };

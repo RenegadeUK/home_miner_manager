@@ -762,15 +762,15 @@ async function loadCKPoolStats() {
         
         for (const coinType of coinsData.coins) {
             // Fetch stats for this specific coin
-            const [workersResp, luckResp, blocksResp, rewardResp] = await Promise.all([
+            const [workersResp, effortResp, blocksResp, rewardResp] = await Promise.all([
                 fetch(`/api/widgets/widgets/ckpool-workers?coin=${coinType}`),
-                fetch(`/api/widgets/widgets/ckpool-luck?coin=${coinType}`),
+                fetch(`/api/widgets/widgets/ckpool-effort?coin=${coinType}`),
                 fetch(`/api/widgets/widgets/ckpool-blocks?coin=${coinType}`),
                 fetch(`/api/widgets/widgets/ckpool-reward?coin=${coinType}`)
             ]);
             
             const workersData = await workersResp.json();
-            const luckData = await luckResp.json();
+            const effortData = await effortResp.json();
             const blocksData = await blocksResp.json();
             const rewardData = await rewardResp.json();
             
@@ -802,10 +802,10 @@ async function loadCKPoolStats() {
                         </div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">${coinLogo}Current Round Luck</div>
+                        <div class="stat-label">${coinLogo}Mining Effort</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
-                            ${Math.round(luckData.round_luck)}%
-                            <br><small style="color: var(--text-secondary); font-size: 0.875rem;">${luckData.time_since_improvement || 'No improvement yet'}</small>
+                            ${effortData.effort_display}
+                            <br><small style="color: var(--text-secondary); font-size: 0.875rem;">${effortData.time_since_last_block || 'Unknown'}</small>
                         </div>
                     </div>
                     <div class="stat-card">
