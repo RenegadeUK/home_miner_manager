@@ -630,9 +630,9 @@ async def get_ckpool_workers_widget(db: AsyncSession = Depends(get_db), coin: st
     }
 
 
-@router.get("/widgets/ckpool-luck")
-async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str = None):
-    """Get CKPool round luck (bestshare/network_difficulty, reset on block found) and blocks submitted in 24h. Optional coin parameter (BTC/BCH/DGB) to filter."""
+@router.get("/widgets/ckpool-effort")
+async def get_ckpool_effort_widget(db: AsyncSession = Depends(get_db), coin: str = None):
+    """Get CKPool mining effort since last block (total_hashes / network_difficulty). Optional coin parameter (BTC/BCH/DGB) to filter."""
     from core.ckpool import CKPoolService
     from core.database import CKPoolBlock
     from sqlalchemy import select as sql_select
@@ -648,15 +648,10 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str =
     )
     pools = result.scalars().all()
     
-    best_share = 0
     pool_count = 0
     total_blocks_submitted_24h = 0
-    block_found_recently = False
     network_difficulty = 0.0
-    best_share_updated_at = None
-    
-    # Check for recent blocks (last 10 minutes)
-    recent_cutoff = datetime.utcnow() - timedelta(minutes=10)
+    last_block_timestamp = None
     
     for pool in pools:
         # Filter by coin type if specified
@@ -676,91 +671,63 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str =
         # Fetch and cache blocks from log in background (also updates network difficulty)
         asyncio.create_task(CKPoolService.fetch_and_cache_blocks(pool.url, pool.id))
         
-        # Check if a block was ACCEPTED in the last 10 minutes
+        # Get the most recent ACCEPTED block timestamp
         block_result = await db.execute(
             sql_select(CKPoolBlock)
             .where(CKPoolBlock.pool_id == pool.id)
             .where(CKPoolBlock.block_accepted == True)
-            .where(CKPoolBlock.timestamp >= recent_cutoff)
+            .order_by(CKPoolBlock.timestamp.desc())
             .limit(1)
         )
         recent_block = block_result.scalar_one_or_none()
         
         if recent_block:
-            block_found_recently = True
+            last_block_timestamp = recent_block.timestamp
         
-        # Get pool stats
-        raw_stats = await CKPoolService.get_pool_stats(pool.url)
-        if raw_stats:
-            stats = CKPoolService.format_stats_summary(raw_stats)
-            current_best_share = stats.get("best_share", 0)
-            
-            # If block found recently, reset tracking (new round started)
-            if block_found_recently:
-                # Check if we need to reset or if already reset
-                if pool.best_share is None or pool.best_share > 0:
-                    # First time seeing this block - reset tracking
-                    pool.best_share = 0
-                    pool.best_share_updated_at = datetime.utcnow()
-                    await db.commit()
-                
-                # Now check if we have a new share in the new round
-                if current_best_share > 0:
-                    best_share = current_best_share
-                    # Update tracking with new share
-                    pool.best_share = current_best_share
-                    pool.best_share_updated_at = datetime.utcnow()
-                    await db.commit()
-                    best_share_updated_at = pool.best_share_updated_at
-                else:
-                    # Still at 0, use the reset timestamp
-                    best_share = 0
-                    best_share_updated_at = pool.best_share_updated_at
-            else:
-                # Normal operation - track improvements
-                best_share = current_best_share
-                
-                # Track best_share improvements
-                if pool.best_share is None or current_best_share > pool.best_share:
-                    # Best share improved!
-                    pool.best_share = current_best_share
-                    pool.best_share_updated_at = datetime.utcnow()
-                    await db.commit()
-                
-                # Use stored timestamp
-                best_share_updated_at = pool.best_share_updated_at
-            
-            pool_count += 1
-            
-            # Get blocks SUBMITTED (not accepted) in last 24h
-            blocks_submitted = await CKPoolService.get_blocks_24h(pool.id)
-            total_blocks_submitted_24h += blocks_submitted
+        pool_count += 1
+        
+        # Get blocks SUBMITTED (not accepted) in last 24h
+        blocks_submitted = await CKPoolService.get_blocks_24h(pool.id)
+        total_blocks_submitted_24h += blocks_submitted
     
     if pool_count == 0:
         return {
-            "round_luck": 0.0,
-            "best_share": 0,
+            "effort_percent": 0.0,
+            "time_since_last_block": None,
+            "average_hashrate_gh": 0.0,
             "network_difficulty": 0.0,
             "blocks_submitted_24h": 0,
-            "luck_display": "0%",
-            "time_since_improvement": None,
+            "effort_display": "0%",
             "status": "offline"
         }
     
-    # Calculate time since last improvement (using central helper)
-    time_since_improvement = format_time_elapsed(best_share_updated_at)
+    # Calculate time since last block
+    time_since_last_block_str = format_time_elapsed(last_block_timestamp) if last_block_timestamp else "Unknown"
+    time_since_last_block_seconds = (datetime.utcnow() - last_block_timestamp).total_seconds() if last_block_timestamp else 0
     
-    # Calculate round luck percentage using network difficulty
-    round_luck = (best_share / network_difficulty * 100) if network_difficulty > 0 else 0.0
+    # Get average hashrate from pool stats (use 1hr as most stable)
+    raw_stats = await CKPoolService.get_pool_stats(pools[0].url) if pools else None
+    average_hashrate_gh = 0.0
+    if raw_stats:
+        stats = CKPoolService.format_stats_summary(raw_stats)
+        average_hashrate_gh = stats.get("hashrate_1h_gh", 0.0)
+    
+    # Calculate total hashes since last block
+    # Hashrate is in GH/s, need to convert to hashes/second then multiply by seconds
+    total_hashes = average_hashrate_gh * 1_000_000_000 * time_since_last_block_seconds
+    
+    # Calculate effort: (total_hashes_since_last_block) / (network_difficulty * 2^32)
+    # Network difficulty is already the actual difficulty value
+    difficulty_hashes = network_difficulty * (2 ** 32)
+    effort_percent = (total_hashes / difficulty_hashes * 100) if difficulty_hashes > 0 else 0.0
     
     return {
-        "round_luck": round(round_luck, 2),
-        "best_share": best_share,
+        "effort_percent": round(effort_percent, 2),
+        "time_since_last_block": time_since_last_block_str,
+        "average_hashrate_gh": average_hashrate_gh,
         "network_difficulty": network_difficulty,
         "blocks_submitted_24h": total_blocks_submitted_24h,
-        "luck_display": f"{round_luck:.0f}%",
-        "block_found_recently": block_found_recently,
-        "time_since_improvement": time_since_improvement,
+        "effort_display": f"{effort_percent:.1f}%",
         "status": "online"
     }
 
