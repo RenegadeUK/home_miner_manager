@@ -958,6 +958,8 @@ async function load24hCost() {
         }
         
         const data = await response.json();
+        console.log('24h cost data:', data);
+        console.log('cost_pounds value:', data.cost_pounds, 'type:', typeof data.cost_pounds);
         
         document.getElementById('cost-24h').textContent = data.cost_pounds !== undefined
             ? `£${data.cost_pounds.toFixed(2)}` 
