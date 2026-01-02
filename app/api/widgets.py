@@ -502,9 +502,12 @@ async def get_profitability_widget(db: AsyncSession = Depends(get_db)):
     energy_result = await get_daily_cost_widget(db)
     energy_cost_gbp = energy_result["cost_gbp"]
     
-    # Convert to BTC (simplified - would need real exchange rate)
-    # Assuming ~£50,000/BTC as placeholder
-    btc_price_gbp = 50000
+    # Get BTC price from cache
+    from core.utils import get_cached_crypto_price
+    btc_price_gbp = await get_cached_crypto_price(db, 'bitcoin')
+    if btc_price_gbp == 0:
+        btc_price_gbp = 50000  # Fallback if cache not available
+    
     energy_cost_btc = energy_cost_gbp / btc_price_gbp
     
     profit_btc = btc_per_day - energy_cost_btc
