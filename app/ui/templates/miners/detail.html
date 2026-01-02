@@ -1342,8 +1342,10 @@ async function switchPool() {
 
 // Initialize
 loadTelemetry();
+{% if miner.miner_type != 'xmrig' %}
 loadModes();
 loadPools();
+{% endif %}
 
 // Auto-refresh every 30 seconds
 setInterval(loadTelemetry, 30000);
