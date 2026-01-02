@@ -988,12 +988,27 @@ async def preview_ckpool_backfill(db: AsyncSession = Depends(get_db)):
         """))
         sample_blocks = [{"height": r[0], "hash": r[1], "timestamp": str(r[2]), "pool_name": r[3]} for r in result.fetchall()]
         
+        # Check metrics table
+        result = await db.execute(text("""
+            SELECT COUNT(*) FROM ckpool_block_metrics
+        """))
+        metrics_count = result.scalar()
+        
+        result = await db.execute(text("""
+            SELECT coin, COUNT(*) as count
+            FROM ckpool_block_metrics
+            GROUP BY coin
+        """))
+        metrics_by_coin = {r[0]: r[1] for r in result.fetchall()}
+        
         return {
             "total_accepted_blocks": total_accepted,
             "complete_blocks": complete_blocks,
             "incomplete_blocks": incomplete_blocks,
             "can_migrate": complete_blocks > 0,
-            "sample_blocks": sample_blocks
+            "sample_blocks": sample_blocks,
+            "metrics_table_count": metrics_count,
+            "metrics_by_coin": metrics_by_coin
         }
     except Exception as e:
         logger.error(f"Preview failed: {e}", exc_info=True)
@@ -1018,6 +1033,134 @@ async def backfill_ckpool_metrics():
         }
     except Exception as e:
         logger.error(f"Backfill failed: {e}", exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@router.get("/ckpool/metrics-data")
+async def get_ckpool_metrics_data(db: AsyncSession = Depends(get_db)):
+    """View current data in ckpool_block_metrics table"""
+    from sqlalchemy import text
+    
+    try:
+        result = await db.execute(text("""
+            SELECT 
+                m.id, m.coin, m.block_height, m.block_hash,
+                m.timestamp, m.effort_percent, m.time_to_block_seconds,
+                m.confirmed_reward_coins, p.name as pool_name
+            FROM ckpool_block_metrics m
+            JOIN pools p ON m.pool_id = p.id
+            ORDER BY m.timestamp DESC
+            LIMIT 20
+        """))
+        
+        blocks = [{
+            "id": r[0],
+            "coin": r[1],
+            "block_height": r[2],
+            "block_hash": r[3],
+            "timestamp": str(r[4]),
+            "effort_percent": r[5],
+            "time_to_block_seconds": r[6],
+            "confirmed_reward_coins": r[7],
+            "pool_name": r[8]
+        } for r in result.fetchall()]
+        
+        return {"blocks": blocks, "count": len(blocks)}
+    except Exception as e:
+        logger.error(f"Failed to get metrics data: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@router.get("/ckpool/prune-preview")
+async def preview_ckpool_prune(db: AsyncSession = Depends(get_db)):
+    """Preview what would be deleted by pruning (without actually deleting)"""
+    from sqlalchemy import text
+    from datetime import datetime, timedelta
+    
+    try:
+        # Non-accepted blocks older than 30 days
+        cutoff_30d = datetime.utcnow() - timedelta(days=30)
+        result = await db.execute(text("""
+            SELECT COUNT(*) FROM ckpool_blocks 
+            WHERE block_accepted = 0 
+            AND timestamp < :cutoff
+        """), {"cutoff": cutoff_30d})
+        non_accepted_old = result.scalar()
+        
+        # Accepted blocks (should NEVER be deleted)
+        result = await db.execute(text("""
+            SELECT COUNT(*) FROM ckpool_blocks WHERE block_accepted = 1
+        """))
+        accepted_total = result.scalar()
+        
+        # Metrics older than 12 months
+        cutoff_12m = datetime.utcnow() - timedelta(days=365)
+        result = await db.execute(text("""
+            SELECT COUNT(*) FROM ckpool_block_metrics 
+            WHERE timestamp < :cutoff
+        """), {"cutoff": cutoff_12m})
+        metrics_old = result.scalar()
+        
+        # Total metrics
+        result = await db.execute(text("""
+            SELECT COUNT(*) FROM ckpool_block_metrics
+        """))
+        metrics_total = result.scalar()
+        
+        return {
+            "ckpool_blocks": {
+                "non_accepted_to_delete": non_accepted_old,
+                "accepted_to_keep": accepted_total,
+                "cutoff_date": str(cutoff_30d)
+            },
+            "ckpool_block_metrics": {
+                "old_to_delete": metrics_old,
+                "total_metrics": metrics_total,
+                "cutoff_date": str(cutoff_12m)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Prune preview failed: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/ckpool/prune-now")
+async def manual_prune_ckpool(db: AsyncSession = Depends(get_db)):
+    """Manually trigger CKPool pruning (for testing)"""
+    from sqlalchemy import text
+    from datetime import datetime, timedelta
+    
+    try:
+        # Prune non-accepted blocks older than 30 days
+        cutoff_30d = datetime.utcnow() - timedelta(days=30)
+        result = await db.execute(text("""
+            DELETE FROM ckpool_blocks 
+            WHERE block_accepted = 0 
+            AND timestamp < :cutoff
+        """), {"cutoff": cutoff_30d})
+        await db.commit()
+        deleted_blocks = result.rowcount
+        
+        # Prune metrics older than 12 months
+        cutoff_12m = datetime.utcnow() - timedelta(days=365)
+        result = await db.execute(text("""
+            DELETE FROM ckpool_block_metrics 
+            WHERE timestamp < :cutoff
+        """), {"cutoff": cutoff_12m})
+        await db.commit()
+        deleted_metrics = result.rowcount
+        
+        return {
+            "success": True,
+            "deleted_non_accepted_blocks": deleted_blocks,
+            "deleted_old_metrics": deleted_metrics
+        }
+    except Exception as e:
+        logger.error(f"Manual prune failed: {e}", exc_info=True)
+        await db.rollback()
         return {
             "success": False,
             "error": str(e)
