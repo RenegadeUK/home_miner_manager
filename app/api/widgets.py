@@ -75,6 +75,7 @@ async def get_total_hashrate_widget(db: AsyncSession = Depends(get_db)):
         select(Miner).where(Miner.enabled == True)
     )
     miners = result.scalars().all()
+    total_count = len(miners)  # Store computed value
     
     if not miners:
         return {
@@ -108,7 +109,7 @@ async def get_total_hashrate_widget(db: AsyncSession = Depends(get_db)):
         "total_hashrate": total_hashrate,
         "hashrate_display": hashrate_display,
         "active_miners": active_count,
-        "total_miners": len(miners)
+        "total_miners": total_count
     }
 
 
@@ -366,6 +367,7 @@ async def get_uptime_widget(db: AsyncSession = Depends(get_db)):
     """Get overall fleet uptime percentage"""
     result = await db.execute(select(Miner))
     miners = result.scalars().all()
+    total_count = len(miners)  # Store computed value
     
     if not miners:
         return {
@@ -380,13 +382,13 @@ async def get_uptime_widget(db: AsyncSession = Depends(get_db)):
     telemetry_map = await get_latest_telemetry_batch(db, [m.id for m in miners], cutoff)
     
     online_count = len(telemetry_map)
-    uptime_percent = (online_count / len(miners)) * 100
+    uptime_percent = (online_count / total_count) * 100
     
     return {
         "uptime_percent": round(uptime_percent, 1),
         "uptime_display": f"{uptime_percent:.1f}%",
         "online_count": online_count,
-        "total_count": len(miners)
+        "total_count": total_count
     }
 
 
@@ -547,15 +549,18 @@ async def get_ckpool_coins_widget(db: AsyncSession = Depends(get_db)):
     """Get list of all CKPool coins configured (BTC/BCH/DGB/etc)"""
     from core.ckpool import CKPoolService
     
-    # Find all CKPool pools
-    result = await db.execute(select(Pool))
+    # Find all CKPool pools (SQL filter optimization)
+    result = await db.execute(
+        select(Pool)
+        .where(Pool.name.ilike('%ckpool%'))
+        .where(Pool.enabled == True)
+    )
     pools = result.scalars().all()
     
     coins = set()
     
     for pool in pools:
-        if CKPoolService.is_ckpool(pool.name):
-            pool_name_lower = pool.name.lower()
+        pool_name_lower = pool.name.lower()
             if 'btc' in pool_name_lower or 'bitcoin' in pool_name_lower:
                 coins.add('BTC')
             elif 'bch' in pool_name_lower or 'bitcoin cash' in pool_name_lower:
@@ -573,8 +578,12 @@ async def get_ckpool_workers_widget(db: AsyncSession = Depends(get_db), coin: st
     """Get CKPool worker count and 1m hashrate. Optional coin parameter (BTC/BCH/DGB) to filter."""
     from core.ckpool import CKPoolService
     
-    # Find all CKPool pools
-    result = await db.execute(select(Pool))
+    # Find all CKPool pools (SQL filter optimization)
+    result = await db.execute(
+        select(Pool)
+        .where(Pool.name.ilike('%ckpool%'))
+        .where(Pool.enabled == True)
+    )
     pools = result.scalars().all()
     
     total_workers = 0
@@ -582,7 +591,6 @@ async def get_ckpool_workers_widget(db: AsyncSession = Depends(get_db), coin: st
     pool_count = 0
     
     for pool in pools:
-        if CKPoolService.is_ckpool(pool.name):
             # Filter by coin type if specified
             if coin:
                 pool_name_lower = pool.name.lower()
@@ -632,8 +640,12 @@ async def get_ckpool_luck_widget(db: AsyncSession = Depends(get_db), coin: str =
     import pytz
     import asyncio
     
-    # Find all CKPool pools
-    result = await db.execute(select(Pool))
+    # Find all CKPool pools (SQL filter optimization)
+    result = await db.execute(
+        select(Pool)
+        .where(Pool.name.ilike('%ckpool%'))
+        .where(Pool.enabled == True)
+    )
     pools = result.scalars().all()
     
     best_share = 0
@@ -761,8 +773,12 @@ async def get_ckpool_blocks_widget(db: AsyncSession = Depends(get_db), coin: str
     """Get CKPool blocks found (1d/7d/28d) and 24h value in GBP. Optional coin parameter (BTC/BCH/DGB) to filter."""
     from core.ckpool import CKPoolService
     
-    # Find all CKPool pools
-    result = await db.execute(select(Pool))
+    # Find all CKPool pools (SQL filter optimization)
+    result = await db.execute(
+        select(Pool)
+        .where(Pool.name.ilike('%ckpool%'))
+        .where(Pool.enabled == True)
+    )
     pools = result.scalars().all()
     
     total_blocks_1d = 0
@@ -852,8 +868,12 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db), coin: str
     from core.database import CKPoolBlock
     from sqlalchemy import select as sql_select, func
     
-    # Find all CKPool pools
-    result = await db.execute(select(Pool))
+    # Find all CKPool pools (SQL filter optimization)
+    result = await db.execute(
+        select(Pool)
+        .where(Pool.name.ilike('%ckpool%'))
+        .where(Pool.enabled == True)
+    )
     pools = result.scalars().all()
     
     total_blocks_all_time = 0
@@ -862,7 +882,6 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db), coin: str
     coin_type = None
     
     for pool in pools:
-        if CKPoolService.is_ckpool(pool.name):
             # Filter by coin type if specified
             if coin:
                 pool_name_lower = pool.name.lower()
