@@ -432,8 +432,14 @@ async def get_miner_24h_cost(miner_id: int, db: AsyncSession = Depends(get_db)):
     total_power_sum = 0
     
     for telem in telemetry_records:
-        if telem.power_watts is None or telem.power_watts <= 0:
-            continue
+        power = telem.power_watts
+        
+        # Fallback to manual power if no auto-detected power
+        if not power or power <= 0:
+            if miner.manual_power_watts:
+                power = miner.manual_power_watts
+            else:
+                continue
         
         # Find the energy price for this timestamp
         result = await db.execute(
@@ -448,11 +454,11 @@ async def get_miner_24h_cost(miner_id: int, db: AsyncSession = Depends(get_db)):
         if price:
             # Calculate energy consumed since last reading (or assume 30 seconds interval)
             interval_hours = 30 / 3600  # 30 seconds in hours (typical telemetry interval)
-            energy_kwh = (telem.power_watts / 1000) * interval_hours
+            energy_kwh = (power / 1000) * interval_hours
             cost_pence = energy_kwh * price.price_pence
             total_cost_pence += cost_pence
         
-        total_power_sum += telem.power_watts
+        total_power_sum += power
         total_power_readings += 1
     
     # Calculate averages
