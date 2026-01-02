@@ -561,12 +561,12 @@ async def get_ckpool_coins_widget(db: AsyncSession = Depends(get_db)):
     
     for pool in pools:
         pool_name_lower = pool.name.lower()
-            if 'btc' in pool_name_lower or 'bitcoin' in pool_name_lower:
-                coins.add('BTC')
-            elif 'bch' in pool_name_lower or 'bitcoin cash' in pool_name_lower:
-                coins.add('BCH')
-            elif 'dgb' in pool_name_lower or 'digibyte' in pool_name_lower:
-                coins.add('DGB')
+        if 'btc' in pool_name_lower or 'bitcoin' in pool_name_lower:
+            coins.add('BTC')
+        elif 'bch' in pool_name_lower or 'bitcoin cash' in pool_name_lower:
+            coins.add('BCH')
+        elif 'dgb' in pool_name_lower or 'digibyte' in pool_name_lower:
+            coins.add('DGB')
     
     return {
         "coins": sorted(list(coins))
