@@ -959,7 +959,7 @@ async function load24hCost() {
         
         const data = await response.json();
         
-        document.getElementById('cost-24h').textContent = data.cost_pence 
+        document.getElementById('cost-24h').textContent = data.cost_pounds !== undefined
             ? `£${data.cost_pounds.toFixed(2)}` 
             : '--';
     } catch (error) {
