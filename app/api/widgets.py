@@ -789,33 +789,23 @@ async def get_ckpool_blocks_widget(db: AsyncSession = Depends(get_db)):
             "status": "offline"
         }
     
-    # Calculate 24h value if blocks found
+    # Calculate 24h value if blocks found (using cached prices)
     value_24h_gbp = 0.0
     if total_blocks_1d > 0 and coin_type:
-        # Fetch coin prices
+        from core.utils import get_cached_crypto_price
+        
         try:
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
-                if coin_type == 'BTC':
-                    async with session.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=gbp", timeout=5) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            btc_price_gbp = data.get("bitcoin", {}).get("gbp", 0)
-                            value_24h_gbp = total_blocks_1d * 3.125 * btc_price_gbp
-                elif coin_type == 'BCH':
-                    async with session.get("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin-cash&vs_currencies=gbp", timeout=5) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            bch_price_gbp = data.get("bitcoin-cash", {}).get("gbp", 0)
-                            value_24h_gbp = total_blocks_1d * 3.125 * bch_price_gbp
-                elif coin_type == 'DGB':
-                    async with session.get("https://api.coingecko.com/api/v3/simple/price?ids=digibyte&vs_currencies=gbp", timeout=5) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            dgb_price_gbp = data.get("digibyte", {}).get("gbp", 0)
-                            value_24h_gbp = total_blocks_1d * 277.376 * dgb_price_gbp
+            if coin_type == 'BTC':
+                btc_price_gbp = await get_cached_crypto_price(db, 'bitcoin')
+                value_24h_gbp = total_blocks_1d * 3.125 * btc_price_gbp
+            elif coin_type == 'BCH':
+                bch_price_gbp = await get_cached_crypto_price(db, 'bitcoin-cash')
+                value_24h_gbp = total_blocks_1d * 3.125 * bch_price_gbp
+            elif coin_type == 'DGB':
+                dgb_price_gbp = await get_cached_crypto_price(db, 'digibyte')
+                value_24h_gbp = total_blocks_1d * 277.376 * dgb_price_gbp
         except Exception as e:
-            print(f"⚠️ Failed to fetch coin price: {e}")
+            print(f"⚠️ Failed to get cached coin price: {e}")
     
     return {
         "blocks_1d": total_blocks_1d,
@@ -907,29 +897,23 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db), coin: str
             "status": "offline"
         }
     
-    # Fetch current coin price and calculate GBP value
+    # Calculate GBP value using cached prices
     value_gbp = 0.0
     if coin_type and total_confirmed_rewards > 0:
+        from core.utils import get_cached_crypto_price
+        
         try:
-            import aiohttp
-            async with aiohttp.ClientSession() as session:
-                coin_id_map = {
-                    'BTC': 'bitcoin',
-                    'BCH': 'bitcoin-cash',
-                    'DGB': 'digibyte'
-                }
-                coin_id = coin_id_map.get(coin_type)
-                if coin_id:
-                    async with session.get(
-                        f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=gbp",
-                        timeout=5
-                    ) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            price_gbp = data.get(coin_id, {}).get("gbp", 0)
-                            value_gbp = total_confirmed_rewards * price_gbp
+            coin_id_map = {
+                'BTC': 'bitcoin',
+                'BCH': 'bitcoin-cash',
+                'DGB': 'digibyte'
+            }
+            coin_id = coin_id_map.get(coin_type)
+            if coin_id:
+                price_gbp = await get_cached_crypto_price(db, coin_id)
+                value_gbp = total_confirmed_rewards * price_gbp
         except Exception as e:
-            print(f"⚠️ Failed to fetch coin price: {e}")
+            print(f"⚠️ Failed to get cached coin price: {e}")
     
     # Format coin display
     coin_symbol = coin_type or "COIN"

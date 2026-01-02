@@ -121,3 +121,31 @@ async def get_latest_telemetry_batch(
     
     # Return as dict for easy O(1) lookup
     return {t.miner_id: t for t in telemetry_list}
+
+
+async def get_cached_crypto_price(db: AsyncSession, coin_id: str) -> float:
+    """
+    Get cached cryptocurrency price from database.
+    
+    Args:
+        db: Database session
+        coin_id: Coin ID (bitcoin, bitcoin-cash, digibyte, monero)
+    
+    Returns:
+        Price in GBP, or 0 if not found/cached
+    
+    Note:
+        Prices are updated every 10 minutes by the scheduler.
+        This avoids hitting CoinGecko rate limits.
+    """
+    from core.database import CryptoPrice
+    
+    result = await db.execute(
+        select(CryptoPrice).where(CryptoPrice.coin_id == coin_id)
+    )
+    cached_price = result.scalar_one_or_none()
+    
+    if cached_price:
+        return cached_price.price_gbp
+    
+    return 0.0
