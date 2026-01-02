@@ -167,6 +167,20 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._purge_old_ckpool_blocks,
+            IntervalTrigger(days=7),
+            id="purge_old_ckpool_blocks",
+            name="Purge non-accepted CKPool blocks older than 30 days"
+        )
+        
+        self.scheduler.add_job(
+            self._purge_old_ckpool_metrics,
+            IntervalTrigger(days=30),
+            id="purge_old_ckpool_metrics",
+            name="Purge CKPool metrics older than 12 months"
+        )
+        
+        self.scheduler.add_job(
             self._check_pool_failover,
             IntervalTrigger(minutes=5),
             id="check_pool_failover",
@@ -1709,6 +1723,46 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to purge old pool health data: {e}")
+    
+    async def _purge_old_ckpool_blocks(self):
+        """Purge non-accepted CKPool blocks older than 30 days (keep accepted blocks forever)"""
+        from core.database import AsyncSessionLocal, CKPoolBlock
+        from sqlalchemy import delete
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                cutoff = datetime.utcnow() - timedelta(days=30)
+                result = await db.execute(
+                    delete(CKPoolBlock)
+                    .where(CKPoolBlock.block_accepted == False)
+                    .where(CKPoolBlock.timestamp < cutoff)
+                )
+                await db.commit()
+                
+                if result.rowcount > 0:
+                    print(f"🗑️ Purged {result.rowcount} non-accepted CKPool blocks older than 30 days")
+        
+        except Exception as e:
+            print(f"❌ Failed to purge old CKPool blocks: {e}")
+    
+    async def _purge_old_ckpool_metrics(self):
+        """Purge CKPool metrics older than 12 months (rolling window for analytics)"""
+        from core.database import AsyncSessionLocal, CKPoolBlockMetrics
+        from sqlalchemy import delete
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                cutoff = datetime.utcnow() - timedelta(days=365)
+                result = await db.execute(
+                    delete(CKPoolBlockMetrics).where(CKPoolBlockMetrics.timestamp < cutoff)
+                )
+                await db.commit()
+                
+                if result.rowcount > 0:
+                    print(f"🗑️ Purged {result.rowcount} CKPool metrics older than 12 months")
+        
+        except Exception as e:
+            print(f"❌ Failed to purge old CKPool metrics: {e}")
     
     async def _check_pool_failover(self):
         """Check if any miners need pool failover due to poor health"""
