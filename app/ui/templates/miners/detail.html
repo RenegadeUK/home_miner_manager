@@ -3,6 +3,9 @@
 {% block content %}
 <!-- Action Buttons -->
 <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 2rem;">
+    <a href="/miners/{{ miner.id }}/edit" class="btn btn-primary">
+        <i class="fas fa-edit"></i> Edit Miner
+    </a>
     <button class="btn btn-error" onclick="deleteMiner()">Delete Miner</button>
 </div>
 
@@ -62,6 +65,15 @@
                     <span class="info-label">Current Pool</span>
                     <span class="info-value" id="current-pool-display">Loading...</span>
                 </div>
+                {% if miner.manual_power_watts %}
+                <div class="info-item">
+                    <span class="info-label">Estimated Power</span>
+                    <span class="info-value" style="color: #3b82f6;">
+                        ~{{ miner.manual_power_watts }}W
+                        <small style="color: var(--text-secondary); font-weight: normal;">(manual estimate)</small>
+                    </span>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -265,6 +277,10 @@
                     <div class="stat-box">
                         <div class="stat-label">Uptime</div>
                         <div class="stat-value" id="xmrig-uptime">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">24h Cost</div>
+                        <div class="stat-value" id="cost-24h">--</div>
                     </div>
                     <div class="stat-box">
                         <div class="stat-label">Version</div>
@@ -742,7 +758,7 @@ async function loadTelemetry(forceLive = false) {
             if (telemetry.power_watts) {
                 powerEl.innerHTML = `${telemetry.power_watts.toFixed(1)}W <small style="color: var(--text-secondary);">(auto)</small>`;
             } else if ({{ miner.manual_power_watts or 'null' }}) {
-                powerEl.innerHTML = `~${{{ miner.manual_power_watts }}}W <small style="color: #3b82f6;">(estimate)</small>`;
+                powerEl.innerHTML = `~{{ miner.manual_power_watts }}W <small style="color: #3b82f6;">(estimate)</small>`;
             } else {
                 powerEl.textContent = '--';
             }
@@ -922,10 +938,8 @@ async function loadTelemetry(forceLive = false) {
         // Update current pool display
         await updateCurrentPoolDisplay(telemetry.pool_in_use);
         
-        // Load 24h cost (ASIC miners only - XMRig doesn't report power)
-        if (!isXMRig) {
-            await load24hCost();
-        }
+        // Load 24h cost (now includes manual power fallback for XMRig/NMMiner)
+        await load24hCost();
         
     } catch (error) {
         document.getElementById('telemetry-loading').style.display = 'none';
