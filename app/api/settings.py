@@ -948,6 +948,58 @@ async def get_p2pool_stats(db: AsyncSession = Depends(get_db)):
         }
 
 
+@router.get("/ckpool/backfill-preview")
+async def preview_ckpool_backfill(db: AsyncSession = Depends(get_db)):
+    """
+    Preview what would be backfilled without actually doing it.
+    Shows count of complete vs incomplete blocks.
+    """
+    from sqlalchemy import text
+    
+    try:
+        # Total accepted blocks
+        result = await db.execute(text("""
+            SELECT COUNT(*) FROM ckpool_blocks WHERE block_accepted = 1
+        """))
+        total_accepted = result.scalar()
+        
+        # Complete blocks (has height AND hash)
+        result = await db.execute(text("""
+            SELECT COUNT(*) FROM ckpool_blocks 
+            WHERE block_accepted = 1 
+            AND block_height IS NOT NULL 
+            AND block_hash IS NOT NULL
+        """))
+        complete_blocks = result.scalar()
+        
+        # Incomplete blocks
+        incomplete_blocks = total_accepted - complete_blocks
+        
+        # Sample of complete blocks with pool names
+        result = await db.execute(text("""
+            SELECT cb.block_height, cb.block_hash, cb.timestamp, p.name
+            FROM ckpool_blocks cb
+            JOIN pools p ON cb.pool_id = p.id
+            WHERE cb.block_accepted = 1 
+            AND cb.block_height IS NOT NULL 
+            AND cb.block_hash IS NOT NULL
+            ORDER BY cb.timestamp DESC
+            LIMIT 5
+        """))
+        sample_blocks = [{"height": r[0], "hash": r[1], "timestamp": str(r[2]), "pool_name": r[3]} for r in result.fetchall()]
+        
+        return {
+            "total_accepted_blocks": total_accepted,
+            "complete_blocks": complete_blocks,
+            "incomplete_blocks": incomplete_blocks,
+            "can_migrate": complete_blocks > 0,
+            "sample_blocks": sample_blocks
+        }
+    except Exception as e:
+        logger.error(f"Preview failed: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+
 @router.post("/ckpool/backfill-metrics")
 async def backfill_ckpool_metrics():
     """
