@@ -7,6 +7,7 @@ from sqlalchemy import select, desc
 from typing import List
 from pydantic import BaseModel
 from datetime import datetime
+import logging
 
 from core.database import get_db, Miner, Pool, Telemetry
 from adapters import create_adapter, get_supported_types
@@ -471,7 +472,7 @@ async def get_miner_24h_cost(miner_id: int, db: AsyncSession = Depends(get_db)):
     # Calculate total kWh (average power over 24 hours)
     total_kwh = (avg_power_watts / 1000) * 24
     
-    return {
+    result = {
         "miner_id": miner_id,
         "miner_name": miner.name,
         "period_hours": 24,
@@ -481,6 +482,10 @@ async def get_miner_24h_cost(miner_id: int, db: AsyncSession = Depends(get_db)):
         "total_kwh": round(total_kwh, 3),
         "data_points": total_power_readings
     }
+    
+    print(f"💰 24h cost for miner {miner_id} ({miner.name}): cost_pence={result['cost_pence']}, cost_pounds={result['cost_pounds']}, power={avg_power_watts}W, data_points={total_power_readings}, manual_power={miner.manual_power_watts}")
+    
+    return result
 
 
 class BulkOperationRequest(BaseModel):
