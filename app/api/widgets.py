@@ -813,7 +813,7 @@ async def get_ckpool_blocks_widget(db: AsyncSession = Depends(get_db)):
                         if resp.status == 200:
                             data = await resp.json()
                             dgb_price_gbp = data.get("digibyte", {}).get("gbp", 0)
-                            value_24h_gbp = total_blocks_1d * 665 * dgb_price_gbp
+                            value_24h_gbp = total_blocks_1d * 277.376 * dgb_price_gbp
         except Exception as e:
             print(f"⚠️ Failed to fetch coin price: {e}")
     
@@ -887,11 +887,11 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db), coin: str
                 if block.confirmed_reward_coins and block.confirmed_from_explorer:
                     total_confirmed_rewards += block.confirmed_reward_coins
                 else:
-                    # Fallback to estimated reward
+                    # Fallback to estimated reward (current block rewards as of January 2025)
                     if coin_type == 'BTC' or coin_type == 'BCH':
                         total_confirmed_rewards += 3.125
                     elif coin_type == 'DGB':
-                        total_confirmed_rewards += 665
+                        total_confirmed_rewards += 277.376  # Current DGB block reward after latest halving
             
             pool_count += 1
     
@@ -933,7 +933,7 @@ async def get_ckpool_reward_widget(db: AsyncSession = Depends(get_db), coin: str
     # Format coin display
     coin_symbol = coin_type or "COIN"
     if coin_type == 'DGB':
-        coins_display = f"{total_confirmed_rewards:,.0f} {coin_symbol}"
+        coins_display = f"{total_confirmed_rewards:,.2f} {coin_symbol}"
     else:
         coins_display = f"{total_confirmed_rewards:.8f} {coin_symbol}"
     

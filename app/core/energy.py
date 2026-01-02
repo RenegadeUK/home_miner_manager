@@ -20,7 +20,7 @@ class EnergyOptimizationService:
     # Pool to coin mapping
     POOL_COINS = {
         "bch.solopool.org": {"coin": "BCH", "algo": ALGO_SHA256, "block_reward": 3.125, "block_time": 600},
-        "dgb.solopool.org": {"coin": "DGB", "algo": ALGO_SHA256, "block_reward": 665, "block_time": 15},
+        "dgb.solopool.org": {"coin": "DGB", "algo": ALGO_SHA256, "block_reward": 277.376, "block_time": 15},
         "btc.solopool.org": {"coin": "BTC", "algo": ALGO_SHA256, "block_reward": 3.125, "block_time": 600},
         "eu1.solopool.org": {"coin": "XMR", "algo": ALGO_RANDOMX, "block_reward": 0.6, "block_time": 120},
         "pool.braiins.com": {"coin": "BTC", "algo": ALGO_SHA256, "block_reward": 3.125, "block_time": 600},

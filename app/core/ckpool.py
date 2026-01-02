@@ -400,8 +400,8 @@ class CKPoolService:
             
             # Explorer API endpoints
             if coin_type == 'DGB':
-                # DigiExplorer API
-                url = f"https://digiexplorer.info/api/block/{block_hash}"
+                # DigiExplorer API - use /txs endpoint to get transactions
+                url = f"https://digiexplorer.info/api/block/{block_hash}/txs"
             elif coin_type == 'BCH':
                 # BlockchairAPI
                 url = f"https://api.blockchair.com/bitcoin-cash/dashboards/block/{block_hash}"
@@ -414,21 +414,43 @@ class CKPoolService:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=10) as response:
                     if response.status != 200:
+                        logger.warning(f"Explorer API returned status {response.status} for {block_hash}")
                         return None
                     
                     data = await response.json()
                     
                     # Parse response based on coin type
                     if coin_type == 'DGB':
-                        # DigiExplorer format
-                        block_height = data.get('height')
-                        # Coinbase transaction is first tx
+                        # DigiExplorer returns array of transactions, coinbase is first
+                        if not isinstance(data, list) or len(data) == 0:
+                            logger.error(f"Unexpected DigiExplorer response format for {block_hash}")
+                            return None
+                        
+                        coinbase_tx = data[0]
+                        
+                        # Verify it's actually a coinbase transaction
+                        if coinbase_tx.get('vin') and len(coinbase_tx['vin']) > 0:
+                            if not coinbase_tx['vin'][0].get('is_coinbase', False):
+                                logger.error(f"First transaction is not coinbase for {block_hash}")
+                                return None
+                        
+                        # Get block height from separate API call
+                        block_info_url = f"https://digiexplorer.info/api/block/{block_hash}"
+                        async with session.get(block_info_url, timeout=10) as block_response:
+                            if block_response.status == 200:
+                                block_info = await block_response.json()
+                                block_height = block_info.get('height')
+                            else:
+                                block_height = None
+                        
+                        # Calculate reward from coinbase outputs (value is in satoshis)
                         reward = 0.0
-                        if 'tx' in data and len(data['tx']) > 0:
-                            coinbase_tx = data['tx'][0]
-                            if 'vout' in coinbase_tx:
-                                for output in coinbase_tx['vout']:
-                                    reward += float(output.get('value', 0))
+                        if 'vout' in coinbase_tx:
+                            for output in coinbase_tx['vout']:
+                                # DigiExplorer returns value in satoshis, convert to DGB
+                                reward += float(output.get('value', 0)) / 100000000
+                        
+                        logger.info(f"DigiExplorer confirmed block {block_hash[:16]}...: {reward} DGB")
                         
                         return {
                             "block_height": block_height,

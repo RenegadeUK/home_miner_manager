@@ -254,8 +254,8 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                 if raw_stats:
                     stats = SolopoolService.format_stats_summary(raw_stats)
                     blocks_24h = stats.get("blocks_24h", 0)
-                    # DGB block reward: ~665 DGB (DigiShield adjusted, approximate)
-                    earned_24h_dgb = blocks_24h * 665
+                    # DGB block reward: 277.376 DGB (current as of January 2025, post-halving)
+                    earned_24h_dgb = blocks_24h * 277.376
                     earnings_pounds_24h += earned_24h_dgb * dgb_price_gbp
             elif is_btc and btc_price_gbp > 0:
                 raw_stats = await SolopoolService.get_btc_account_stats(username)
@@ -853,8 +853,8 @@ async def get_dashboard_all(db: AsyncSession = Depends(get_db)):
                 if raw_stats:
                     stats = SolopoolService.format_stats_summary(raw_stats)
                     blocks_24h = stats.get("blocks_24h", 0)
-                    # DGB block reward: ~665 DGB (DigiShield adjusted, approximate)
-                    earned_24h_dgb = blocks_24h * 665
+                    # DGB block reward: 277.376 DGB (current as of January 2025, post-halving)
+                    earned_24h_dgb = blocks_24h * 277.376
                     earnings_pounds_24h += earned_24h_dgb * dgb_price_gbp
             elif is_btc and btc_price_gbp > 0:
                 raw_stats = await SolopoolService.get_btc_account_stats(username)
