@@ -1077,6 +1077,38 @@ async def get_ckpool_blocks_data(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/ckpool/update-block")
+async def update_ckpool_block(
+    block_id: int,
+    block_height: int,
+    block_hash: str,
+    confirmed_reward_coins: float,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a ckpool_blocks entry with missing height/hash/reward data"""
+    try:
+        from sqlalchemy import select, update
+        from core.database import CKPoolBlock
+        
+        # Update the block
+        await db.execute(
+            update(CKPoolBlock)
+            .where(CKPoolBlock.id == block_id)
+            .values(
+                block_height=block_height,
+                block_hash=block_hash,
+                confirmed_reward_coins=confirmed_reward_coins,
+                confirmed_from_explorer=True
+            )
+        )
+        await db.commit()
+        
+        return {"success": True, "message": f"Updated block {block_id} with height {block_height}"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/ckpool/metrics-data")
 async def get_ckpool_metrics_data(db: AsyncSession = Depends(get_db)):
     """View current data in ckpool_block_metrics table"""
