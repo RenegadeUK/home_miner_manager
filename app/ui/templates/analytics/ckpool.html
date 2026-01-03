@@ -263,8 +263,16 @@ function formatDuration(seconds) {
 
 async function loadAnalytics() {
     try {
+        console.log('Fetching analytics for coin:', coin);
         const response = await fetch(`/api/analytics/ckpool/analytics?coin=${coin}`);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('Data loaded:', data);
 
         // Update stats
         document.getElementById('stat-total').textContent = data.stats.total_blocks;
@@ -379,6 +387,18 @@ async function loadAnalytics() {
             <div class="empty-state" style="grid-column: 1 / -1;">
                 <div class="empty-state-icon">❌</div>
                 <h3>Failed to load analytics</h3>
+                <p>Error: ${error.message}</p>
+            </div>
+        `;
+        document.getElementById('blocks-tbody').innerHTML = `
+            <tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--danger);">
+                ❌ Error loading blocks: ${error.message}
+            </td></tr>
+        `;
+        document.getElementById('effortChart').parentElement.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <h3>Failed to load chart</h3>
                 <p>Error: ${error.message}</p>
             </div>
         `;
