@@ -176,6 +176,12 @@
         </a>
     </div>
 
+    <!-- 24-Hour Hashrate Chart -->
+    <div class="chart-card">
+        <h3>📈 24-Hour Hashrate History</h3>
+        <canvas id="hashrateChart" style="max-height: 300px;"></canvas>
+    </div>
+
     <!-- Statistics Cards -->
     <div id="stats-grid" class="stats-grid">
         <div class="stat-card">
@@ -245,6 +251,7 @@
 <script>
 const coin = "{{ coin }}";
 let effortChart = null;
+let hashrateChart = null;
 
 function getEffortClass(effort) {
     if (effort < 50) return 'effort-excellent';
@@ -260,6 +267,108 @@ function formatDuration(seconds) {
     const minutes = Math.floor((seconds % 3600) / 60);
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
+}
+
+async function loadHashrateHistory() {
+    try {
+        const response = await fetch(`/api/analytics/ckpool/hashrate?coin=${coin}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.data_points.length === 0) {
+            document.getElementById('hashrateChart').parentElement.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">📈</div>
+                    <h3>No hashrate data yet</h3>
+                    <p>Hashrate snapshots are captured every 5 minutes. Check back soon.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Build chart
+        if (hashrateChart) hashrateChart.destroy();
+        
+        const ctx = document.getElementById('hashrateChart').getContext('2d');
+        hashrateChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Hashrate (GH/s)',
+                    data: data.data_points.map(d => ({
+                        x: new Date(d.timestamp),
+                        y: d.hashrate_gh
+                    })),
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            displayFormats: {
+                                hour: 'HH:mm'
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time (24 hours)'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Hashrate (GH/s)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1000) return (value / 1000).toFixed(1) + ' TH/s';
+                                return value.toFixed(0) + ' GH/s';
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const value = context.parsed.y;
+                                if (value >= 1000) return `Hashrate: ${(value / 1000).toFixed(2)} TH/s`;
+                                return `Hashrate: ${value.toFixed(2)} GH/s`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Failed to load hashrate history:', error);
+        document.getElementById('hashrateChart').parentElement.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">❌</div>
+                <h3>Failed to load hashrate data</h3>
+                <p>Error: ${error.message}</p>
+            </div>
+        `;
+    }
 }
 
 async function loadAnalytics() {
@@ -432,6 +541,7 @@ async function loadAnalytics() {
 }
 
 // Load on page load
+loadHashrateHistory();
 loadAnalytics();
 </script>
 {% endblock %}

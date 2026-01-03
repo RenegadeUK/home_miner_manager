@@ -643,3 +643,35 @@ async def backfill_ckpool_metrics():
         except Exception as e:
             print(f"❌ Failed to backfill ckpool_block_metrics: {e}")
             raise
+        
+        # Migration: Create ckpool_hashrate_snapshots table
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS ckpool_hashrate_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    pool_id INTEGER NOT NULL,
+                    coin VARCHAR(10) NOT NULL,
+                    timestamp DATETIME NOT NULL,
+                    hashrate_gh REAL NOT NULL,
+                    workers INTEGER NOT NULL
+                )
+            """))
+            print("✓ Created ckpool_hashrate_snapshots table")
+        except Exception:
+            pass
+        
+        # Migration: Add indexes to ckpool_hashrate_snapshots
+        try:
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_ckpool_hashrate_pool_id ON ckpool_hashrate_snapshots(pool_id)
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_ckpool_hashrate_coin ON ckpool_hashrate_snapshots(coin)
+            """))
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_ckpool_hashrate_timestamp ON ckpool_hashrate_snapshots(timestamp)
+            """))
+            print("✓ Created indexes on ckpool_hashrate_snapshots")
+        except Exception:
+            pass
+

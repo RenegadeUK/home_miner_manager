@@ -300,6 +300,18 @@ class CKPoolBlockMetrics(Base):
     confirmed_reward_coins: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
 
+class CKPoolHashrateSnapshot(Base):
+    """5-minute hashrate snapshots for 24-hour chart (auto-purged after 24h)"""
+    __tablename__ = "ckpool_hashrate_snapshots"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    pool_id: Mapped[int] = mapped_column(Integer, index=True)
+    coin: Mapped[str] = mapped_column(String(10), index=True)  # BTC, BCH, DGB
+    timestamp: Mapped[datetime] = mapped_column(DateTime, index=True)
+    hashrate_gh: Mapped[float] = mapped_column(Float)  # Hashrate in GH/s (5-minute avg)
+    workers: Mapped[int] = mapped_column(Integer)  # Active workers count
+
+
 class PoolStrategy(Base):
     """Pool switching strategy configuration"""
     __tablename__ = "pool_strategies"

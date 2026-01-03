@@ -446,3 +446,76 @@ async def get_ckpool_analytics(
     _ckpool_analytics_cache[coin] = (now, response_data)
     
     return CKPoolAnalyticsResponse(coin=coin, blocks=blocks, stats=stats)
+
+
+class CKPoolHashrateDataPoint(BaseModel):
+    """Single hashrate data point"""
+    timestamp: datetime
+    hashrate_gh: float
+    workers: int
+
+
+class CKPoolHashrateResponse(BaseModel):
+    """24-hour hashrate history for a coin"""
+    coin: str
+    data_points: List[CKPoolHashrateDataPoint]
+    total_snapshots: int
+
+
+@router.get("/ckpool/hashrate", response_model=CKPoolHashrateResponse)
+async def get_ckpool_hashrate_history(
+    coin: str = Query(..., description="Coin type (BTC, BCH, DGB)"),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get 24-hour rolling hashrate history for a CKPool coin.
+    Data points captured every 5 minutes.
+    """
+    from core.database import CKPoolHashrateSnapshot, Pool
+    
+    # Validate coin
+    coin = coin.upper()
+    if coin not in ["BTC", "BCH", "DGB"]:
+        raise HTTPException(status_code=400, detail="Invalid coin. Must be BTC, BCH, or DGB")
+    
+    # Get snapshots from last 24 hours for this coin
+    cutoff_time = datetime.utcnow() - timedelta(hours=24)
+    
+    result = await db.execute(
+        select(CKPoolHashrateSnapshot)
+        .where(CKPoolHashrateSnapshot.coin == coin)
+        .where(CKPoolHashrateSnapshot.timestamp >= cutoff_time)
+        .order_by(CKPoolHashrateSnapshot.timestamp.asc())
+    )
+    snapshots = result.scalars().all()
+    
+    # Aggregate by timestamp if multiple pools for same coin
+    # Group by 5-minute bucket to combine multiple pools
+    from collections import defaultdict
+    time_buckets = defaultdict(lambda: {"hashrate": 0.0, "workers": 0})
+    
+    for snapshot in snapshots:
+        # Round timestamp to 5-minute bucket
+        bucket_time = snapshot.timestamp.replace(second=0, microsecond=0)
+        minute = (bucket_time.minute // 5) * 5
+        bucket_time = bucket_time.replace(minute=minute)
+        
+        time_buckets[bucket_time]["hashrate"] += snapshot.hashrate_gh
+        time_buckets[bucket_time]["workers"] += snapshot.workers
+    
+    # Build response
+    data_points = [
+        CKPoolHashrateDataPoint(
+            timestamp=ts,
+            hashrate_gh=round(data["hashrate"], 2),
+            workers=data["workers"]
+        )
+        for ts, data in sorted(time_buckets.items())
+    ]
+    
+    return CKPoolHashrateResponse(
+        coin=coin,
+        data_points=data_points,
+        total_snapshots=len(data_points)
+    )
+
