@@ -1123,6 +1123,35 @@ async def update_ckpool_block(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/ckpool/update-metrics-effort")
+async def update_ckpool_metrics_effort(
+    block_height: int,
+    effort_percent: float,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update effort_percent for a block in ckpool_block_metrics (for manual corrections)"""
+    try:
+        from sqlalchemy import update
+        from core.database import CKPoolBlockMetrics
+        
+        result = await db.execute(
+            update(CKPoolBlockMetrics)
+            .where(CKPoolBlockMetrics.block_height == block_height)
+            .values(effort_percent=effort_percent)
+        )
+        await db.commit()
+        
+        if result.rowcount == 0:
+            raise HTTPException(status_code=404, detail=f"Block {block_height} not found in metrics")
+        
+        return {"success": True, "message": f"Updated block {block_height} effort to {effort_percent}%"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/ckpool/metrics-data")
 async def get_ckpool_metrics_data(db: AsyncSession = Depends(get_db)):
     """View current data in ckpool_block_metrics table"""
