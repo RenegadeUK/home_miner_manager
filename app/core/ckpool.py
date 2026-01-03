@@ -391,6 +391,27 @@ class CKPoolService:
                                     )
                                     db.add(metrics)
                                     logger.info(f"✅ Added CKPool metrics for block {block_height}: {effort_percent}% effort")
+                                    
+                                    # Send notification for block found
+                                    try:
+                                        from core.notifications import send_alert
+                                        
+                                        effort_emoji = "🟢" if effort_percent < 100 else ("🟠" if effort_percent < 200 else "🔴")
+                                        time_str = f"{time_to_block_seconds//3600}h {(time_to_block_seconds%3600)//60}m" if time_to_block_seconds else "Unknown"
+                                        
+                                        message = (
+                                            f"🎉 <b>Block Found!</b>\n\n"
+                                            f"💎 <b>Coin:</b> {coin}\n"
+                                            f"📊 <b>Block:</b> #{block_height}\n"
+                                            f"{effort_emoji} <b>Effort:</b> {effort_percent:.1f}%\n"
+                                            f"⏱️ <b>Time:</b> {time_str}\n"
+                                            f"⚡ <b>Hashrate:</b> {hashrate_gh:.2f} GH/s"
+                                        )
+                                        
+                                        # Fire and forget (don't await to avoid blocking)
+                                        asyncio.create_task(send_alert(message, alert_type="block_found"))
+                                    except Exception as notif_error:
+                                        logger.warning(f"Failed to send block notification: {notif_error}")
                             
                             except Exception as e:
                                 # Never let metrics write break the main block tracking
