@@ -1046,21 +1046,23 @@ async def get_ckpool_blocks_data(
     """Get all blocks from ckpool_blocks table for debugging"""
     try:
         from sqlalchemy import select
-        from core.database import CKPoolBlock
+        from core.database import CKPoolBlock, Pool
         
         result = await db.execute(
-            select(CKPoolBlock)
+            select(CKPoolBlock, Pool)
+            .join(Pool, CKPoolBlock.pool_id == Pool.id)
             .order_by(CKPoolBlock.timestamp.desc())
         )
-        blocks = result.scalars().all()
+        rows = result.all()
         
         return {
-            "total": len(blocks),
+            "total": len(rows),
             "blocks": [
                 {
                     "id": b.id,
                     "pool_id": b.pool_id,
-                    "coin": b.coin,
+                    "pool_name": p.name,
+                    "coin": p.name.split()[-1] if p.name else "UNKNOWN",  # Extract coin from pool name
                     "block_height": b.block_height,
                     "block_hash": b.block_hash,
                     "timestamp": b.timestamp.isoformat(),
@@ -1068,7 +1070,7 @@ async def get_ckpool_blocks_data(
                     "confirmed_reward_coins": b.confirmed_reward_coins,
                     "confirmed_from_explorer": b.confirmed_from_explorer,
                 }
-                for b in blocks
+                for b, p in rows
             ]
         }
     except Exception as e:
