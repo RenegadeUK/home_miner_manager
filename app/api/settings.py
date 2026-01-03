@@ -1039,6 +1039,42 @@ async def backfill_ckpool_metrics():
         }
 
 
+@router.get("/ckpool/blocks-data")
+async def get_ckpool_blocks_data(
+    db: AsyncSession = Depends(get_db)
+):
+    """Get all blocks from ckpool_blocks table for debugging"""
+    try:
+        from sqlalchemy import select
+        from core.database import CKPoolBlock
+        
+        result = await db.execute(
+            select(CKPoolBlock)
+            .order_by(CKPoolBlock.timestamp.desc())
+        )
+        blocks = result.scalars().all()
+        
+        return {
+            "total": len(blocks),
+            "blocks": [
+                {
+                    "id": b.id,
+                    "pool_id": b.pool_id,
+                    "coin": b.coin,
+                    "block_height": b.block_height,
+                    "block_hash": b.block_hash,
+                    "timestamp": b.timestamp.isoformat(),
+                    "block_accepted": b.block_accepted,
+                    "confirmed_reward_coins": b.confirmed_reward_coins,
+                    "confirmed_from_explorer": b.confirmed_from_explorer,
+                }
+                for b in blocks
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/ckpool/metrics-data")
 async def get_ckpool_metrics_data(db: AsyncSession = Depends(get_db)):
     """View current data in ckpool_block_metrics table"""
