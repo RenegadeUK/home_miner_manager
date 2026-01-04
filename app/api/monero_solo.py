@@ -6,12 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
+import logging
 
 from core.database import get_db, MoneroSoloSettings
 from core.monero_solo import MoneroSoloService
 from core.monero_node import MoneroNodeRPC
 from core.monero_wallet import MoneroWalletRPC
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
