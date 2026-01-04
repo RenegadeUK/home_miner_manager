@@ -169,37 +169,69 @@ async def test_node_connection(request: TestConnectionRequest):
 @router.get("/settings/monero-solo/stats")
 async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
     """Get Monero solo mining statistics for dashboard"""
-    service = MoneroSoloService(db)
-    settings = await service.get_settings()
+    from sqlalchemy import select, func
+    from core.database import MoneroBlock, MoneroWalletTransaction
+    from datetime import datetime, timedelta
     
-    if not settings or not settings.enabled:
+    service = MoneroSoloService(db)
+    settings = await service.get_or_create_settings()
+    
+    # Check if wallet RPC is configured
+    wallet_connected = bool(
+        settings.wallet_rpc_ip and 
+        settings.wallet_address
+    )
+    
+    if not settings.enabled:
         return {
             "enabled": False,
-            "worker_count": 0,
-            "total_hashrate": 0,
-            "current_effort": 0,
-            "today_reward_xmr": 0,
-            "today_reward_gbp": 0,
-            "alltime_reward_xmr": 0,
-            "alltime_reward_gbp": 0
+            "wallet_connected": False,
+            "xmrig_workers": 0,
+            "total_hashrate_formatted": "0 H/s",
+            "current_effort_percent": 0.0,
+            "blocks_found": 0,
+            "earnings_24h_xmr": 0.0,
+            "total_earned_xmr": 0.0
         }
     
-    # Get hashrate data
+    # Get hashrate data from XMRig miners
     hashrate_data = await service.aggregate_hashrate()
     
-    # Get effort (simplified - using first pool)
-    # TODO: Implement proper pool selection
+    # Get current effort from latest effort record
+    from core.database import MoneroSoloEffort
+    effort_stmt = select(MoneroSoloEffort).order_by(
+        MoneroSoloEffort.timestamp.desc()
+    ).limit(1)
+    result = await db.execute(effort_stmt)
+    latest_effort = result.scalar_one_or_none()
+    current_effort = latest_effort.effort_percent if latest_effort else 0.0
     
-    # Get wallet balance and rewards
-    # TODO: Implement reward calculations
+    # Count blocks found
+    blocks_stmt = select(func.count(MoneroBlock.id))
+    result = await db.execute(blocks_stmt)
+    blocks_count = result.scalar() or 0
+    
+    # Calculate 24h earnings
+    yesterday = datetime.utcnow() - timedelta(days=1)
+    earnings_stmt = select(func.sum(MoneroWalletTransaction.amount_xmr)).where(
+        MoneroWalletTransaction.timestamp >= yesterday
+    )
+    result = await db.execute(earnings_stmt)
+    earnings_24h = result.scalar() or 0.0
+    
+    # Calculate all-time earnings
+    total_stmt = select(func.sum(MoneroWalletTransaction.amount_xmr))
+    result = await db.execute(total_stmt)
+    total_earned = result.scalar() or 0.0
     
     return {
         "enabled": True,
-        "worker_count": hashrate_data["worker_count"],
-        "total_hashrate": hashrate_data["total_hashrate"],
-        "current_effort": 0.0,  # TODO
-        "today_reward_xmr": 0.0,  # TODO
-        "today_reward_gbp": 0.0,  # TODO
-        "alltime_reward_xmr": 0.0,  # TODO
-        "alltime_reward_gbp": 0.0,  # TODO
+        "wallet_connected": wallet_connected,
+        "xmrig_workers": hashrate_data["worker_count"],
+        "total_hashrate_formatted": hashrate_data["total_hashrate_formatted"],
+        "current_effort_percent": current_effort,
+        "blocks_found": blocks_count,
+        "earnings_24h_xmr": float(earnings_24h),
+        "total_earned_xmr": float(total_earned)
     }
+
