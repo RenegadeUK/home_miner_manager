@@ -2123,6 +2123,7 @@ class SchedulerService:
     async def _detect_monero_blocks(self):
         """Detect new Monero solo mining blocks every 5 minutes"""
         try:
+            logger.info("🔍 Monero solo block detection job started")
             from core.database import AsyncSessionLocal
             from core.monero_solo import MoneroSoloService
             
@@ -2130,13 +2131,22 @@ class SchedulerService:
                 service = MoneroSoloService(db)
                 settings = await service.get_settings()
                 
-                if not settings or not settings.enabled:
+                if not settings:
+                    logger.warning("Monero solo settings not found in database")
                     return
+                    
+                if not settings.enabled:
+                    logger.debug("Monero solo mining disabled, skipping block detection")
+                    return
+                
+                logger.info(f"Monero solo enabled, checking for blocks (pool_id={settings.pool_id})")
                 
                 # Detect new blocks and reset effort
                 new_blocks = await service.detect_new_blocks()
                 if new_blocks:
                     logger.info(f"Detected {len(new_blocks)} new Monero block(s)")
+                else:
+                    logger.info("No new Monero blocks detected")
         
         except Exception as e:
             logger.error(f"Failed to detect Monero blocks: {e}")
