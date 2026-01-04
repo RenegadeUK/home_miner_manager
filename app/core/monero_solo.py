@@ -91,6 +91,7 @@ class MoneroSoloService:
         settings = await self.get_or_create_settings()
         
         if not settings.enabled or not settings.pool_id:
+            logger.debug("Monero solo not enabled or no pool_id configured")
             return []
         
         # Get the solo pool
@@ -98,6 +99,7 @@ class MoneroSoloService:
         solo_pool = pool_result.scalar_one_or_none()
         
         if not solo_pool:
+            logger.warning(f"Monero solo pool_id {settings.pool_id} not found in database")
             return []
         
         # Get all enabled XMRig miners with recent telemetry pointing at this pool
@@ -108,6 +110,23 @@ class MoneroSoloService:
         
         # Find miners with recent telemetry matching this pool's URL:port
         pool_url = f"{solo_pool.url}:{solo_pool.port}"
+        logger.info(f"Looking for XMRig miners with pool matching: {pool_url}")
+        
+        # First, let's see what XMRig miners exist with recent telemetry
+        debug_result = await self.db.execute(
+            select(Miner, Telemetry.pool_in_use).join(
+                Telemetry, Miner.id == Telemetry.miner_id
+            ).where(
+                and_(
+                    Miner.miner_type == "xmrig",
+                    Miner.enabled == True,
+                    Telemetry.timestamp > cutoff
+                )
+            ).distinct()
+        )
+        debug_rows = debug_result.all()
+        for miner, pool_in_use in debug_rows:
+            logger.info(f"  Found XMRig miner '{miner.name}' with pool_in_use: '{pool_in_use}'")
         
         result = await self.db.execute(
             select(Miner).join(
@@ -125,6 +144,8 @@ class MoneroSoloService:
             ).distinct()
         )
         miners = result.scalars().all()
+        
+        logger.info(f"Matched {len(miners)} XMRig miners to solo pool")
         
         # Return miners with the solo pool
         active = []
