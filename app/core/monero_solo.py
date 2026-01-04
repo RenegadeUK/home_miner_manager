@@ -486,6 +486,7 @@ class MoneroSoloService:
             # Get current effort
             effort_result = await self.db.execute(select(MoneroSoloEffort).limit(1))
             effort_tracker = effort_result.scalar_one_or_none()
+            logger.debug(f"Effort tracker: {effort_tracker.total_hashes if effort_tracker else 'None'}")
             
             # Get network difficulty (simplified - using first active pool)
             active_miners = await self.get_active_xmrig_miners()
@@ -496,10 +497,18 @@ class MoneroSoloService:
                 node_rpc = await self.get_node_rpc(pool)
                 if node_rpc:
                     difficulty = await node_rpc.get_difficulty() or 0
+                    logger.debug(f"Network difficulty: {difficulty}")
+            else:
+                logger.warning("No active miners found for difficulty lookup")
                     
             current_effort = 0.0
             if effort_tracker and difficulty > 0:
                 current_effort = (effort_tracker.total_hashes / difficulty) * 100
+                logger.info(f"Current effort: {current_effort:.4f}% (hashes: {effort_tracker.total_hashes}, difficulty: {difficulty})")
+            elif not effort_tracker:
+                logger.warning("No effort tracker found - effort calculation skipped")
+            elif difficulty == 0:
+                logger.warning("Difficulty is 0 - effort calculation skipped")
                 
             snapshot = MoneroHashrateSnapshot(
                 total_hashrate=hashrate_data["total_hashrate"],
