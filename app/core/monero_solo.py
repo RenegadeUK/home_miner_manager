@@ -93,15 +93,19 @@ class MoneroSoloService:
         if not settings.enabled or not settings.pool_id:
             return []
         
-        # Get all enabled XMRig miners pointed at the solo pool
+        # Get all enabled XMRig miners pointed at the solo pool via MinerPoolSlot
+        from core.database import MinerPoolSlot
         result = await self.db.execute(
-            select(Miner).where(
+            select(Miner).join(
+                MinerPoolSlot, Miner.id == MinerPoolSlot.miner_id
+            ).where(
                 and_(
                     Miner.miner_type == "xmrig",
                     Miner.enabled == True,
-                    Miner.pool_id == settings.pool_id
+                    MinerPoolSlot.pool_id == settings.pool_id,
+                    MinerPoolSlot.is_active == True
                 )
-            )
+            ).distinct()
         )
         miners = result.scalars().all()
         
