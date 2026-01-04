@@ -40,6 +40,7 @@ class MinerResponse(BaseModel):
     miner_type: str
     ip_address: str
     port: int | None
+    effective_port: int  # The actual port being used (including defaults)
     current_mode: str | None
     enabled: bool
     manual_power_watts: int | None = None
@@ -61,7 +62,26 @@ async def list_miners(db: AsyncSession = Depends(get_db)):
     from sqlalchemy import func
     result = await db.execute(select(Miner).order_by(func.lower(Miner.name)))
     miners = result.scalars().all()
-    return miners
+    
+    # Add effective_port to each miner
+    miners_with_effective_port = []
+    for miner in miners:
+        adapter = create_adapter(miner.id, miner.name, miner.miner_type, miner.ip_address, miner.port, miner.config)
+        miner_dict = {
+            "id": miner.id,
+            "name": miner.name,
+            "miner_type": miner.miner_type,
+            "ip_address": miner.ip_address,
+            "port": miner.port,
+            "effective_port": adapter.port,
+            "current_mode": miner.current_mode,
+            "enabled": miner.enabled,
+            "manual_power_watts": miner.manual_power_watts,
+            "config": miner.config
+        }
+        miners_with_effective_port.append(miner_dict)
+    
+    return miners_with_effective_port
 
 
 @router.get("/{miner_id}", response_model=MinerResponse)
@@ -73,7 +93,21 @@ async def get_miner(miner_id: int, db: AsyncSession = Depends(get_db)):
     if not miner:
         raise HTTPException(status_code=404, detail="Miner not found")
     
-    return miner
+    # Calculate effective_port using the adapter
+    adapter = create_adapter(miner.id, miner.name, miner.miner_type, miner.ip_address, miner.port, miner.config)
+    
+    return {
+        "id": miner.id,
+        "name": miner.name,
+        "miner_type": miner.miner_type,
+        "ip_address": miner.ip_address,
+        "port": miner.port,
+        "effective_port": adapter.port,
+        "current_mode": miner.current_mode,
+        "enabled": miner.enabled,
+        "manual_power_watts": miner.manual_power_watts,
+        "config": miner.config
+    }
 
 
 @router.post("/", response_model=MinerResponse)
@@ -95,7 +129,21 @@ async def create_miner(miner: MinerCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(db_miner)
     
-    return db_miner
+    # Calculate effective_port using the adapter
+    adapter = create_adapter(db_miner.id, db_miner.name, db_miner.miner_type, db_miner.ip_address, db_miner.port, db_miner.config)
+    
+    return {
+        "id": db_miner.id,
+        "name": db_miner.name,
+        "miner_type": db_miner.miner_type,
+        "ip_address": db_miner.ip_address,
+        "port": db_miner.port,
+        "effective_port": adapter.port,
+        "current_mode": db_miner.current_mode,
+        "enabled": db_miner.enabled,
+        "manual_power_watts": db_miner.manual_power_watts,
+        "config": db_miner.config
+    }
 
 
 @router.put("/{miner_id}", response_model=MinerResponse)
@@ -129,7 +177,21 @@ async def update_miner(miner_id: int, miner_update: MinerUpdate, db: AsyncSessio
     await db.commit()
     await db.refresh(miner)
     
-    return miner
+    # Calculate effective_port using the adapter
+    adapter = create_adapter(miner.id, miner.name, miner.miner_type, miner.ip_address, miner.port, miner.config)
+    
+    return {
+        "id": miner.id,
+        "name": miner.name,
+        "miner_type": miner.miner_type,
+        "ip_address": miner.ip_address,
+        "port": miner.port,
+        "effective_port": adapter.port,
+        "current_mode": miner.current_mode,
+        "enabled": miner.enabled,
+        "manual_power_watts": miner.manual_power_watts,
+        "config": miner.config
+    }
 
 
 @router.delete("/{miner_id}")

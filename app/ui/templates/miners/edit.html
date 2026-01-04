@@ -29,7 +29,10 @@
 
                 <div class="form-group">
                     <label for="port">Port</label>
-                    <input type="number" class="form-control" id="port" value="{{ miner.port }}" required>
+                    <input type="number" class="form-control" id="port" value="{{ miner.effective_port }}" required>
+                    {% if miner.port is none %}
+                    <small class="form-text text-muted">Using default port for {{ miner.miner_type }}</small>
+                    {% endif %}
                 </div>
 
                 <div class="form-group">

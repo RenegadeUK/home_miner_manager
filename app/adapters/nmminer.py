@@ -18,9 +18,10 @@ class NMMinerAdapter(MinerAdapter):
     
     TELEMETRY_PORT = 12345
     CONFIG_PORT = 12347
+    DEFAULT_PORT = 12345  # Display port (telemetry port)
     
     def __init__(self, miner_id: int, miner_name: str, ip_address: str, port: Optional[int] = None, config: Optional[Dict] = None):
-        super().__init__(miner_id, miner_name, ip_address, port, config)
+        super().__init__(miner_id, miner_name, ip_address, port or self.DEFAULT_PORT, config)
         self.last_telemetry: Optional[Dict] = None
     
     async def get_telemetry(self) -> Optional[MinerTelemetry]:
