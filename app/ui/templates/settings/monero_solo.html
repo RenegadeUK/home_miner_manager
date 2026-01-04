@@ -229,6 +229,33 @@
                     </div>
                 </div>
 
+                <!-- Monero Node Settings -->
+                <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Monero Node (Pool Entry)</h4>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Configure your Monero node details. This creates a pool entry so we can track which XMRig miners are solo mining.
+                    </p>
+
+                    <div class="form-group">
+                        <label for="node-ip" class="form-label">Node IP Address</label>
+                        <input type="text" id="node-ip" class="form-input" placeholder="192.168.1.100 or localhost">
+                        <div class="help-text">IP address where your Monero node is running</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="node-port" class="form-label">Node Port</label>
+                        <input type="number" id="node-port" class="form-input" value="18081">
+                        <div class="help-text">Port for Monero node (default: 18081)</div>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" id="test-node-btn" class="btn btn-secondary">
+                            <i class="fas fa-plug"></i> Test Node Connection
+                        </button>
+                        <div id="node-status" class="status-indicator" style="display:none; margin-top: 1rem;"></div>
+                    </div>
+                </div>
+
                 <!-- Wallet RPC Settings -->
                 <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem; margin-top: 1.5rem;">
                     <h4 style="margin-bottom: 1rem; color: var(--text-primary);">Wallet RPC Settings</h4>
@@ -297,6 +324,8 @@ async function loadSettings() {
         
         // Populate form
         document.getElementById('enabled').checked = currentSettings.enabled || false;
+        document.getElementById('node-ip').value = currentSettings.node_ip || '';
+        document.getElementById('node-port').value = currentSettings.node_port || 18081;
         document.getElementById('wallet-rpc-ip').value = currentSettings.wallet_rpc_ip || '';
         document.getElementById('wallet-rpc-port').value = currentSettings.wallet_rpc_port || 18083;
         document.getElementById('wallet-rpc-user').value = currentSettings.wallet_rpc_user || '';
@@ -312,6 +341,43 @@ async function loadSettings() {
         alert('Failed to load settings: ' + error.message);
     }
 }
+
+// Test node connection
+document.getElementById('test-node-btn').addEventListener('click', async () => {
+    const ip = document.getElementById('node-ip').value;
+    const port = document.getElementById('node-port').value;
+    
+    if (!ip) {
+        alert('Please enter node IP address');
+        return;
+    }
+    
+    const statusDiv = document.getElementById('node-status');
+    statusDiv.style.display = 'block';
+    statusDiv.className = 'status-indicator status-warning';
+    statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing node connection...';
+    
+    try {
+        const response = await fetch('/api/settings/monero-solo/test-node', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip, port: parseInt(port) })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            statusDiv.className = 'status-indicator status-success';
+            statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${result.message}`;
+        } else {
+            statusDiv.className = 'status-indicator status-error';
+            statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${result.message}`;
+        }
+    } catch (error) {
+        statusDiv.className = 'status-indicator status-error';
+        statusDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> Connection failed: ${error.message}`;
+    }
+});
 
 // Test wallet connection
 document.getElementById('test-wallet-btn').addEventListener('click', async () => {
@@ -363,6 +429,8 @@ document.getElementById('monero-solo-form').addEventListener('submit', async (e)
     
     const data = {
         enabled: document.getElementById('enabled').checked,
+        node_ip: document.getElementById('node-ip').value || null,
+        node_port: parseInt(document.getElementById('node-port').value),
         wallet_rpc_ip: document.getElementById('wallet-rpc-ip').value || null,
         wallet_rpc_port: parseInt(document.getElementById('wallet-rpc-port').value),
         wallet_rpc_user: document.getElementById('wallet-rpc-user').value || null,

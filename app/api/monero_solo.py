@@ -18,6 +18,8 @@ router = APIRouter()
 class MoneroSoloSettingsUpdate(BaseModel):
     """Request model for updating Monero solo settings"""
     enabled: bool
+    node_ip: Optional[str] = None
+    node_port: int = 18081
     wallet_rpc_ip: Optional[str] = None
     wallet_rpc_port: int = 18083
     wallet_rpc_user: Optional[str] = None
@@ -28,6 +30,9 @@ class MoneroSoloSettingsResponse(BaseModel):
     """Response model for Monero solo settings"""
     id: int
     enabled: bool
+    pool_id: Optional[int]
+    node_ip: Optional[str] = None
+    node_port: Optional[int] = None
     wallet_rpc_ip: Optional[str]
     wallet_rpc_port: int
     wallet_rpc_user: Optional[str]
@@ -43,6 +48,20 @@ class TestConnectionRequest(BaseModel):
     """Request model for testing RPC connections"""
     ip: str
     port: int
+
+
+class TestNodeRequest(BaseModel):
+    """Request model for testing node connections"""
+    ip: str
+    port: int
+
+
+class TestWalletRequest(BaseModel):
+    """Request model for testing wallet RPC connections"""
+    ip: str
+    port: int
+    username: Optional[str] = None
+    password: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
 
@@ -57,9 +76,37 @@ class TestConnectionResponse(BaseModel):
 @router.get("/settings/monero-solo", response_model=MoneroSoloSettingsResponse)
 async def get_monero_solo_settings(db: AsyncSession = Depends(get_db)):
     """Get Monero solo mining settings"""
+    from sqlalchemy import select
+    from core.database import Pool
+    
     service = MoneroSoloService(db)
     settings = await service.get_or_create_settings()
-    return settings
+    
+    # Build response with node info from pool
+    response_dict = {
+        "id": settings.id,
+        "enabled": settings.enabled,
+        "pool_id": settings.pool_id,
+        "wallet_rpc_ip": settings.wallet_rpc_ip,
+        "wallet_rpc_port": settings.wallet_rpc_port,
+        "wallet_rpc_user": settings.wallet_rpc_user,
+        "wallet_rpc_pass": settings.wallet_rpc_pass,
+        "wallet_address": settings.wallet_address,
+        "last_sync": settings.last_sync,
+        "node_ip": None,
+        "node_port": None
+    }
+    
+    # Get node info from linked pool
+    if settings.pool_id:
+        pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
+        result = await db.execute(pool_stmt)
+        pool = result.scalar_one_or_none()
+        if pool:
+            response_dict["node_ip"] = pool.url
+            response_dict["node_port"] = pool.port
+    
+    return response_dict
 
 
 @router.put("/settings/monero-solo", response_model=MoneroSoloSettingsResponse)
@@ -68,6 +115,9 @@ async def update_monero_solo_settings(
     db: AsyncSession = Depends(get_db)
 ):
     """Update Monero solo mining settings"""
+    from sqlalchemy import select
+    from core.database import Pool
+    
     service = MoneroSoloService(db)
     settings = await service.get_or_create_settings()
     
@@ -77,6 +127,31 @@ async def update_monero_solo_settings(
     settings.wallet_rpc_port = settings_update.wallet_rpc_port
     settings.wallet_rpc_user = settings_update.wallet_rpc_user
     settings.wallet_rpc_pass = settings_update.wallet_rpc_pass
+    
+    # Create or update pool entry for node
+    if settings_update.node_ip and settings_update.node_port:
+        if settings.pool_id:
+            # Update existing pool
+            pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
+            result = await db.execute(pool_stmt)
+            pool = result.scalar_one_or_none()
+            if pool:
+                pool.url = settings_update.node_ip
+                pool.port = settings_update.node_port
+                pool.user = settings.wallet_address or "x"
+        else:
+            # Create new pool
+            pool = Pool(
+                name="Monero Solo Mining",
+                url=settings_update.node_ip,
+                port=settings_update.node_port,
+                user=settings.wallet_address or "x",
+                password="x",
+                enabled=True
+            )
+            db.add(pool)
+            await db.flush()
+            settings.pool_id = pool.id
     
     # If enabled and wallet RPC configured, try to fetch wallet address
     if settings.enabled and settings.wallet_rpc_ip:
@@ -90,6 +165,13 @@ async def update_monero_solo_settings(
             address = await wallet_rpc.get_address()
             if address:
                 settings.wallet_address = address
+                # Update pool user if we have a pool
+                if settings.pool_id:
+                    pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
+                    result = await db.execute(pool_stmt)
+                    pool = result.scalar_one_or_none()
+                    if pool:
+                        pool.user = address
         except Exception as e:
             # Don't fail the update if we can't fetch the address
             pass
@@ -97,11 +179,35 @@ async def update_monero_solo_settings(
     await db.commit()
     await db.refresh(settings)
     
-    return settings
+    # Add node info to response
+    response_dict = {
+        "id": settings.id,
+        "enabled": settings.enabled,
+        "pool_id": settings.pool_id,
+        "wallet_rpc_ip": settings.wallet_rpc_ip,
+        "wallet_rpc_port": settings.wallet_rpc_port,
+        "wallet_rpc_user": settings.wallet_rpc_user,
+        "wallet_rpc_pass": settings.wallet_rpc_pass,
+        "wallet_address": settings.wallet_address,
+        "last_sync": settings.last_sync,
+        "node_ip": None,
+        "node_port": None
+    }
+    
+    # Get node info from pool
+    if settings.pool_id:
+        pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
+        result = await db.execute(pool_stmt)
+        pool = result.scalar_one_or_none()
+        if pool:
+            response_dict["node_ip"] = pool.url
+            response_dict["node_port"] = pool.port
+    
+    return response_dict
 
 
 @router.post("/settings/monero-solo/test-wallet", response_model=TestConnectionResponse)
-async def test_wallet_connection(request: TestConnectionRequest):
+async def test_wallet_connection(request: TestWalletRequest):
     """Test connection to Monero wallet RPC"""
     try:
         wallet_rpc = MoneroWalletRPC(
@@ -134,14 +240,12 @@ async def test_wallet_connection(request: TestConnectionRequest):
 
 
 @router.post("/settings/monero-solo/test-node", response_model=TestConnectionResponse)
-async def test_node_connection(request: TestConnectionRequest):
+async def test_node_connection(request: TestNodeRequest):
     """Test connection to Monero node RPC"""
     try:
         node_rpc = MoneroNodeRPC(
             host=request.ip,
-            port=request.port,
-            username=request.username,
-            password=request.password
+            port=request.port
         )
         
         # Test connection by getting node info

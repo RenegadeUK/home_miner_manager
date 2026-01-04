@@ -552,113 +552,6 @@ async def run_migrations():
             print("✓ Created indexes on ckpool_block_metrics")
         except Exception as e:
             print(f"⚠️  Indexes on ckpool_block_metrics may already exist: {e}")
-
-
-async def backfill_ckpool_metrics():
-    """
-    Backfill ckpool_block_metrics from existing accepted blocks in ckpool_blocks.
-    Sets effort_percent=100.0 for historical blocks.
-    Calculates time_to_block_seconds from previous block in same coin.
-    Extracts coin from pool name (DGB, BCH, BTC).
-    """
-    async with engine.begin() as conn:
-        try:
-            # Get all accepted blocks with pool info (only complete blocks with height AND hash)
-            result = await conn.execute(text("""
-                SELECT 
-                    cb.id,
-                    cb.pool_id,
-                    cb.block_height,
-                    cb.block_hash,
-                    cb.timestamp,
-                    cb.confirmed_reward_coins,
-                    p.name as pool_name
-                FROM ckpool_blocks cb
-                JOIN pools p ON cb.pool_id = p.id
-                WHERE cb.block_accepted = 1
-                AND cb.block_height IS NOT NULL
-                AND cb.block_hash IS NOT NULL
-                ORDER BY cb.timestamp ASC
-            """))
-            
-            accepted_blocks = result.fetchall()
-            
-            if not accepted_blocks:
-                print("ℹ️  No accepted blocks to backfill")
-                return
-            
-            # Get existing hashes in metrics table to avoid duplicates
-            result = await conn.execute(text("""
-                SELECT block_hash FROM ckpool_block_metrics WHERE block_hash IS NOT NULL
-            """))
-            existing_hashes = {row[0] for row in result.fetchall()}
-            
-            backfilled_count = 0
-            skipped_count = 0
-            previous_timestamps = {}  # Track last block timestamp per coin
-            
-            for block in accepted_blocks:
-                block_id, pool_id, height, block_hash, timestamp, reward, pool_name = block
-                
-                # Skip if already in metrics
-                if block_hash and block_hash in existing_hashes:
-                    skipped_count += 1
-                    continue
-                
-                # Extract coin from pool name (case-insensitive)
-                coin = "UNKNOWN"
-                pool_name_upper = (pool_name or "").upper()
-                if "DGB" in pool_name_upper:
-                    coin = "DGB"
-                elif "BCH" in pool_name_upper:
-                    coin = "BCH"
-                elif "BTC" in pool_name_upper or "BITCOIN" in pool_name_upper:
-                    coin = "BTC"
-                
-                # Skip if coin couldn't be determined
-                if coin == "UNKNOWN":
-                    print(f"⚠️  Could not determine coin for pool '{pool_name}', skipping block {block_id}")
-                    skipped_count += 1
-                    continue
-                
-                # Calculate time_to_block_seconds from previous block of same coin
-                from datetime import datetime
-                time_to_block = None
-                if coin in previous_timestamps:
-                    # Ensure both timestamps are datetime objects
-                    current_time = timestamp if isinstance(timestamp, datetime) else datetime.fromisoformat(str(timestamp))
-                    previous_time = previous_timestamps[coin] if isinstance(previous_timestamps[coin], datetime) else datetime.fromisoformat(str(previous_timestamps[coin]))
-                    time_diff = (current_time - previous_time).total_seconds()
-                    time_to_block = int(time_diff)
-                
-                # Insert into metrics table
-                await conn.execute(text("""
-                    INSERT INTO ckpool_block_metrics 
-                    (pool_id, coin, timestamp, block_height, block_hash, effort_percent, time_to_block_seconds, confirmed_reward_coins)
-                    VALUES (:pool_id, :coin, :timestamp, :height, :hash, 100.0, :time_to_block, :reward)
-                """), {
-                    "pool_id": pool_id,
-                    "coin": coin,
-                    "timestamp": timestamp,
-                    "height": height,
-                    "hash": block_hash,
-                    "time_to_block": time_to_block,
-                    "reward": reward
-                })
-                
-                # Update previous timestamp for this coin (store as datetime)
-                previous_timestamps[coin] = timestamp if isinstance(timestamp, datetime) else datetime.fromisoformat(str(timestamp))
-                
-                backfilled_count += 1
-                existing_hashes.add(block_hash)
-            
-            print(f"✅ Backfilled {backfilled_count} accepted blocks to ckpool_block_metrics")
-            if skipped_count > 0:
-                print(f"ℹ️  Skipped {skipped_count} blocks (duplicates or unknown coin)")
-        
-        except Exception as e:
-            print(f"❌ Failed to backfill ckpool_block_metrics: {e}")
-            raise
         
         # Migration: Create ckpool_hashrate_snapshots table
         try:
@@ -809,3 +702,19 @@ async def backfill_ckpool_metrics():
             print("✓ Created monero_hashrate_snapshots table")
         except Exception:
             pass
+        
+        # Migration: Add pool_id to monero_solo_settings
+        try:
+            await conn.execute(text("""
+                ALTER TABLE monero_solo_settings 
+                ADD COLUMN pool_id INTEGER
+            """))
+            print("✓ Added pool_id column to monero_solo_settings")
+        except Exception as e:
+            # Column already exists - that's ok
+            if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                pass  # Column exists, that's fine
+            else:
+                # Unexpected error - log it
+                print(f"⚠️  Could not add pool_id to monero_solo_settings: {e}")
+                raise  # Re-raise unexpected errors

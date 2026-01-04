@@ -83,11 +83,16 @@ class MoneroSoloService:
         
     async def get_active_xmrig_miners(self) -> List[tuple[Miner, Pool]]:
         """
-        Find all XMRig miners that are mining to a solo pool
+        Find all XMRig miners that are mining to the solo pool
         
         Returns:
-            List of (Miner, Pool) tuples
+            List of (Miner, Pool) tuples for miners pointed at solo node
         """
+        settings = await self.get_or_create_settings()
+        
+        if not settings.enabled or not settings.pool_id:
+            return []
+        
         # Get all enabled XMRig miners
         result = await self.db.execute(
             select(Miner).where(
@@ -99,18 +104,18 @@ class MoneroSoloService:
         )
         miners = result.scalars().all()
         
-        # For each miner, we'd need to check which pool they're pointed to
-        # This would require extending the Miner model or using telemetry
-        # For now, return all enabled XMRig miners with dummy pool
+        # Get the solo pool
+        pool_result = await self.db.execute(select(Pool).where(Pool.id == settings.pool_id))
+        solo_pool = pool_result.scalar_one_or_none()
         
-        # TODO: Implement proper pool detection from XMRig telemetry
+        if not solo_pool:
+            return []
+        
+        # Return all XMRig miners with the solo pool
+        # Assumption: XMRig miners are configured to point at the solo node
         active = []
         for miner in miners:
-            # Get a pool (simplified - need proper logic)
-            pool_result = await self.db.execute(select(Pool).where(Pool.enabled == True).limit(1))
-            pool = pool_result.scalar_one_or_none()
-            if pool:
-                active.append((miner, pool))
+            active.append((miner, solo_pool))
                 
         return active
         

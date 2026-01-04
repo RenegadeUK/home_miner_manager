@@ -488,11 +488,17 @@ class MoneroSoloSettings(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    # Pool entry that represents the Monero node (for XMRig mapping)
+    pool_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Wallet RPC settings (for reward tracking)
     wallet_rpc_ip: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
     wallet_rpc_port: Mapped[int] = mapped_column(Integer, default=18083)
     wallet_rpc_user: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     wallet_rpc_pass: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     wallet_address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # Cached from wallet
+    
     last_sync: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
