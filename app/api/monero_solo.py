@@ -273,20 +273,38 @@ async def test_node_connection(request: TestNodeRequest):
 @router.get("/settings/monero-solo/stats")
 async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
     """Get Monero solo mining statistics for dashboard"""
-    from sqlalchemy import select, func
-    from core.database import MoneroBlock, MoneroWalletTransaction
-    from datetime import datetime, timedelta
-    
-    service = MoneroSoloService(db)
-    settings = await service.get_or_create_settings()
-    
-    # Check if wallet RPC is configured
-    wallet_connected = bool(
-        settings.wallet_rpc_ip and 
-        settings.wallet_address
-    )
-    
-    if not settings.enabled:
+    try:
+        from sqlalchemy import select, func
+        from core.database import MoneroBlock, MoneroWalletTransaction
+        from datetime import datetime, timedelta
+        
+        service = MoneroSoloService(db)
+        settings = await service.get_or_create_settings()
+        
+        # Check if wallet RPC is configured
+        wallet_connected = bool(
+            settings.wallet_rpc_ip and 
+            settings.wallet_address
+        )
+        
+        if not settings.enabled:
+            return {
+                "enabled": False,
+                "wallet_connected": False,
+                "xmrig_workers": 0,
+                "total_hashrate_formatted": "0 H/s",
+                "current_effort_percent": 0.0,
+                "blocks_found": 0,
+                "earnings_24h_xmr": 0.0,
+                "total_earned_xmr": 0.0
+            }
+        
+        # Get hashrate data from XMRig miners
+        hashrate_data = await service.aggregate_hashrate()
+    except Exception as e:
+        logger.error(f"Error in monero-solo stats endpoint: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "enabled": False,
             "wallet_connected": False,
@@ -297,9 +315,6 @@ async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
             "earnings_24h_xmr": 0.0,
             "total_earned_xmr": 0.0
         }
-    
-    # Get hashrate data from XMRig miners
-    hashrate_data = await service.aggregate_hashrate()
     
     # Calculate current effort from MoneroSoloEffort tracker
     from core.database import MoneroSoloEffort, Pool
