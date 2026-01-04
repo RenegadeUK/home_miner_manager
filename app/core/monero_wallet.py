@@ -3,6 +3,7 @@ Monero Wallet RPC Service
 Handles communication with monero-wallet-rpc for tracking rewards
 """
 import aiohttp
+from aiohttp_digest import DigestAuth
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -55,7 +56,7 @@ class MoneroWalletRPC:
             
         auth = None
         if self.username and self.password:
-            auth = aiohttp.BasicAuth(self.username, self.password)
+            auth = DigestAuth(self.username, self.password)
             
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
