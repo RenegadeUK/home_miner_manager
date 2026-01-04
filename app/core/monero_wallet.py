@@ -3,7 +3,7 @@ Monero Wallet RPC Service
 Handles communication with monero-wallet-rpc for tracking rewards
 """
 import aiohttp
-from aiohttp_digest import DigestAuth
+import hashlib
 import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -12,6 +12,61 @@ logger = logging.getLogger(__name__)
 
 # Monero atomic units: 1 XMR = 1e12 atomic units
 ATOMIC_UNITS_PER_XMR = 1_000_000_000_000
+
+
+def calculate_digest_response(username: str, password: str, method: str, uri: str, auth_header: str) -> str:
+    """
+    Calculate HTTP Digest Authentication response
+    
+    Args:
+        username: Username for authentication
+        password: Password for authentication  
+        method: HTTP method (e.g., 'POST')
+        uri: Request URI path
+        auth_header: WWW-Authenticate header value
+        
+    Returns:
+        Authorization header value
+    """
+    # Parse WWW-Authenticate header
+    auth_parts = {}
+    for part in auth_header.split(','):
+        if '=' in part:
+            key, value = part.strip().split('=', 1)
+            auth_parts[key.lower()] = value.strip('"')
+    
+    realm = auth_parts.get('realm', '')
+    nonce = auth_parts.get('nonce', '')
+    qop = auth_parts.get('qop', '')
+    opaque = auth_parts.get('opaque', '')
+    
+    # Calculate HA1 = MD5(username:realm:password)
+    ha1 = hashlib.md5(f"{username}:{realm}:{password}".encode()).hexdigest()
+    
+    # Calculate HA2 = MD5(method:uri)
+    ha2 = hashlib.md5(f"{method}:{uri}".encode()).hexdigest()
+    
+    # Calculate response
+    if qop:
+        nc = "00000001"
+        cnonce = hashlib.md5(str(datetime.now().timestamp()).encode()).hexdigest()[:16]
+        response_str = f"{ha1}:{nonce}:{nc}:{cnonce}:{qop}:{ha2}"
+        response = hashlib.md5(response_str.encode()).hexdigest()
+        
+        auth_str = (
+            f'Digest username="{username}", realm="{realm}", nonce="{nonce}", '
+            f'uri="{uri}", qop={qop}, nc={nc}, cnonce="{cnonce}", '
+            f'response="{response}"'
+        )
+    else:
+        response_str = f"{ha1}:{nonce}:{ha2}"
+        response = hashlib.md5(response_str.encode()).hexdigest()
+        auth_str = f'Digest username="{username}", realm="{realm}", nonce="{nonce}", uri="{uri}", response="{response}"'
+    
+    if opaque:
+        auth_str += f', opaque="{opaque}"'
+    
+    return auth_str
 
 
 class MoneroWalletRPC:
@@ -36,7 +91,7 @@ class MoneroWalletRPC:
         
     async def json_rpc_request(self, method: str, params: Optional[Dict] = None) -> Optional[Dict[str, Any]]:
         """
-        Make JSON-RPC 2.0 request to wallet
+        Make JSON-RPC 2.0 request to wallet with Digest Auth
         
         Args:
             method: RPC method name
@@ -54,13 +109,34 @@ class MoneroWalletRPC:
         if params:
             payload["params"] = params
             
-        auth = None
-        if self.username and self.password:
-            auth = DigestAuth(self.username, self.password)
-            
+        uri = "/json_rpc"
+        
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.post(f"{self.base_url}/json_rpc", json=payload, auth=auth) as response:
+                # First attempt - may receive 401 with WWW-Authenticate header
+                headers = {}
+                if self.username and self.password:
+                    # Try with no auth first to get challenge
+                    async with session.post(f"{self.base_url}{uri}", json=payload) as response:
+                        if response.status == 401 and 'WWW-Authenticate' in response.headers:
+                            # Got challenge, calculate digest response
+                            auth_header = response.headers['WWW-Authenticate']
+                            if auth_header.startswith('Digest'):
+                                auth_str = calculate_digest_response(
+                                    self.username, self.password, 'POST', uri, auth_header
+                                )
+                                headers['Authorization'] = auth_str
+                        elif response.status == 200:
+                            # No auth required
+                            data = await response.json()
+                            if "error" in data:
+                                error = data["error"]
+                                logger.error(f"Wallet RPC error: {error.get('message', 'Unknown error')}")
+                                return None
+                            return data.get("result")
+                
+                # Make actual request with digest auth
+                async with session.post(f"{self.base_url}{uri}", json=payload, headers=headers) as response:
                     if response.status == 401:
                         logger.warning(f"Wallet RPC authentication failed for {self.host}:{self.port} - check credentials")
                         return None
