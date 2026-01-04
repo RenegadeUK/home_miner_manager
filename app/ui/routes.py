@@ -641,6 +641,20 @@ async def monero_solo_settings(request: Request):
     })
 
 
+@router.get("/analytics/monero-solo", response_class=HTMLResponse)
+async def monero_solo_analytics(request: Request):
+    """Monero Solo Mining Analytics page"""
+    return templates.TemplateResponse("analytics/monero_solo.html", {
+        "request": request,
+        "page_title": "Monero Solo Analytics",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Analytics", "url": "/analytics"},
+            {"label": "Monero Solo", "url": "/analytics/monero-solo"}
+        ]
+    })
+
+
 @router.get("/analytics", response_class=HTMLResponse)
 async def analytics(request: Request):
     """Analytics page"""
