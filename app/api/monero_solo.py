@@ -301,6 +301,65 @@ async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
         
         # Get hashrate data from XMRig miners
         hashrate_data = await service.aggregate_hashrate()
+        
+        # Calculate current effort from MoneroSoloEffort tracker
+        from core.database import MoneroSoloEffort, Pool
+        effort_stmt = select(MoneroSoloEffort).limit(1)
+        result = await db.execute(effort_stmt)
+        effort_tracker = result.scalar_one_or_none()
+        
+        current_effort = 0.0
+        if effort_tracker and settings.pool_id:
+            # Get network difficulty from node
+            pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
+            result = await db.execute(pool_stmt)
+            pool = result.scalar_one_or_none()
+            
+            if pool:
+                node_rpc = await service.get_node_rpc(pool)
+                if node_rpc:
+                    difficulty = await node_rpc.get_difficulty() or 0
+                    if difficulty > 0:
+                        current_effort = (effort_tracker.total_hashes / difficulty) * 100
+        
+        # Count blocks found
+        blocks_stmt = select(func.count(MoneroBlock.id))
+        result = await db.execute(blocks_stmt)
+        blocks_count = result.scalar() or 0
+        
+        # Calculate 24h earnings
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        earnings_stmt = select(func.sum(MoneroWalletTransaction.amount_xmr)).where(
+            MoneroWalletTransaction.timestamp >= yesterday
+        )
+        result = await db.execute(earnings_stmt)
+        earnings_24h = result.scalar() or 0.0
+        
+        # Calculate all-time earnings
+        total_stmt = select(func.sum(MoneroWalletTransaction.amount_xmr))
+        result = await db.execute(total_stmt)
+        total_earned = result.scalar() or 0.0
+        
+        # Format hashrate for display
+        # NOTE: XMRig adapter returns hashrate in KH/s, not H/s
+        total_hashrate_khs = hashrate_data["total_hashrate"]
+        if total_hashrate_khs >= 1_000_000:
+            hashrate_formatted = f"{total_hashrate_khs / 1_000_000:.2f} GH/s"
+        elif total_hashrate_khs >= 1_000:
+            hashrate_formatted = f"{total_hashrate_khs / 1_000:.2f} MH/s"
+        else:
+            hashrate_formatted = f"{total_hashrate_khs:.2f} KH/s"
+        
+        return {
+            "enabled": True,
+            "wallet_connected": wallet_connected,
+            "xmrig_workers": hashrate_data["worker_count"],
+            "total_hashrate_formatted": hashrate_formatted,
+            "current_effort_percent": current_effort,
+            "blocks_found": blocks_count,
+            "earnings_24h_xmr": float(earnings_24h),
+            "total_earned_xmr": float(total_earned)
+        }
     except Exception as e:
         logger.error(f"Error in monero-solo stats endpoint: {e}")
         import traceback
@@ -315,63 +374,4 @@ async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
             "earnings_24h_xmr": 0.0,
             "total_earned_xmr": 0.0
         }
-    
-    # Calculate current effort from MoneroSoloEffort tracker
-    from core.database import MoneroSoloEffort, Pool
-    effort_stmt = select(MoneroSoloEffort).limit(1)
-    result = await db.execute(effort_stmt)
-    effort_tracker = result.scalar_one_or_none()
-    
-    current_effort = 0.0
-    if effort_tracker and settings.pool_id:
-        # Get network difficulty from node
-        pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
-        result = await db.execute(pool_stmt)
-        pool = result.scalar_one_or_none()
-        
-        if pool:
-            node_rpc = await service.get_node_rpc(pool)
-            if node_rpc:
-                difficulty = await node_rpc.get_difficulty() or 0
-                if difficulty > 0:
-                    current_effort = (effort_tracker.total_hashes / difficulty) * 100
-    
-    # Count blocks found
-    blocks_stmt = select(func.count(MoneroBlock.id))
-    result = await db.execute(blocks_stmt)
-    blocks_count = result.scalar() or 0
-    
-    # Calculate 24h earnings
-    yesterday = datetime.utcnow() - timedelta(days=1)
-    earnings_stmt = select(func.sum(MoneroWalletTransaction.amount_xmr)).where(
-        MoneroWalletTransaction.timestamp >= yesterday
-    )
-    result = await db.execute(earnings_stmt)
-    earnings_24h = result.scalar() or 0.0
-    
-    # Calculate all-time earnings
-    total_stmt = select(func.sum(MoneroWalletTransaction.amount_xmr))
-    result = await db.execute(total_stmt)
-    total_earned = result.scalar() or 0.0
-    
-    # Format hashrate for display
-    # NOTE: XMRig adapter returns hashrate in KH/s, not H/s
-    total_hashrate_khs = hashrate_data["total_hashrate"]
-    if total_hashrate_khs >= 1_000_000:
-        hashrate_formatted = f"{total_hashrate_khs / 1_000_000:.2f} GH/s"
-    elif total_hashrate_khs >= 1_000:
-        hashrate_formatted = f"{total_hashrate_khs / 1_000:.2f} MH/s"
-    else:
-        hashrate_formatted = f"{total_hashrate_khs:.2f} KH/s"
-    
-    return {
-        "enabled": True,
-        "wallet_connected": wallet_connected,
-        "xmrig_workers": hashrate_data["worker_count"],
-        "total_hashrate_formatted": hashrate_formatted,
-        "current_effort_percent": current_effort,
-        "blocks_found": blocks_count,
-        "earnings_24h_xmr": float(earnings_24h),
-        "total_earned_xmr": float(total_earned)
-    }
 
