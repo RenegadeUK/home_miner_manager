@@ -93,12 +93,13 @@ class MoneroSoloService:
         if not settings.enabled or not settings.pool_id:
             return []
         
-        # Get all enabled XMRig miners
+        # Get all enabled XMRig miners pointed at the solo pool
         result = await self.db.execute(
             select(Miner).where(
                 and_(
                     Miner.miner_type == "xmrig",
-                    Miner.enabled == True
+                    Miner.enabled == True,
+                    Miner.pool_id == settings.pool_id
                 )
             )
         )
@@ -111,8 +112,7 @@ class MoneroSoloService:
         if not solo_pool:
             return []
         
-        # Return all XMRig miners with the solo pool
-        # Assumption: XMRig miners are configured to point at the solo node
+        # Return miners with the solo pool
         active = []
         for miner in miners:
             active.append((miner, solo_pool))
