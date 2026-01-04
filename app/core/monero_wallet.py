@@ -58,10 +58,10 @@ class MoneroWalletRPC:
             auth = aiohttp.BasicAuth(self.username, self.password)
             
         try:
-            async with aiohttp.ClientSession(timeout=self.timeout, auth=auth) as session:
-                async with session.post(f"{self.base_url}/json_rpc", json=payload) as response:
+            async with aiohttp.ClientSession(timeout=self.timeout) as session:
+                async with session.post(f"{self.base_url}/json_rpc", json=payload, auth=auth) as response:
                     if response.status == 401:
-                        logger.debug("Wallet RPC authentication failed - check username/password in settings")
+                        logger.warning(f"Wallet RPC authentication failed for {self.host}:{self.port} - check credentials")
                         return None
                     if response.status != 200:
                         logger.error(f"Wallet RPC error: HTTP {response.status}")
