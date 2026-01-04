@@ -109,7 +109,7 @@ async def miner_detail(request: Request, miner_id: int, db: AsyncSession = Depen
 @router.get("/miners/{miner_id}/edit", response_class=HTMLResponse)
 async def miner_edit(request: Request, miner_id: int, db: AsyncSession = Depends(get_db)):
     """Miner edit page"""
-    from adapters import create_adapter
+    from adapters import get_adapter
     
     result = await db.execute(select(Miner).where(Miner.id == miner_id))
     miner = result.scalar_one_or_none()
@@ -121,7 +121,8 @@ async def miner_edit(request: Request, miner_id: int, db: AsyncSession = Depends
         }, status_code=404)
     
     # Calculate effective_port using the adapter
-    adapter = create_adapter(miner.id, miner.name, miner.miner_type, miner.ip_address, miner.port, miner.config)
+    adapter = get_adapter(miner)
+    effective_port = adapter.port if adapter else miner.port
     
     # Create a miner dict with effective_port for the template
     miner_data = {
@@ -130,7 +131,7 @@ async def miner_edit(request: Request, miner_id: int, db: AsyncSession = Depends
         "miner_type": miner.miner_type,
         "ip_address": miner.ip_address,
         "port": miner.port,
-        "effective_port": adapter.port,
+        "effective_port": effective_port,
         "current_mode": miner.current_mode,
         "enabled": miner.enabled,
         "manual_power_watts": miner.manual_power_watts,

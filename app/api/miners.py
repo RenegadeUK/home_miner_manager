@@ -66,7 +66,7 @@ async def list_miners(db: AsyncSession = Depends(get_db)):
     # Add effective_port to each miner
     miners_with_effective_port = []
     for miner in miners:
-        adapter = create_adapter(miner.id, miner.name, miner.miner_type, miner.ip_address, miner.port, miner.config)
+        adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
         miner_dict = {
             "id": miner.id,
             "name": miner.name,
@@ -94,7 +94,7 @@ async def get_miner(miner_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Miner not found")
     
     # Calculate effective_port using the adapter
-    adapter = create_adapter(miner.id, miner.name, miner.miner_type, miner.ip_address, miner.port, miner.config)
+    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
     
     return {
         "id": miner.id,
@@ -130,7 +130,7 @@ async def create_miner(miner: MinerCreate, db: AsyncSession = Depends(get_db)):
     await db.refresh(db_miner)
     
     # Calculate effective_port using the adapter
-    adapter = create_adapter(db_miner.id, db_miner.name, db_miner.miner_type, db_miner.ip_address, db_miner.port, db_miner.config)
+    adapter = create_adapter(db_miner.miner_type, db_miner.id, db_miner.name, db_miner.ip_address, db_miner.port, db_miner.config)
     
     return {
         "id": db_miner.id,
@@ -178,7 +178,7 @@ async def update_miner(miner_id: int, miner_update: MinerUpdate, db: AsyncSessio
     await db.refresh(miner)
     
     # Calculate effective_port using the adapter
-    adapter = create_adapter(miner.id, miner.name, miner.miner_type, miner.ip_address, miner.port, miner.config)
+    adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
     
     return {
         "id": miner.id,
