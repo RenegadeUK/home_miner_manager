@@ -483,9 +483,23 @@ class MoneroSoloService:
         try:
             hashrate_data = await self.aggregate_hashrate()
             
-            # Get current effort
-            effort_result = await self.db.execute(select(MoneroSoloEffort).limit(1))
-            effort_tracker = effort_result.scalar_one_or_none()
+            # Get or create effort tracker
+            settings = await self.get_or_create_settings()
+            if settings.pool_id:
+                effort_result = await self.db.execute(
+                    select(MoneroSoloEffort).where(MoneroSoloEffort.pool_id == settings.pool_id)
+                )
+                effort_tracker = effort_result.scalar_one_or_none()
+                
+                if not effort_tracker:
+                    # Create new effort tracker
+                    effort_tracker = MoneroSoloEffort(pool_id=settings.pool_id, total_hashes=0)
+                    self.db.add(effort_tracker)
+                    await self.db.commit()
+                    logger.info(f"Created new effort tracker for pool {settings.pool_id}")
+            else:
+                effort_tracker = None
+                
             logger.debug(f"Effort tracker: {effort_tracker.total_hashes if effort_tracker else 'None'}")
             
             # Get network difficulty (simplified - using first active pool)
