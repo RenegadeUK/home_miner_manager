@@ -556,7 +556,7 @@ class MoneroHashrateSnapshot(Base):
     
     id: Mapped[int] = mapped_column(primary_key=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime, index=True, default=datetime.utcnow)
-    total_hashrate: Mapped[float] = mapped_column(Float)  # Combined H/s
+    total_hashrate: Mapped[float] = mapped_column(Float)  # Combined KH/s (from XMRig adapter)
     worker_count: Mapped[int] = mapped_column(Integer)
     network_difficulty: Mapped[int] = mapped_column(Integer)
     current_effort: Mapped[float] = mapped_column(Float)  # Effort percentage at time

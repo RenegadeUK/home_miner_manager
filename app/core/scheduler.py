@@ -216,6 +216,27 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._detect_monero_blocks,
+            IntervalTrigger(minutes=5),
+            id="detect_monero_blocks",
+            name="Detect new Monero solo mining blocks"
+        )
+        
+        self.scheduler.add_job(
+            self._capture_monero_solo_snapshots,
+            IntervalTrigger(minutes=5),
+            id="capture_monero_solo_snapshots",
+            name="Capture Monero solo mining hashrate snapshots"
+        )
+        
+        self.scheduler.add_job(
+            self._purge_old_monero_solo_snapshots,
+            IntervalTrigger(hours=1),
+            id="purge_old_monero_solo_snapshots",
+            name="Purge Monero solo mining snapshots older than 24 hours"
+        )
+        
+        self.scheduler.add_job(
             self._sync_p2pool_transactions,
             IntervalTrigger(hours=1),
             id="sync_p2pool_transactions",
@@ -2098,7 +2119,73 @@ class SchedulerService:
             logger.error(f"Failed to purge old CKPool hashrate data: {e}")
             import traceback
             traceback.print_exc()
-
+    
+    async def _detect_monero_blocks(self):
+        """Detect new Monero solo mining blocks every 5 minutes"""
+        try:
+            from core.database import AsyncSessionLocal
+            from core.monero_solo import MoneroSoloService
+            
+            async with AsyncSessionLocal() as db:
+                service = MoneroSoloService(db)
+                settings = await service.get_settings()
+                
+                if not settings or not settings.enabled:
+                    return
+                
+                # Detect new blocks and reset effort
+                new_blocks = await service.detect_new_blocks()
+                if new_blocks:
+                    logger.info(f"Detected {len(new_blocks)} new Monero block(s)")
+        
+        except Exception as e:
+            logger.error(f"Failed to detect Monero blocks: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _capture_monero_solo_snapshots(self):
+        """Capture Monero solo mining hashrate snapshots every 5 minutes"""
+        try:
+            from core.database import AsyncSessionLocal, MoneroSoloSettings
+            from core.monero_solo import MoneroSoloService
+            
+            async with AsyncSessionLocal() as db:
+                service = MoneroSoloService(db)
+                settings = await service.get_settings()
+                
+                if not settings or not settings.enabled:
+                    return
+                
+                # Store hashrate snapshot
+                await service.store_hashrate_snapshot()
+                logger.debug("Captured Monero solo mining hashrate snapshot")
+        
+        except Exception as e:
+            logger.error(f"Failed to capture Monero solo mining snapshot: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _purge_old_monero_solo_snapshots(self):
+        """Purge Monero solo mining snapshots older than 24 hours"""
+        try:
+            from core.database import AsyncSessionLocal
+            from sqlalchemy import text
+            
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(text("""
+                    DELETE FROM monero_hashrate_snapshots
+                    WHERE timestamp < datetime('now', '-24 hours')
+                """))
+                await db.commit()
+                
+                deleted_count = result.rowcount
+                if deleted_count > 0:
+                    logger.info(f"Purged {deleted_count} Monero solo snapshot(s) older than 24 hours")
+        
+        except Exception as e:
+            logger.error(f"Failed to purge old Monero solo snapshots: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 scheduler = SchedulerService()

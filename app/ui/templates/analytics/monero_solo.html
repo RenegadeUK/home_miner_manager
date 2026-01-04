@@ -2,6 +2,8 @@
 
 {% block extra_head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <style>
 .analytics-container {
     max-width: 1400px;
@@ -193,53 +195,12 @@ table tbody tr:hover {
 
 {% block content %}
 <div class="analytics-container">
-    <!-- Overview Stats -->
+    <!-- 24-Hour Hashrate Chart (Top) -->
     <div class="detail-card">
         <div class="detail-card-header">
             <h3>
-                <span class="detail-card-icon monero-logo">⟠</span>
-                Monero Solo Mining Overview
-            </h3>
-            <div class="time-selector">
-                <button class="btn" data-range="6h">6h</button>
-                <button class="btn" data-range="24h">24h</button>
-                <button class="btn active" data-range="7d">7d</button>
-                <button class="btn" data-range="30d">30d</button>
-                <button class="btn" data-range="all">All</button>
-            </div>
-        </div>
-        <div class="detail-card-body">
-            <div class="stats-grid" id="overview-stats">
-                <div class="stat-box">
-                    <div class="stat-label">Total Hashrate</div>
-                    <div class="stat-value" id="stat-hashrate">-- H/s</div>
-                    <div class="stat-subtext"><span id="stat-workers">0</span> workers</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Current Effort</div>
-                    <div class="stat-value" id="stat-effort">--%</div>
-                    <div class="stat-subtext">Blocks found: <span id="stat-blocks">0</span></div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Earnings (Period)</div>
-                    <div class="stat-value" id="stat-earnings-xmr">0.000000 XMR</div>
-                    <div class="stat-subtext" id="stat-earnings-gbp">£0.00</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">All-time Earnings</div>
-                    <div class="stat-value" id="stat-total-xmr">0.000000 XMR</div>
-                    <div class="stat-subtext" id="stat-total-gbp">£0.00</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hashrate Chart -->
-    <div class="detail-card">
-        <div class="detail-card-header">
-            <h3>
-                <span class="detail-card-icon">📊</span>
-                Hashrate History
+                <span class="detail-card-icon">📈</span>
+                24-Hour Hashrate History
             </h3>
         </div>
         <div class="detail-card-body">
@@ -249,12 +210,60 @@ table tbody tr:hover {
         </div>
     </div>
 
-    <!-- Effort Chart -->
+    <!-- Statistics Grid -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h3>
+                <span class="detail-card-icon monero-logo">⟠</span>
+                Mining Statistics
+            </h3>
+        </div>
+        <div class="detail-card-body">
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-label">Total Blocks (12mo)</div>
+                    <div class="stat-value" id="stat-blocks">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Average Effort</div>
+                    <div class="stat-value" id="stat-avg-effort">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Median Effort</div>
+                    <div class="stat-value" id="stat-median-effort">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Best Effort</div>
+                    <div class="stat-value" id="stat-best-effort">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Worst Effort</div>
+                    <div class="stat-value" id="stat-worst-effort">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Avg Time to Block</div>
+                    <div class="stat-value" id="stat-avg-time">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Total Rewards</div>
+                    <div class="stat-value" id="stat-rewards">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Recent Activity</div>
+                    <div class="stat-value" id="stat-recent">
+                        <small><span id="blocks-24h">-</span> / <span id="blocks-7d">-</span> / <span id="blocks-30d">-</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Effort Over Time Chart -->
     <div class="detail-card">
         <div class="detail-card-header">
             <h3>
                 <span class="detail-card-icon">⚡</span>
-                Mining Effort
+                Effort % Over Time (12 months)
             </h3>
         </div>
         <div class="detail-card-body">
@@ -264,12 +273,12 @@ table tbody tr:hover {
         </div>
     </div>
 
-    <!-- Blocks Found -->
+    <!-- Recent Blocks Table -->
     <div class="detail-card">
         <div class="detail-card-header">
             <h3>
-                <span class="detail-card-icon">🎉</span>
-                Blocks Found
+                <span class="detail-card-icon">🎯</span>
+                Recent Blocks
             </h3>
         </div>
         <div class="detail-card-body">
@@ -306,23 +315,12 @@ table tbody tr:hover {
 <script>
 let hashrateChart = null;
 let effortChart = null;
-let currentRange = '7d';
 let xmrPriceGBP = 0;
 
 // Initialize
 async function initAnalytics() {
     await loadCryptoPrice();
     await loadAnalytics();
-    
-    // Set up time range buttons
-    document.querySelectorAll('.time-selector .btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-            document.querySelectorAll('.time-selector .btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentRange = btn.dataset.range;
-            await loadAnalytics();
-        });
-    });
     
     // Auto-refresh every 30 seconds
     setInterval(loadAnalytics, 30000);
@@ -344,7 +342,7 @@ async function loadCryptoPrice() {
 // Load analytics data
 async function loadAnalytics() {
     try {
-        const response = await fetch(`/api/analytics/monero-solo?range=${currentRange}`);
+        const response = await fetch('/api/analytics/monero-solo');
         const data = await response.json();
         
         if (!data.enabled) {
@@ -365,19 +363,44 @@ async function loadAnalytics() {
 
 // Update overview stats
 function updateOverviewStats(data) {
-    document.getElementById('stat-hashrate').textContent = data.current_hashrate_formatted || '0 H/s';
-    document.getElementById('stat-workers').textContent = data.worker_count || 0;
+    // Calculate effort stats from blocks
+    const blocks = data.blocks || [];
+    const efforts = blocks.map(b => b.effort_percent).filter(e => e > 0);
     
-    const effort = (data.current_effort_percent || 0).toFixed(2);
-    const effortEl = document.getElementById('stat-effort');
-    effortEl.textContent = effort + '%';
-    effortEl.style.color = effort > 200 ? '#ef4444' : (effort > 100 ? '#f59e0b' : '#10b981');
+    const avgEffort = efforts.length > 0 ? (efforts.reduce((a,b) => a+b, 0) / efforts.length) : 0;
+    const medianEffort = efforts.length > 0 ? efforts.sort((a,b) => a-b)[Math.floor(efforts.length/2)] : 0;
+    const bestEffort = efforts.length > 0 ? Math.min(...efforts) : 0;
+    const worstEffort = efforts.length > 0 ? Math.max(...efforts) : 0;
     
-    document.getElementById('stat-blocks').textContent = data.blocks_found || 0;
-    document.getElementById('stat-earnings-xmr').textContent = (data.period_earnings_xmr || 0).toFixed(6) + ' XMR';
-    document.getElementById('stat-earnings-gbp').textContent = '£' + ((data.period_earnings_xmr || 0) * xmrPriceGBP).toFixed(2);
-    document.getElementById('stat-total-xmr').textContent = (data.total_earnings_xmr || 0).toFixed(6) + ' XMR';
-    document.getElementById('stat-total-gbp').textContent = '£' + ((data.total_earnings_xmr || 0) * xmrPriceGBP).toFixed(2);
+    // Calculate average time between blocks
+    let avgTime = '-';
+    if (blocks.length >= 2) {
+        const times = [];
+        for (let i = 1; i < blocks.length; i++) {
+            const diff = new Date(blocks[i-1].timestamp) - new Date(blocks[i].timestamp);
+            times.push(Math.abs(diff) / 1000 / 3600); // hours
+        }
+        const avgHours = times.reduce((a,b) => a+b, 0) / times.length;
+        avgTime = avgHours.toFixed(1) + 'h';
+    }
+    
+    // Count blocks in time periods
+    const now = new Date();
+    const blocks24h = blocks.filter(b => (now - new Date(b.timestamp)) < 86400000).length;
+    const blocks7d = blocks.filter(b => (now - new Date(b.timestamp)) < 604800000).length;
+    const blocks30d = blocks.filter(b => (now - new Date(b.timestamp)) < 2592000000).length;
+    
+    // Update stats
+    document.getElementById('stat-blocks').textContent = blocks.length;
+    document.getElementById('stat-avg-effort').textContent = avgEffort > 0 ? avgEffort.toFixed(1) + '%' : '-';
+    document.getElementById('stat-median-effort').textContent = medianEffort > 0 ? medianEffort.toFixed(1) + '%' : '-';
+    document.getElementById('stat-best-effort').textContent = bestEffort > 0 ? bestEffort.toFixed(1) + '%' : '-';
+    document.getElementById('stat-worst-effort').textContent = worstEffort > 0 ? worstEffort.toFixed(1) + '%' : '-';
+    document.getElementById('stat-avg-time').textContent = avgTime;
+    document.getElementById('stat-rewards').innerHTML = (data.total_earnings_xmr || 0).toFixed(2) + '<br><small>XMR</small>';
+    document.getElementById('blocks-24h').textContent = blocks24h;
+    document.getElementById('blocks-7d').textContent = blocks7d;
+    document.getElementById('blocks-30d').textContent = blocks30d;
 }
 
 // Update hashrate chart
@@ -440,34 +463,95 @@ function updateEffortChart(history) {
     const gridColor = isDark ? '#4a5568' : '#d1d5db';
     
     effortChart = new Chart(ctx, {
-        type: 'line',
+        type: 'scatter',
         data: {
-            labels: history.map(h => new Date(h.timestamp).toLocaleString()),
             datasets: [{
-                label: 'Effort (%)',
-                data: history.map(h => h.effort_percent),
-                borderColor: '#3b82f6',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                fill: true,
-                tension: 0.4
+                label: 'Block Effort %',
+                data: history.map(b => ({
+                    x: new Date(b.timestamp),
+                    y: b.effort_percent
+                })),
+                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                borderColor: 'rgba(59, 130, 246, 1)',
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }, {
+                label: '100% Line',
+                data: history.length > 0 ? [
+                    { x: new Date(history[0].timestamp), y: 100 },
+                    { x: new Date(history[history.length - 1].timestamp), y: 100 }
+                ] : [],
+                type: 'line',
+                borderColor: 'rgba(239, 68, 68, 0.5)',
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    labels: { color: textColor }
-                }
-            },
             scales: {
                 x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        color: textColor
+                    },
                     ticks: { color: textColor },
                     grid: { color: gridColor }
                 },
                 y: {
+                    title: {
+                        display: true,
+                        text: 'Effort %',
+                        color: textColor
+                    },
+                    beginAtZero: true,
                     ticks: { color: textColor },
                     grid: { color: gridColor }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: { color: textColor }
+                },
+                annotation: {
+                    annotations: {
+                        greenZone: {
+                            type: 'box',
+                            yMin: 0,
+                            yMax: 100,
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 0
+                        },
+                        orangeZone: {
+                            type: 'box',
+                            yMin: 100,
+                            yMax: 200,
+                            backgroundColor: 'rgba(251, 146, 60, 0.1)',
+                            borderWidth: 0
+                        },
+                        redZone: {
+                            type: 'box',
+                            yMin: 200,
+                            yMax: 500,
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 0
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.datasetIndex === 1) return null;
+                            return `Effort: ${context.parsed.y.toFixed(1)}%`;
+                        }
+                    }
                 }
             }
         }

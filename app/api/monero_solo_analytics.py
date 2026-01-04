@@ -22,7 +22,6 @@ router = APIRouter()
 
 @router.get("/analytics/monero-solo")
 async def get_monero_solo_analytics(
-    range: str = Query("7d", regex="^(6h|24h|7d|30d|all)$"),
     db: AsyncSession = Depends(get_db)
 ):
     """Get Monero solo mining analytics data"""
@@ -35,38 +34,40 @@ async def get_monero_solo_analytics(
             "message": "Monero solo mining is not enabled"
         }
     
-    # Calculate time range
+    # Time ranges matching CKPool pattern
     now = datetime.utcnow()
-    if range == "6h":
-        start_time = now - timedelta(hours=6)
-    elif range == "24h":
-        start_time = now - timedelta(days=1)
-    elif range == "7d":
-        start_time = now - timedelta(days=7)
-    elif range == "30d":
-        start_time = now - timedelta(days=30)
-    else:  # all
-        start_time = datetime(2020, 1, 1)  # Far enough back
+    hashrate_start = now - timedelta(hours=24)  # 24 hours for hashrate
+    blocks_start = now - timedelta(days=365)  # 12 months for blocks/effort
     
     # Get current hashrate
     hashrate_data = await service.aggregate_hashrate()
     
+    # Format hashrate for display (XMRig adapter returns KH/s)
+    total_hashrate_khs = hashrate_data["total_hashrate"]
+    if total_hashrate_khs >= 1_000_000:
+        hashrate_formatted = f"{total_hashrate_khs / 1_000_000:.2f} GH/s"
+    elif total_hashrate_khs >= 1_000:
+        hashrate_formatted = f"{total_hashrate_khs / 1_000:.2f} MH/s"
+    else:
+        hashrate_formatted = f"{total_hashrate_khs:.2f} KH/s"
+    
     # Get current effort
     effort_stmt = select(MoneroSoloEffort).order_by(
-        MoneroSoloEffort.timestamp.desc()
+        MoneroSoloEffort.updated_at.desc()
     ).limit(1)
     result = await db.execute(effort_stmt)
     latest_effort = result.scalar_one_or_none()
-    current_effort = latest_effort.effort_percent if latest_effort else 0.0
+    # TODO: Calculate effort_percent from total_hashes / network_difficulty
+    current_effort = 0.0  # Stub until network difficulty tracking is implemented
     
     # Count total blocks
     blocks_stmt = select(func.count(MoneroBlock.id))
     result = await db.execute(blocks_stmt)
     blocks_count = result.scalar() or 0
     
-    # Get period earnings
+    # Get 24h earnings
     period_earnings_stmt = select(func.sum(MoneroWalletTransaction.amount_xmr)).where(
-        MoneroWalletTransaction.timestamp >= start_time
+        MoneroWalletTransaction.timestamp >= hashrate_start
     )
     result = await db.execute(period_earnings_stmt)
     period_earnings = result.scalar() or 0.0
@@ -76,38 +77,38 @@ async def get_monero_solo_analytics(
     result = await db.execute(total_earnings_stmt)
     total_earnings = result.scalar() or 0.0
     
-    # Get hashrate history
+    # Get hashrate history (24 hours)
     hashrate_stmt = select(MoneroHashrateSnapshot).where(
-        MoneroHashrateSnapshot.timestamp >= start_time
+        MoneroHashrateSnapshot.timestamp >= hashrate_start
     ).order_by(MoneroHashrateSnapshot.timestamp)
     result = await db.execute(hashrate_stmt)
     hashrate_history = result.scalars().all()
     
-    # Get effort history
-    effort_stmt = select(MoneroSoloEffort).where(
-        MoneroSoloEffort.timestamp >= start_time
-    ).order_by(MoneroSoloEffort.timestamp)
-    result = await db.execute(effort_stmt)
-    effort_history = result.scalars().all()
+    # Get blocks for effort history (12 months)
+    blocks_effort_stmt = select(MoneroBlock).where(
+        MoneroBlock.timestamp >= blocks_start
+    ).order_by(MoneroBlock.timestamp)
+    result = await db.execute(blocks_effort_stmt)
+    effort_blocks = result.scalars().all()
     
-    # Get blocks
+    # Get recent blocks (last 50, indefinite retention)
     blocks_stmt = select(MoneroBlock).order_by(
         MoneroBlock.block_height.desc()
     ).limit(50)
     result = await db.execute(blocks_stmt)
     blocks = result.scalars().all()
     
-    # Get transactions
-    transactions_stmt = select(MoneroWalletTransaction).where(
-        MoneroWalletTransaction.timestamp >= start_time
-    ).order_by(MoneroWalletTransaction.timestamp.desc()).limit(50)
+    # Get recent transactions (last 50, indefinite retention)
+    transactions_stmt = select(MoneroWalletTransaction).order_by(
+        MoneroWalletTransaction.timestamp.desc()
+    ).limit(50)
     result = await db.execute(transactions_stmt)
     transactions = result.scalars().all()
     
     return {
         "enabled": True,
         "worker_count": hashrate_data["worker_count"],
-        "current_hashrate_formatted": hashrate_data["total_hashrate_formatted"],
+        "current_hashrate_formatted": hashrate_formatted,
         "current_effort_percent": float(current_effort),
         "blocks_found": blocks_count,
         "period_earnings_xmr": float(period_earnings),
@@ -122,11 +123,12 @@ async def get_monero_solo_analytics(
         ],
         "effort_history": [
             {
-                "timestamp": e.timestamp.isoformat(),
-                "effort_percent": float(e.effort_percent),
-                "total_hashes": float(e.total_hashes)
+                "timestamp": b.timestamp.isoformat(),
+                "effort_percent": float(b.effort_percent),
+                "block_height": b.block_height,
+                "reward_xmr": float(b.reward_xmr)
             }
-            for e in effort_history
+            for b in effort_blocks
         ],
         "blocks": [
             {

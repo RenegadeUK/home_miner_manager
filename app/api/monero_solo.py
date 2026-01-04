@@ -301,9 +301,25 @@ async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
     # Get hashrate data from XMRig miners
     hashrate_data = await service.aggregate_hashrate()
     
-    # TODO: Calculate effort from total_hashes and network difficulty
-    # For now, return 0.0 as effort calculation is not yet implemented
+    # Calculate current effort from MoneroSoloEffort tracker
+    from core.database import MoneroSoloEffort, Pool
+    effort_stmt = select(MoneroSoloEffort).limit(1)
+    result = await db.execute(effort_stmt)
+    effort_tracker = result.scalar_one_or_none()
+    
     current_effort = 0.0
+    if effort_tracker and settings.pool_id:
+        # Get network difficulty from node
+        pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
+        result = await db.execute(pool_stmt)
+        pool = result.scalar_one_or_none()
+        
+        if pool:
+            node_rpc = await service.get_node_rpc(pool)
+            if node_rpc:
+                difficulty = await node_rpc.get_difficulty() or 0
+                if difficulty > 0:
+                    current_effort = (effort_tracker.total_hashes / difficulty) * 100
     
     # Count blocks found
     blocks_stmt = select(func.count(MoneroBlock.id))
@@ -324,15 +340,14 @@ async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
     total_earned = result.scalar() or 0.0
     
     # Format hashrate for display
-    total_hashrate = hashrate_data["total_hashrate"]
-    if total_hashrate >= 1_000_000_000:
-        hashrate_formatted = f"{total_hashrate / 1_000_000_000:.2f} GH/s"
-    elif total_hashrate >= 1_000_000:
-        hashrate_formatted = f"{total_hashrate / 1_000_000:.2f} MH/s"
-    elif total_hashrate >= 1_000:
-        hashrate_formatted = f"{total_hashrate / 1_000:.2f} KH/s"
+    # NOTE: XMRig adapter returns hashrate in KH/s, not H/s
+    total_hashrate_khs = hashrate_data["total_hashrate"]
+    if total_hashrate_khs >= 1_000_000:
+        hashrate_formatted = f"{total_hashrate_khs / 1_000_000:.2f} GH/s"
+    elif total_hashrate_khs >= 1_000:
+        hashrate_formatted = f"{total_hashrate_khs / 1_000:.2f} MH/s"
     else:
-        hashrate_formatted = f"{total_hashrate:.2f} H/s"
+        hashrate_formatted = f"{total_hashrate_khs:.2f} KH/s"
     
     return {
         "enabled": True,
