@@ -51,14 +51,13 @@ async def get_monero_solo_analytics(
     else:
         hashrate_formatted = f"{total_hashrate_khs:.2f} KH/s"
     
-    # Get current effort
-    effort_stmt = select(MoneroSoloEffort).order_by(
-        MoneroSoloEffort.updated_at.desc()
+    # Get current effort from latest hashrate snapshot
+    snapshot_stmt = select(MoneroHashrateSnapshot).order_by(
+        MoneroHashrateSnapshot.timestamp.desc()
     ).limit(1)
-    result = await db.execute(effort_stmt)
-    latest_effort = result.scalar_one_or_none()
-    # TODO: Calculate effort_percent from total_hashes / network_difficulty
-    current_effort = 0.0  # Stub until network difficulty tracking is implemented
+    result = await db.execute(snapshot_stmt)
+    latest_snapshot = result.scalar_one_or_none()
+    current_effort = latest_snapshot.current_effort if latest_snapshot else 0.0
     
     # Count total blocks
     blocks_stmt = select(func.count(MoneroBlock.id))

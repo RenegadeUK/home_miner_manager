@@ -304,25 +304,14 @@ async def get_monero_solo_stats(db: AsyncSession = Depends(get_db)):
         # Get hashrate data from XMRig miners
         hashrate_data = await service.aggregate_hashrate()
         
-        # Calculate current effort from MoneroSoloEffort tracker
-        from core.database import MoneroSoloEffort, Pool
-        effort_stmt = select(MoneroSoloEffort).limit(1)
-        result = await db.execute(effort_stmt)
-        effort_tracker = result.scalar_one_or_none()
-        
-        current_effort = 0.0
-        if effort_tracker and settings.pool_id:
-            # Get network difficulty from node
-            pool_stmt = select(Pool).where(Pool.id == settings.pool_id)
-            result = await db.execute(pool_stmt)
-            pool = result.scalar_one_or_none()
-            
-            if pool:
-                node_rpc = await service.get_node_rpc(pool)
-                if node_rpc:
-                    difficulty = await node_rpc.get_difficulty() or 0
-                    if difficulty > 0:
-                        current_effort = (effort_tracker.total_hashes / difficulty) * 100
+        # Get current effort from latest hashrate snapshot (pre-calculated by scheduler)
+        from core.database import MoneroHashrateSnapshot
+        snapshot_stmt = select(MoneroHashrateSnapshot).order_by(
+            MoneroHashrateSnapshot.timestamp.desc()
+        ).limit(1)
+        result = await db.execute(snapshot_stmt)
+        latest_snapshot = result.scalar_one_or_none()
+        current_effort = latest_snapshot.current_effort if latest_snapshot else 0.0
         
         # Count blocks found
         blocks_stmt = select(func.count(MoneroBlock.id))
