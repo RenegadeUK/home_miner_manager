@@ -129,6 +129,13 @@ async function loadBraiinsStats() {
             return;
         }
         
+        // Hide if no workers are online
+        const stats = data.stats;
+        if (stats.workers_online === 0) {
+            statsDiv.style.display = 'none';
+            return;
+        }
+        
         statsDiv.style.display = 'block';
         
         const stats = data.stats;
