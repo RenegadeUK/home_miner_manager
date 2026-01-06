@@ -403,7 +403,29 @@ class AgileSoloStrategy:
                     actions_taken.append(f"{miner.name}: FAILED (no adapter)")
                     continue
                 
-                # Switch pool
+                # Check current state to avoid unnecessary restarts
+                try:
+                    telemetry = await adapter.get_telemetry()
+                    current_pool = telemetry.pool_in_use if telemetry else None
+                    current_mode = miner.current_mode
+                    
+                    # Build expected pool URL
+                    target_pool_url = f"{target_pool.url}:{target_pool.port}"
+                    
+                    # Check if already on correct pool and mode
+                    pool_already_correct = current_pool and target_pool_url in current_pool
+                    mode_already_correct = current_mode == target_mode
+                    
+                    if pool_already_correct and mode_already_correct:
+                        logger.info(f"{miner.name} already on {target_pool.name} with mode {target_mode}, skipping")
+                        actions_taken.append(f"{miner.name}: Already correct (no change)")
+                        continue
+                    
+                except Exception as e:
+                    logger.warning(f"Could not check current state for {miner.name}: {e}")
+                    # Continue with switch attempt if we can't verify current state
+                
+                # Switch pool (only if needed)
                 try:
                     pool_switched = await adapter.switch_pool(
                         pool_url=target_pool.url,
