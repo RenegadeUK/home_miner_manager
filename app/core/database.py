@@ -564,6 +564,36 @@ class MoneroHashrateSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class AgileStrategy(Base):
+    """Agile Solo Mining Strategy configuration and state"""
+    __tablename__ = "agile_strategy"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    current_price_band: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # off, dgb_high, dgb_med, dgb_low, bch, btc
+    hysteresis_counter: Mapped[int] = mapped_column(Integer, default=0)  # 2-slot delay for upgrading bands
+    last_action_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_price_checked: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # p/kWh
+    state_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Additional state tracking
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MinerStrategy(Base):
+    """Links miners to Agile Solo Strategy"""
+    __tablename__ = "miner_strategy"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    miner_id: Mapped[int] = mapped_column(Integer, index=True)
+    strategy_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Ensure one record per miner
+    __table_args__ = (
+        Index('ix_miner_strategy_unique', 'miner_id', unique=True),
+    )
+
+
 # Database engine and session
 DATABASE_URL = f"sqlite+aiosqlite:///{settings.DB_PATH}"
 engine = create_async_engine(

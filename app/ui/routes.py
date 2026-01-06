@@ -557,6 +557,20 @@ async def pool_integrations_settings(request: Request):
     })
 
 
+@router.get("/settings/agile-solo-strategy", response_class=HTMLResponse)
+async def agile_solo_strategy_settings(request: Request):
+    """Agile Solo Strategy settings page"""
+    return templates.TemplateResponse("settings/agile_solo_strategy.html", {
+        "request": request,
+        "page_title": "Agile Solo Strategy",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Settings", "url": "/settings"},
+            {"label": "Agile Solo Strategy", "url": "/settings/agile-solo-strategy"}
+        ]
+    })
+
+
 @router.get("/settings/p2pool", response_class=HTMLResponse)
 async def p2pool_settings(request: Request):
     """P2Pool Monero Wallet Tracking page"""

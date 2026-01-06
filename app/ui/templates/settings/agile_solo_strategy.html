@@ -1,0 +1,546 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<style>
+.strategy-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
+.detail-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.detail-card-header {
+    padding: 1.25rem;
+    background: var(--card-header);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.detail-card-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.detail-card-body {
+    padding: 1.5rem;
+}
+
+.miner-type-section {
+    margin-bottom: 2rem;
+}
+
+.miner-type-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--info);
+    padding-bottom: 0.5rem;
+}
+
+.miner-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 0.75rem;
+}
+
+.miner-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.miner-checkbox-item:hover {
+    background: var(--bg-hover);
+    border-color: var(--info);
+}
+
+.miner-checkbox-item input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.miner-checkbox-item label {
+    cursor: pointer;
+    user-select: none;
+    flex: 1;
+    margin: 0;
+}
+
+.price-band-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.price-band-table th,
+.price-band-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border: 1px solid var(--border-color);
+}
+
+.price-band-table th {
+    background: var(--card-header);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.price-band-table td {
+    background: var(--card-bg);
+}
+
+.price-band-table tr:hover td {
+    background: var(--bg-hover);
+}
+
+.toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.toggle-label {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--info);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2563eb;
+}
+
+.btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-hover);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.status-enabled {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.status-disabled {
+    background: rgba(107, 114, 128, 0.2);
+    color: var(--text-secondary);
+}
+
+.info-box {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.info-box h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--info);
+    font-size: 1rem;
+}
+
+.info-box p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+
+.warning-box {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.warning-box h4 {
+    margin: 0 0 0.5rem 0;
+    color: var(--danger);
+    font-size: 1rem;
+}
+
+.warning-box p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="strategy-container">
+    <!-- Strategy Overview -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h3>🎯 Agile Solo Strategy Overview</h3>
+            <span id="strategy-status" class="status-badge status-disabled">Disabled</span>
+        </div>
+        <div class="detail-card-body">
+            <div class="info-box">
+                <h4>📊 What is the Agile Solo Strategy?</h4>
+                <p>
+                    A variance-driven, solo-only mining strategy optimised for Octopus Agile UK pricing.
+                    Automatically switches between DigiByte, Bitcoin Cash, and Bitcoin based on energy prices,
+                    with aggressive mode tuning during cheap electricity windows. NO pooled mining allowed.
+                </p>
+            </div>
+            
+            <div class="warning-box">
+                <h4>⚠️ Important: Solo Mining Only</h4>
+                <p>
+                    This strategy ONLY works with solo pools (Solopool.org). It will automatically disable
+                    if any enrolled miner is pointed at a pooled mining pool. Variance is intentional—expect long
+                    dry spells between wins.
+                </p>
+            </div>
+            
+            <div class="info-box">
+                <h4>🔌 OFF State (≥20p/kWh)</h4>
+                <p>
+                    When prices reach ≥20p/kWh, the strategy detects the OFF band but does NOT disable miners.
+                    Miner shutdown at high prices is managed through external automation. The strategy will resume
+                    normal operation when prices drop below 20p.
+                </p>
+            </div>
+            
+            <div class="warning-box" style="border-color: rgba(245, 158, 11, 0.3); background: rgba(245, 158, 11, 0.1);">
+                <h4 style="color: var(--warning);">⚠️ Automation Rule Conflicts</h4>
+                <p>
+                    When the Agile Solo Strategy is enabled, it will automatically manage pool switching and mode changes
+                    for enrolled miners. Any automation rules that affect these miners may conflict with the strategy.
+                    Consider disabling conflicting automation rules before enabling this strategy.
+                </p>
+            </div>
+            
+            <div class="toggle-switch">
+                <input type="checkbox" id="strategy-enabled" style="width: 40px; height: 24px;">
+                <label for="strategy-enabled" class="toggle-label">Enable Agile Solo Strategy</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Miner Selection -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h3>🖥️ Enroll Miners</h3>
+        </div>
+        <div class="detail-card-body">
+            <p style="margin-bottom: 1.5rem; color: var(--text-secondary);">
+                Select which miners should participate in the Agile Solo Strategy. Only enabled miners are shown.
+            </p>
+            
+            <!-- Bitaxe Miners -->
+            <div class="miner-type-section" id="bitaxe-section" style="display: none;">
+                <div class="miner-type-header">⚡ Bitaxe Miners</div>
+                <div class="miner-checkboxes" id="bitaxe-miners"></div>
+            </div>
+            
+            <!-- NerdQaxe Miners -->
+            <div class="miner-type-section" id="nerdqaxe-section" style="display: none;">
+                <div class="miner-type-header">🔧 NerdQaxe++ Miners</div>
+                <div class="miner-checkboxes" id="nerdqaxe-miners"></div>
+            </div>
+            
+            <!-- Avalon Nano Miners -->
+            <div class="miner-type-section" id="avalon-section" style="display: none;">
+                <div class="miner-type-header">🏔️ Avalon Nano Miners</div>
+                <div class="miner-checkboxes" id="avalon-miners"></div>
+            </div>
+            
+            <div id="no-miners-message" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">
+                No miners available. Please add miners first.
+            </div>
+        </div>
+    </div>
+
+    <!-- Price Band Strategy Table -->
+    <div class="detail-card">
+        <div class="detail-card-header">
+            <h3>📈 Price Band Strategy</h3>
+        </div>
+        <div class="detail-card-body">
+            <p style="margin-bottom: 1rem; color: var(--text-secondary);">
+                Automatic coin and mode selection based on Octopus Agile energy pricing (p/kWh).
+            </p>
+            
+            <table class="price-band-table">
+                <thead>
+                    <tr>
+                        <th>Price Band (p/kWh)</th>
+                        <th>Coin</th>
+                        <th>Bitaxe Mode</th>
+                        <th>NerdQaxe Mode</th>
+                        <th>Avalon Nano Mode</th>
+                        <th>Strategy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: rgba(107, 114, 128, 0.1);">
+                        <td>≥ 20p</td>
+                        <td><strong>OFF</strong></td>
+                        <td colspan="3" style="text-align: center; font-style: italic; color: var(--text-secondary);">Managed Externally</td>
+                        <td>Capital preservation (external automation)</td>
+                    </tr>
+                    <tr>
+                        <td>12–20p</td>
+                        <td><strong>DGB Solo</strong></td>
+                        <td>Eco / Std</td>
+                        <td>Eco</td>
+                        <td>OFF or Low</td>
+                        <td>Frequent wins, low regret</td>
+                    </tr>
+                    <tr>
+                        <td>7–12p</td>
+                        <td><strong>DGB Solo</strong></td>
+                        <td>Std</td>
+                        <td>Std</td>
+                        <td>Low → High</td>
+                        <td>Baseline probability</td>
+                    </tr>
+                    <tr>
+                        <td>4–7p</td>
+                        <td><strong>BCH Solo</strong></td>
+                        <td>OC</td>
+                        <td>Std</td>
+                        <td>High</td>
+                        <td>Meaningful upside</td>
+                    </tr>
+                    <tr style="background: rgba(59, 130, 246, 0.1);">
+                        <td>< 4p</td>
+                        <td><strong>BTC Solo</strong></td>
+                        <td>OC</td>
+                        <td>OC</td>
+                        <td>High</td>
+                        <td>Jackpot probability</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 6px;">
+                <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem;">⏱️ Hysteresis Rules</h4>
+                <ul style="margin: 0; padding-left: 1.5rem; color: var(--text-secondary); font-size: 0.875rem;">
+                    <li>2-slot delay when moving UP price bands (prevents oscillation)</li>
+                    <li>Immediate downgrade when price worsens</li>
+                    <li>Strategy executes every 30 minutes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button -->
+    <div style="text-align: center;">
+        <button class="btn btn-primary" onclick="saveSettings()" style="min-width: 200px;">
+            💾 Save Strategy Settings
+        </button>
+    </div>
+</div>
+
+<script>
+let currentSettings = null;
+
+async function loadSettings() {
+    try {
+        const response = await fetch('/api/settings/agile-solo-strategy');
+        const data = await response.json();
+        
+        currentSettings = data;
+        
+        // Update status badge
+        const statusBadge = document.getElementById('strategy-status');
+        if (data.enabled) {
+            statusBadge.textContent = 'Enabled';
+            statusBadge.className = 'status-badge status-enabled';
+        } else {
+            statusBadge.textContent = 'Disabled';
+            statusBadge.className = 'status-badge status-disabled';
+        }
+        
+        // Set enabled checkbox
+        document.getElementById('strategy-enabled').checked = data.enabled;
+        
+        // Populate miners
+        populateMiners(data.miners_by_type);
+        
+    } catch (error) {
+        console.error('Failed to load settings:', error);
+        alert('❌ Failed to load strategy settings');
+    }
+}
+
+function populateMiners(minersByType) {
+    const bitaxeSection = document.getElementById('bitaxe-section');
+    const nerdqaxeSection = document.getElementById('nerdqaxe-section');
+    const avalonSection = document.getElementById('avalon-section');
+    const noMinersMessage = document.getElementById('no-miners-message');
+    
+    const bitaxeContainer = document.getElementById('bitaxe-miners');
+    const nerdqaxeContainer = document.getElementById('nerdqaxe-miners');
+    const avalonContainer = document.getElementById('avalon-miners');
+    
+    // Clear containers
+    bitaxeContainer.innerHTML = '';
+    nerdqaxeContainer.innerHTML = '';
+    avalonContainer.innerHTML = '';
+    
+    let hasMiners = false;
+    
+    // Bitaxe miners
+    if (minersByType.bitaxe && minersByType.bitaxe.length > 0) {
+        hasMiners = true;
+        bitaxeSection.style.display = 'block';
+        minersByType.bitaxe.forEach(miner => {
+            const item = createMinerCheckbox(miner);
+            bitaxeContainer.appendChild(item);
+        });
+    } else {
+        bitaxeSection.style.display = 'none';
+    }
+    
+    // NerdQaxe miners
+    if (minersByType.nerdqaxe && minersByType.nerdqaxe.length > 0) {
+        hasMiners = true;
+        nerdqaxeSection.style.display = 'block';
+        minersByType.nerdqaxe.forEach(miner => {
+            const item = createMinerCheckbox(miner);
+            nerdqaxeContainer.appendChild(item);
+        });
+    } else {
+        nerdqaxeSection.style.display = 'none';
+    }
+    
+    // Avalon miners
+    if (minersByType.avalon_nano && minersByType.avalon_nano.length > 0) {
+        hasMiners = true;
+        avalonSection.style.display = 'block';
+        minersByType.avalon_nano.forEach(miner => {
+            const item = createMinerCheckbox(miner);
+            avalonContainer.appendChild(item);
+        });
+    } else {
+        avalonSection.style.display = 'none';
+    }
+    
+    noMinersMessage.style.display = hasMiners ? 'none' : 'block';
+}
+
+function createMinerCheckbox(miner) {
+    const div = document.createElement('div');
+    div.className = 'miner-checkbox-item';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `miner-${miner.id}`;
+    checkbox.value = miner.id;
+    checkbox.checked = miner.enrolled;
+    
+    const label = document.createElement('label');
+    label.htmlFor = `miner-${miner.id}`;
+    label.textContent = miner.name;
+    
+    div.appendChild(checkbox);
+    div.appendChild(label);
+    
+    // Make whole div clickable
+    div.addEventListener('click', (e) => {
+        if (e.target !== checkbox) {
+            checkbox.checked = !checkbox.checked;
+        }
+    });
+    
+    return div;
+}
+
+async function saveSettings() {
+    const enabled = document.getElementById('strategy-enabled').checked;
+    
+    // Collect selected miner IDs
+    const checkboxes = document.querySelectorAll('.miner-checkbox-item input[type="checkbox"]:checked');
+    const minerIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    
+    const settings = {
+        enabled: enabled,
+        miner_ids: minerIds
+    };
+    
+    try {
+        const response = await fetch('/api/settings/agile-solo-strategy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Immediately update status badge to reflect saved state
+            const statusBadge = document.getElementById('strategy-status');
+            if (enabled) {
+                statusBadge.textContent = 'Enabled';
+                statusBadge.className = 'status-badge status-enabled';
+            } else {
+                statusBadge.textContent = 'Disabled';
+                statusBadge.className = 'status-badge status-disabled';
+            }
+            
+            alert(`✅ ${result.message}\n\nStatus: ${enabled ? 'Enabled' : 'Disabled'}\nEnrolled: ${result.enrolled_count} miners`);
+            await loadSettings(); // Reload to ensure sync
+        } else {
+            const error = await response.json();
+            alert('❌ Failed to save settings: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+// Load settings on page load
+loadSettings();
+</script>
+{% endblock %}

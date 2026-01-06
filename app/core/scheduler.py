@@ -296,6 +296,36 @@ class SchedulerService:
             name="Immediate Monero block detection TEST"
         )
         
+        # Agile Solo Strategy execution
+        self.scheduler.add_job(
+            self._execute_agile_solo_strategy,
+            IntervalTrigger(minutes=30),
+            id="execute_agile_solo_strategy",
+            name="Execute Agile Solo Strategy every 30 minutes"
+        )
+        
+        # Agile Solo Strategy reconciliation (check for drift)
+        self.scheduler.add_job(
+            self._reconcile_agile_solo_strategy,
+            IntervalTrigger(minutes=5),
+            id="reconcile_agile_solo_strategy",
+            name="Reconcile Agile Solo Strategy every 5 minutes"
+        )
+        
+        # Trigger immediate strategy execution
+        self.scheduler.add_job(
+            self._execute_agile_solo_strategy,
+            id="execute_agile_solo_strategy_immediate",
+            name="Immediate Agile Solo Strategy execution"
+        )
+        
+        # Trigger immediate reconciliation
+        self.scheduler.add_job(
+            self._reconcile_agile_solo_strategy,
+            id="reconcile_agile_solo_strategy_immediate",
+            name="Immediate Agile Solo Strategy reconciliation"
+        )
+        
         # Update auto-discovery job interval based on config
         self._update_discovery_schedule()
     
@@ -2198,10 +2228,47 @@ class SchedulerService:
                 
                 deleted_count = result.rowcount
                 if deleted_count > 0:
-                    logger.info(f"Purged {deleted_count} Monero solo snapshot(s) older than 24 hours")
+                    logger.debug(f"Purged {deleted_count} old Monero hashrate snapshots")
         
         except Exception as e:
-            logger.error(f"Failed to purge old Monero solo snapshots: {e}")
+            logger.error(f"Failed to purge old Monero snapshots: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _execute_agile_solo_strategy(self):
+        """Execute Agile Solo Mining Strategy every 30 minutes"""
+        try:
+            logger.info("Executing Agile Solo Strategy")
+            from core.database import AsyncSessionLocal
+            from core.agile_solo_strategy import AgileSoloStrategy
+            
+            async with AsyncSessionLocal() as db:
+                report = await AgileSoloStrategy.execute_strategy(db)
+                
+                if report.get("enabled"):
+                    logger.info(f"Agile Solo Strategy executed: {report}")
+                else:
+                    logger.debug(f"Agile Solo Strategy: {report.get('message', 'disabled')}")
+        
+        except Exception as e:
+            logger.error(f"Failed to execute Agile Solo Strategy: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _reconcile_agile_solo_strategy(self):
+        """Reconcile Agile Solo Strategy - ensure miners match intended state"""
+        try:
+            from core.database import AsyncSessionLocal
+            from core.agile_solo_strategy import AgileSoloStrategy
+            
+            async with AsyncSessionLocal() as db:
+                report = await AgileSoloStrategy.reconcile_strategy(db)
+                
+                if report.get("reconciled"):
+                    logger.info(f"Agile Solo Strategy reconciliation: {report}")
+        
+        except Exception as e:
+            logger.error(f"Failed to reconcile Agile Solo Strategy: {e}")
             import traceback
             traceback.print_exc()
 

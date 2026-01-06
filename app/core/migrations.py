@@ -734,3 +734,39 @@ async def run_migrations():
                 # Unexpected error - log it
                 print(f"⚠️  Could not add last_block_check_height to monero_solo_settings: {e}")
                 raise  # Re-raise unexpected errors
+        
+        # Migration: Create agile_strategy table
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS agile_strategy (
+                    id INTEGER PRIMARY KEY,
+                    enabled BOOLEAN DEFAULT 0,
+                    current_price_band VARCHAR(20),
+                    hysteresis_counter INTEGER DEFAULT 0,
+                    last_action_time DATETIME,
+                    last_price_checked REAL,
+                    state_data JSON,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created agile_strategy table")
+        except Exception:
+            pass
+        
+        # Migration: Create miner_strategy table
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS miner_strategy (
+                    id INTEGER PRIMARY KEY,
+                    miner_id INTEGER NOT NULL,
+                    strategy_enabled BOOLEAN DEFAULT 1,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS ix_miner_strategy_unique ON miner_strategy(miner_id)
+            """))
+            print("✓ Created miner_strategy table")
+        except Exception:
+            pass
