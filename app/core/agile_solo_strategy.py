@@ -331,12 +331,13 @@ class AgileSoloStrategy:
             }
         
         # Get current energy price
-        current_price = await get_current_energy_price(db)
+        current_price_obj = await get_current_energy_price(db)
         
-        if current_price is None:
+        if current_price_obj is None:
             logger.error("Failed to get current energy price")
             return {"error": "NO_PRICE_DATA", "message": "No energy price data available"}
         
+        current_price = current_price_obj.price_pence
         logger.info(f"Current energy price: {current_price}p/kWh")
         
         # Determine target band with hysteresis
