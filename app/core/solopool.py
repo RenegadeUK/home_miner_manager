@@ -360,8 +360,12 @@ class SolopoolService:
         
         # Use central time formatting helper (returns compact format like "1d 10h 32m")
         # Create a fake datetime for formatting (current time - ettb_seconds)
-        fake_start = datetime.utcnow() - timedelta(seconds=ettb_seconds)
-        formatted = format_time_elapsed(fake_start)
+        # Cap at max timedelta to prevent overflow (999999999 days = ~2.7 million years)
+        try:
+            fake_start = datetime.utcnow() - timedelta(seconds=min(ettb_seconds, 86400000000))
+            formatted = format_time_elapsed(fake_start)
+        except (OverflowError, ValueError):
+            formatted = None
         
         # Determine primary unit for backwards compatibility
         if ettb_seconds < 60:
