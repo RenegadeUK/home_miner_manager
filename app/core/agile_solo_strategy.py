@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 import logging
 
-from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice, MinerTelemetry
+from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice, Telemetry
 from core.energy import get_current_energy_price
 from core.audit import log_audit
 from core.solopool import SolopoolService
@@ -164,9 +164,9 @@ class AgileSoloStrategy:
         
         # Get telemetry to see what pools these miners are actually using
         recent_telemetry = await db.execute(
-            select(MinerTelemetry)
-            .filter(MinerTelemetry.miner_id.in_(miner_ids))
-            .order_by(MinerTelemetry.timestamp.desc())
+            select(Telemetry)
+            .filter(Telemetry.miner_id.in_(miner_ids))
+            .order_by(Telemetry.timestamp.desc())
             .limit(len(miner_ids))
         )
         telemetry_records = recent_telemetry.scalars().all()
