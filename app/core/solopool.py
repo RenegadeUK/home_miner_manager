@@ -27,6 +27,16 @@ class SolopoolService:
     XMR_PORT = 8010
     
     @staticmethod
+    def is_solopool(pool_url: str, pool_port: int) -> bool:
+        """Check if pool is any Solopool.org pool (BTC, BCH, DGB, or XMR)"""
+        return (
+            SolopoolService.is_solopool_btc_pool(pool_url, pool_port) or
+            SolopoolService.is_solopool_bch_pool(pool_url, pool_port) or
+            SolopoolService.is_solopool_dgb_pool(pool_url, pool_port) or
+            SolopoolService.is_solopool_xmr_pool(pool_url, pool_port)
+        )
+    
+    @staticmethod
     def is_solopool_bch_pool(pool_url: str, pool_port: int) -> bool:
         """Check if pool is a Solopool BCH pool"""
         return pool_url in SolopoolService.BCH_POOLS and pool_port == SolopoolService.BCH_PORT

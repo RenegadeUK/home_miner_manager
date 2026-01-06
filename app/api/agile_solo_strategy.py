@@ -159,3 +159,19 @@ async def execute_agile_strategy_manual(db: AsyncSession = Depends(get_db)):
             "error": str(e),
             "traceback": traceback.format_exc()
         }
+
+
+@router.post("/agile-solo-strategy/reconcile")
+async def reconcile_agile_strategy_manual(db: AsyncSession = Depends(get_db)):
+    """Manually trigger Agile Solo Strategy reconciliation"""
+    from core.agile_solo_strategy import AgileSoloStrategy
+    
+    try:
+        report = await AgileSoloStrategy.reconcile_strategy(db)
+        return report
+    except Exception as e:
+        import traceback
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
