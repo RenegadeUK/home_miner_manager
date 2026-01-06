@@ -94,42 +94,15 @@
 
 <!-- Tab Navigation -->
 <div class="dashboard-tabs">
-    <button class="dashboard-tab active" onclick="switchTab('pools')">⛏️ Pools</button>
-    <button class="dashboard-tab" onclick="switchTab('asic')">⚡ ASIC Mining</button>
-    <button class="dashboard-tab" onclick="switchTab('cpu')">💻 CPU Mining</button>
-    <button class="dashboard-tab" onclick="switchTab('agile')">🎯 Agile Strategy</button>
+    <button class="dashboard-tab active" data-tab="pools" onclick="switchTab('pools')">⛏️ Pools</button>
+    <button class="dashboard-tab" data-tab="asic" onclick="switchTab('asic')">⚡ ASIC Mining</button>
+    <button class="dashboard-tab" data-tab="cpu" onclick="switchTab('cpu')">💻 CPU Mining</button>
+    <button class="dashboard-tab" data-tab="agile" onclick="switchTab('agile')">🎯 Agile Strategy</button>
 </div>
 
 <!-- Pools Tab -->
 <div id="tab-pools" class="tab-content active">
-    <!-- Braiins Pool Stats -->
-    <div id="braiins-stats" style="display: none; margin-top: 0.5rem;"></div>
-    
-    <!-- SupportXMR Pool Stats -->
-    <div id="supportxmr-stats" style="display: none; margin-top: 0.5rem;"></div>
-    
-    <!-- Solopool Stats -->
-    <div id="solopool-stats" style="display: none; margin-top: 0.5rem;"></div>
-    
-    <!-- P2Pool Stats -->
-    <div id="p2pool-stats" style="display: none; margin-top: 0.5rem;"></div>
-    
-    <!-- Monero Solo Mining Stats -->
-    <div id="monero-solo-stats" style="display: none; margin-top: 0.5rem;"></div>
-    
-    <!-- CKPool Stats -->
-    <div id="ckpool-stats" style="display: none; margin-top: 0.5rem;"></div>
-    
-    <!-- Message if no pools configured -->
-    <div id="no-pools-message" style="display: none; text-align: center; padding: 3rem; color: var(--text-secondary);">
-        <p style="font-size: 1.25rem; margin-bottom: 1rem;">📭 No Pool Integrations Active</p>
-        <p>Configure pool integrations in <a href="/settings/pools" style="color: var(--info);">Settings → Pool Integrations</a></p>
-    </div>
-</div>
-
-<!-- ASIC Mining Tab -->
-<div id="tab-asic" class="tab-content">
-    <!-- Stats Grid -->
+    <!-- Overview Stats Grid -->
     <div class="stats-grid compact-grid">
         <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
             <div class="stat-label">Total Miners</div>
@@ -168,12 +141,68 @@
             <div class="stat-value" id="pl-24h">£0.00</div>
         </div>
     </div>
+
+    <!-- Braiins Pool Stats -->
+    <div id="braiins-stats" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- SupportXMR Pool Stats -->
+    <div id="supportxmr-stats" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- Solopool Stats -->
+    <div id="solopool-stats" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- P2Pool Stats -->
+    <div id="p2pool-stats" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- Monero Solo Mining Stats -->
+    <div id="monero-solo-stats" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- CKPool Stats -->
+    <div id="ckpool-stats" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- Message if no pools configured -->
+    <div id="no-pools-message" style="display: none; text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <p style="font-size: 1.25rem; margin-bottom: 1rem;">📭 No Pool Integrations Active</p>
+        <p>Configure pool integrations in <a href="/settings/pools" style="color: var(--info);">Settings → Pool Integrations</a></p>
+    </div>
+</div>
+
+<!-- ASIC Mining Tab -->
+<div id="tab-asic" class="tab-content">
+    <!-- Braiins Pool Stats (ASIC) -->
+    <div id="braiins-stats-asic" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- Solopool Stats (ASIC) -->
+    <div id="solopool-stats-asic" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- CKPool Stats (ASIC) -->
+    <div id="ckpool-stats-asic" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- Message if no ASIC pools active -->
+    <div id="no-asic-pools-message" style="display: none; text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <p style="font-size: 1.25rem; margin-bottom: 1rem;">⚡ No ASIC Pool Integrations Active</p>
+        <p>Configure pool integrations in <a href="/settings/pools" style="color: var(--info);">Settings → Pool Integrations</a></p>
+    </div>
 </div>
 
 <!-- CPU Mining Tab -->
 <div id="tab-cpu" class="tab-content">
-    <div id="cpu-stats-container">
-        <p style="text-align: center; padding: 3rem; color: var(--text-secondary);">Loading CPU mining stats...</p>
+    <!-- Solopool Stats (CPU - XMR) -->
+    <div id="solopool-stats-cpu" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- SupportXMR Pool Stats (CPU) -->
+    <div id="supportxmr-stats-cpu" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- P2Pool Stats (CPU) -->
+    <div id="p2pool-stats-cpu" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- Monero Solo Mining Stats (CPU) -->
+    <div id="monero-solo-stats-cpu" style="display: none; margin-top: 0.5rem;"></div>
+    
+    <!-- Message if no CPU pools active -->
+    <div id="no-cpu-pools-message" style="display: none; text-align: center; padding: 3rem; color: var(--text-secondary);">
+        <p style="font-size: 1.25rem; margin-bottom: 1rem;">💻 No CPU Pool Integrations Active</p>
+        <p>Configure pool integrations in <a href="/settings/pools" style="color: var(--info);">Settings → Pool Integrations</a></p>
     </div>
 </div>
 
@@ -183,34 +212,6 @@
         <p style="text-align: center; padding: 3rem; color: var(--text-secondary);">Loading Agile Solo Strategy stats...</p>
     </div>
 </div>
-#p2pool-stats > .stats-grid:first-child,
-#monero-solo-stats > .stats-grid:first-child,
-#ckpool-stats > .stats-grid:first-child { margin-top: 0 !important; }
-#braiins-stats .stats-grid,
-#supportxmr-stats .stats-grid,
-#solopool-stats .stats-grid,
-#p2pool-stats .stats-grid,
-#monero-solo-stats .stats-grid,
-#ckpool-stats .stats-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
-#braiins-stats .stat-card,
-#supportxmr-stats .stat-card,
-#solopool-stats .stat-card,
-#p2pool-stats .stat-card,
-#monero-solo-stats .stat-card,
-#ckpool-stats .stat-card { padding: 0.35rem 0.5rem !important; }
-#braiins-stats .stat-label,
-#supportxmr-stats .stat-label,
-#solopool-stats .stat-label,
-#p2pool-stats .stat-label,
-#monero-solo-stats .stat-label,
-#ckpool-stats .stat-label { font-size: 0.7rem !important; margin-bottom: 0.15rem !important; }
-#braiins-stats .stat-value,
-#supportxmr-stats .stat-value,
-#solopool-stats .stat-value,
-#p2pool-stats .stat-value,
-#monero-solo-stats .stat-value,
-#ckpool-stats .stat-value { font-size: 1rem !important; line-height: 1.3 !important; }
-</style>
 
 {% endblock %}
 
@@ -1145,17 +1146,33 @@ async function loadDashboard() {
 // Tab switching
 function switchTab(tabName) {
     // Update tab buttons
-    document.querySelectorAll('.dashboard-tab').forEach(tab => tab.classList.remove('active'));
-    event.target.classList.add('active');
+    document.querySelectorAll('.dashboard-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    
+    // Find and activate the clicked tab button
+    const clickedButton = document.querySelector(`.dashboard-tab[data-tab="${tabName}"]`);
+    if (clickedButton) {
+        clickedButton.classList.add('active');
+    }
     
     // Update tab content
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(`tab-${tabName}`).classList.add('active');
     
-    // Load content for specific tabs
-    if (tabName === 'cpu' && !window.cpuStatsLoaded) {
-        loadCPUStats();
-        window.cpuStatsLoaded = true;
+    // Load content for specific tabs (wait for pool tiles to be loaded first)
+    if (tabName === 'asic' && !window.asicStatsLoaded) {
+        // Wait a bit for pool tiles to render, then load ASIC
+        setTimeout(() => {
+            loadASICStats();
+            window.asicStatsLoaded = true;
+        }, 100);
+    } else if (tabName === 'cpu' && !window.cpuStatsLoaded) {
+        // Wait a bit for pool tiles to render, then load CPU
+        setTimeout(() => {
+            loadCPUStats();
+            window.cpuStatsLoaded = true;
+        }, 100);
     } else if (tabName === 'agile' && !window.agileStatsLoaded) {
         loadAgileStrategyStats();
         window.agileStatsLoaded = true;
@@ -1178,103 +1195,265 @@ function checkPoolsVisibility() {
     document.getElementById('no-pools-message').style.display = anyVisible ? 'none' : 'block';
 }
 
+// Load ASIC Mining stats (Braiins, Solopool, CKPool)
+async function loadASICStats() {
+    try {
+        // Load all ASIC pool integrations
+        const pools = await Promise.all([
+            loadBraiinsStatsASIC(),
+            loadSolopoolStatsASIC(),
+            loadCKPoolStatsASIC()
+        ]);
+        
+        // Sort tiles by worker count
+        sortPoolTiles('tab-asic', pools);
+        
+        // Check if any ASIC pools are visible
+        checkASICPoolsVisibility();
+    } catch (error) {
+        console.error('Failed to load ASIC stats:', error);
+    }
+}
+
+// Check if any ASIC pool tiles are visible
+function checkASICPoolsVisibility() {
+    const braiins = document.getElementById('braiins-stats-asic').style.display !== 'none';
+    const solopool = document.getElementById('solopool-stats-asic').style.display !== 'none';
+    const ckpool = document.getElementById('ckpool-stats-asic').style.display !== 'none';
+    
+    const anyVisible = braiins || solopool || ckpool;
+    document.getElementById('no-asic-pools-message').style.display = anyVisible ? 'none' : 'block';
+}
+
+// Load Braiins stats for ASIC tab
+async function loadBraiinsStatsASIC() {
+    try {
+        const response = await fetch('/api/settings/braiins/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('braiins-stats-asic');
+        const workers = (data.enabled && data.stats) ? (data.stats.workers_online || 0) : 0;
+        statsDiv.setAttribute('data-worker-count', workers);
+        
+        // Copy content from Pools tab if source exists and has content
+        const sourceDiv = document.getElementById('braiins-stats');
+        if (sourceDiv && sourceDiv.innerHTML.trim()) {
+            statsDiv.innerHTML = sourceDiv.innerHTML;
+            statsDiv.style.display = sourceDiv.style.display;
+        } else {
+            statsDiv.style.display = 'none';
+        }
+        
+        return { id: 'braiins-stats-asic', workers: workers };
+    } catch (error) {
+        console.error('Failed to load Braiins stats for ASIC tab:', error);
+        return { id: 'braiins-stats-asic', workers: 0 };
+    }
+}
+
+// Load Solopool stats for ASIC tab
+async function loadSolopoolStatsASIC() {
+    try {
+        const response = await fetch('/api/settings/solopool/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('solopool-stats-asic');
+        const workers = (data.enabled && data.stats) ? (data.stats.workers_online || 0) : 0;
+        statsDiv.setAttribute('data-worker-count', workers);
+        
+        // Copy content from Pools tab if source exists and has content
+        const sourceDiv = document.getElementById('solopool-stats');
+        if (sourceDiv && sourceDiv.innerHTML.trim()) {
+            statsDiv.innerHTML = sourceDiv.innerHTML;
+            statsDiv.style.display = sourceDiv.style.display;
+        } else {
+            statsDiv.style.display = 'none';
+        }
+        
+        return { id: 'solopool-stats-asic', workers: workers };
+    } catch (error) {
+        console.error('Failed to load Solopool stats for ASIC tab:', error);
+        return { id: 'solopool-stats-asic', workers: 0 };
+    }
+}
+
+// Load CKPool stats for ASIC tab
+async function loadCKPoolStatsASIC() {
+    try {
+        const response = await fetch('/api/widgets/widgets/ckpool-workers');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('ckpool-stats-asic');
+        const workers = data.workers_online || 0;
+        statsDiv.setAttribute('data-worker-count', workers);
+        
+        // Copy content from Pools tab if source exists and has content
+        const sourceDiv = document.getElementById('ckpool-stats');
+        if (sourceDiv && sourceDiv.innerHTML.trim()) {
+            statsDiv.innerHTML = sourceDiv.innerHTML;
+            statsDiv.style.display = sourceDiv.style.display;
+        } else {
+            statsDiv.style.display = 'none';
+        }
+        
+        return { id: 'ckpool-stats-asic', workers: workers };
+    } catch (error) {
+        console.error('Failed to load CKPool stats for ASIC tab:', error);
+        return { id: 'ckpool-stats-asic', workers: 0 };
+    }
+}
+
 // Load CPU Mining stats
 async function loadCPUStats() {
-    const container = document.getElementById('cpu-stats-container');
-    
     try {
-        // Check if any XMRig/NMMiner miners exist
-        const minersResp = await fetch('/api/miners');
-        const minersData = await minersResp.json();
+        // Load all CPU pool integrations
+        const pools = await Promise.all([
+            loadSolopoolStatsCPU(),
+            loadSupportXMRStatsCPU(),
+            loadP2PoolStatsCPU(),
+            loadMoneroSoloStatsCPU()
+        ]);
         
-        const cpuMiners = minersData.filter(m => m.miner_type === 'xmrig' || m.miner_type === 'nmminer');
+        // Sort tiles by worker count
+        sortPoolTiles('tab-cpu', pools);
         
-        if (cpuMiners.length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                    <p style="font-size: 1.25rem; margin-bottom: 1rem;">💻 No CPU Miners Configured</p>
-                    <p>Add XMRig or NMMiner devices in <a href="/miners/add" style="color: var(--info);">Add Miner</a></p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Calculate CPU stats
-        let totalHashrate = 0;
-        let onlineCount = 0;
-        let offlineCount = 0;
-        
-        for (const miner of cpuMiners) {
-            if (miner.status === 'online') {
-                onlineCount++;
-                // Fetch latest telemetry
-                try {
-                    const telemetryResp = await fetch(`/api/miners/${miner.id}/telemetry?limit=1`);
-                    const telemetryData = await telemetryResp.json();
-                    if (telemetryData.length > 0) {
-                        totalHashrate += telemetryData[0].hashrate || 0;
-                    }
-                } catch (e) {
-                    console.error(`Failed to fetch telemetry for miner ${miner.id}:`, e);
-                }
-            } else {
-                offlineCount++;
-            }
-        }
-        
-        // Format hashrate (CPU miners use H/s, KH/s, MH/s)
-        let hashrateDisplay = '0 H/s';
-        if (totalHashrate >= 1000000) {
-            hashrateDisplay = (totalHashrate / 1000000).toFixed(2) + ' MH/s';
-        } else if (totalHashrate >= 1000) {
-            hashrateDisplay = (totalHashrate / 1000).toFixed(2) + ' KH/s';
-        } else {
-            hashrateDisplay = totalHashrate.toFixed(2) + ' H/s';
-        }
-        
-        container.innerHTML = `
-            <div class="stats-grid compact-grid">
-                <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-                    <div class="stat-label">Total CPU Miners</div>
-                    <div class="stat-value">${cpuMiners.length}</div>
-                </div>
-                <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-                    <div class="stat-label">Total Hashrate</div>
-                    <div class="stat-value">${hashrateDisplay}</div>
-                </div>
-                <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-                    <div class="stat-label">Online Miners</div>
-                    <div class="stat-value" style="color: #10b981;">${onlineCount}</div>
-                </div>
-                <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-                    <div class="stat-label">Offline Miners</div>
-                    <div class="stat-value" style="color: ${offlineCount > 0 ? '#f97316' : '#10b981'};">${offlineCount}</div>
-                </div>
-            </div>
-            
-            <div style="margin-top: 1rem;">
-                <h3 style="font-size: 1.1rem; margin-bottom: 0.75rem; color: var(--text-primary);">CPU Miners</h3>
-                <div class="stats-grid">
-                    ${cpuMiners.map(miner => `
-                        <a href="/miners/${miner.id}" class="stat-card" style="text-decoration: none; cursor: pointer;">
-                            <div class="stat-label">${miner.miner_type === 'xmrig' ? '⟠' : '🎲'} ${miner.name}</div>
-                            <div class="stat-value" style="font-size: 1.25rem;">
-                                ${miner.status === 'online' ? '<span style="color: #10b981;">●</span> Online' : '<span style="color: #ef4444;">●</span> Offline'}
-                            </div>
-                        </a>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-        
+        // Check if any CPU pools are visible
+        checkCPUPoolsVisibility();
     } catch (error) {
         console.error('Failed to load CPU stats:', error);
-        container.innerHTML = `
-            <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
-                <p style="color: #ef4444;">❌ Failed to load CPU mining stats</p>
-            </div>
-        `;
     }
+}
+
+// Check if any CPU pool tiles are visible
+function checkCPUPoolsVisibility() {
+    const solopool = document.getElementById('solopool-stats-cpu').style.display !== 'none';
+    const supportxmr = document.getElementById('supportxmr-stats-cpu').style.display !== 'none';
+    const p2pool = document.getElementById('p2pool-stats-cpu').style.display !== 'none';
+    const moneroSolo = document.getElementById('monero-solo-stats-cpu').style.display !== 'none';
+    
+    const anyVisible = solopool || supportxmr || p2pool || moneroSolo;
+    document.getElementById('no-cpu-pools-message').style.display = anyVisible ? 'none' : 'block';
+}
+
+// Load Solopool stats for CPU tab (XMR)
+async function loadSolopoolStatsCPU() {
+    try {
+        const response = await fetch('/api/settings/solopool/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('solopool-stats-cpu');
+        const workers = (data.enabled && data.stats) ? (data.stats.workers_online || 0) : 0;
+        statsDiv.setAttribute('data-worker-count', workers);
+        
+        // Copy content from Pools tab if source exists and has content
+        const sourceDiv = document.getElementById('solopool-stats');
+        if (sourceDiv && sourceDiv.innerHTML.trim()) {
+            statsDiv.innerHTML = sourceDiv.innerHTML;
+            statsDiv.style.display = sourceDiv.style.display;
+        } else {
+            statsDiv.style.display = 'none';
+        }
+        
+        return { id: 'solopool-stats-cpu', workers: workers };
+    } catch (error) {
+        console.error('Failed to load Solopool stats for CPU tab:', error);
+        return { id: 'solopool-stats-cpu', workers: 0 };
+    }
+}
+
+// Load SupportXMR stats for CPU tab
+async function loadSupportXMRStatsCPU() {
+    try {
+        const response = await fetch('/api/settings/supportxmr/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('supportxmr-stats-cpu');
+        const workers = (data.enabled && data.stats) ? (data.stats.workers_online || 0) : 0;
+        statsDiv.setAttribute('data-worker-count', workers);
+        
+        // Copy content from Pools tab if source exists and has content
+        const sourceDiv = document.getElementById('supportxmr-stats');
+        if (sourceDiv && sourceDiv.innerHTML.trim()) {
+            statsDiv.innerHTML = sourceDiv.innerHTML;
+            statsDiv.style.display = sourceDiv.style.display;
+        } else {
+            statsDiv.style.display = 'none';
+        }
+        
+        return { id: 'supportxmr-stats-cpu', workers: workers };
+    } catch (error) {
+        console.error('Failed to load SupportXMR stats for CPU tab:', error);
+        return { id: 'supportxmr-stats-cpu', workers: 0 };
+    }
+}
+
+// Load P2Pool stats for CPU tab
+async function loadP2PoolStatsCPU() {
+    try {
+        const response = await fetch('/api/settings/p2pool/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('p2pool-stats-cpu');
+        const workers = (data.enabled && data.stats) ? (data.stats.workers_online || 0) : 0;
+        statsDiv.setAttribute('data-worker-count', workers);
+        
+        // Copy content from Pools tab if source exists and has content
+        const sourceDiv = document.getElementById('p2pool-stats');
+        if (sourceDiv && sourceDiv.innerHTML.trim()) {
+            statsDiv.innerHTML = sourceDiv.innerHTML;
+            statsDiv.style.display = sourceDiv.style.display;
+        } else {
+            statsDiv.style.display = 'none';
+        }
+        
+        return { id: 'p2pool-stats-cpu', workers: workers };
+    } catch (error) {
+        console.error('Failed to load P2Pool stats for CPU tab:', error);
+        return { id: 'p2pool-stats-cpu', workers: 0 };
+    }
+}
+
+// Load Monero Solo stats for CPU tab
+async function loadMoneroSoloStatsCPU() {
+    try {
+        const response = await fetch('/api/settings/monero-solo/stats');
+        const data = await response.json();
+        
+        const statsDiv = document.getElementById('monero-solo-stats-cpu');
+        const workers = (data.enabled && data.stats) ? (data.stats.workers_online || 0) : 0;
+        statsDiv.setAttribute('data-worker-count', workers);
+        
+        // Copy content from Pools tab if source exists and has content
+        const sourceDiv = document.getElementById('monero-solo-stats');
+        if (sourceDiv && sourceDiv.innerHTML.trim()) {
+            statsDiv.innerHTML = sourceDiv.innerHTML;
+            statsDiv.style.display = sourceDiv.style.display;
+        } else {
+            statsDiv.style.display = 'none';
+        }
+        
+        return { id: 'monero-solo-stats-cpu', workers: workers };
+    } catch (error) {
+        console.error('Failed to load Monero Solo stats for CPU tab:', error);
+        return { id: 'monero-solo-stats-cpu', workers: 0 };
+    }
+}
+
+// Sort pool tiles by worker count (highest first)
+function sortPoolTiles(tabId, pools) {
+    const tab = document.getElementById(tabId);
+    if (!tab) return;
+    
+    // Sort pools by worker count descending
+    pools.sort((a, b) => b.workers - a.workers);
+    
+    // Reorder DOM elements
+    pools.forEach(pool => {
+        const element = document.getElementById(pool.id);
+        if (element && element.parentNode === tab) {
+            tab.appendChild(element);
+        }
+    });
 }
 
 // Load Agile Solo Strategy stats
@@ -1375,7 +1554,7 @@ function initDashboard() {
     // Restore active tab preference
     const savedTab = localStorage.getItem('dashboardActiveTab') || 'pools';
     if (savedTab !== 'pools') {
-        document.querySelector(`.dashboard-tab[onclick="switchTab('${savedTab}')"]`)?.click();
+        switchTab(savedTab);
     }
     
     loadDashboard();

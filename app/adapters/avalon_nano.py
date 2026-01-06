@@ -327,7 +327,7 @@ class AvalonNanoAdapter(MinerAdapter):
         """Send command to cgminer API"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(10)
+            sock.settimeout(2)  # Reduced from 10s to 2s for faster failure detection
             sock.connect((self.ip_address, self.port))
             
             # Send command
