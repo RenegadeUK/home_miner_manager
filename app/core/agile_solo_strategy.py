@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 import logging
 
-from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice
+from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice, MinerTelemetry
 from core.energy import get_current_energy_price
 from core.audit import log_audit
 from core.solopool import SolopoolService
