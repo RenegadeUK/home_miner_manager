@@ -158,25 +158,33 @@ class AgileSoloStrategy:
         """
         violations = []
         
-        # Get all pools
-        pools_result = await db.execute(select(Pool))
-        all_pools = pools_result.scalars().all()
+        # Get pools used by enrolled miners only
+        # We only care about SHA256 pools that could be assigned to Bitaxe/Avalon Nano
+        miner_ids = [m.id for m in miners]
         
-        for miner in miners:
-            # Check miner's current pool from telemetry or config
-            # For now, we'll check if any configured pools are non-solo
-            # This is a simplified check - in production, we'd track active pool per miner
-            
-            # Check if any pool is NOT a solopool.org pool
-            for pool in all_pools:
-                if not SolopoolService.is_solopool(pool.url, pool.port):
-                    # This is a pooled mining pool - check if this miner might use it
-                    # For safety, we assume all miners COULD use any configured pool
-                    violations.append(
-                        f"Non-solo pool detected: {pool.name} ({pool.url}:{pool.port})"
-                    )
+        # Get telemetry to see what pools these miners are actually using
+        recent_telemetry = await db.execute(
+            select(MinerTelemetry)
+            .filter(MinerTelemetry.miner_id.in_(miner_ids))
+            .order_by(MinerTelemetry.timestamp.desc())
+            .limit(len(miner_ids))
+        )
+        telemetry_records = recent_telemetry.scalars().all()
         
-        # Remove duplicates
+        # Get unique pool references from telemetry
+        pool_urls = set()
+        for telem in telemetry_records:
+            if telem.pool_url:
+                pool_urls.add((telem.pool_url, telem.pool_port))
+        
+        # Validate each pool in use
+        for pool_url, pool_port in pool_urls:
+            if not SolopoolService.is_solopool(pool_url, pool_port):
+                violations.append(
+                    f"Miner using non-solo pool: {pool_url}:{pool_port}"
+                )
+        
+        # If no violations, we're good
         violations = list(set(violations))
         
         return (len(violations) == 0, violations)
