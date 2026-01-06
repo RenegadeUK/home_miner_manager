@@ -162,26 +162,35 @@ class AgileSoloStrategy:
         # We only care about SHA256 pools that could be assigned to Bitaxe/Avalon Nano
         miner_ids = [m.id for m in miners]
         
-        # Get telemetry to see what pools these miners are actually using
+        # Get recent telemetry to see what pools these miners are actually using
         recent_telemetry = await db.execute(
             select(Telemetry)
             .filter(Telemetry.miner_id.in_(miner_ids))
+            .filter(Telemetry.pool_in_use.isnot(None))
             .order_by(Telemetry.timestamp.desc())
-            .limit(len(miner_ids))
+            .limit(len(miner_ids) * 2)  # Get a few recent records per miner
         )
         telemetry_records = recent_telemetry.scalars().all()
         
-        # Get unique pool references from telemetry
-        pool_urls = set()
+        # Extract unique pools from telemetry (format: "url:port")
+        pools_in_use = set()
         for telem in telemetry_records:
-            if telem.pool_url:
-                pool_urls.add((telem.pool_url, telem.pool_port))
+            if telem.pool_in_use and ':' in telem.pool_in_use:
+                parts = telem.pool_in_use.rsplit(':', 1)
+                if len(parts) == 2:
+                    pool_url = parts[0]
+                    try:
+                        pool_port = int(parts[1])
+                        pools_in_use.add((pool_url, pool_port))
+                    except ValueError:
+                        # Port is not a number, skip this entry
+                        continue
         
         # Validate each pool in use
-        for pool_url, pool_port in pool_urls:
+        for pool_url, pool_port in pools_in_use:
             if not SolopoolService.is_solopool(pool_url, pool_port):
                 violations.append(
-                    f"Miner using non-solo pool: {pool_url}:{pool_port}"
+                    f"Enrolled miner using non-solopool.org pool: {pool_url}:{pool_port}"
                 )
         
         # If no violations, we're good
