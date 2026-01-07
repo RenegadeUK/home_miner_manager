@@ -386,12 +386,12 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     # Map price band to active target coin
     active_target = None
     if strategy_enabled and current_band:
-        if current_band == PriceBand.LOW:
+        if current_band in [PriceBand.DGB_HIGH, PriceBand.DGB_MED, PriceBand.DGB_LOW]:
             active_target = "DGB"
-        elif current_band == PriceBand.MED:
-            active_target = "BTC"
-        elif current_band == PriceBand.HIGH:
+        elif current_band == PriceBand.BCH:
             active_target = "BCH"
+        elif current_band == PriceBand.BTC:
+            active_target = "BTC"
         # OFF band means all grayed out (active_target stays None)
     
     # Get all pools
