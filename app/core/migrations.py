@@ -867,3 +867,10 @@ async def run_migrations():
             print("✓ Dropped CKPool tables (decommissioned)")
         except Exception as e:
             print(f"⚠️  Failed to drop CKPool tables: {e}")
+        
+        # Migration: Drop monero_wallet_transactions table (decommissioned 2026-01-07)
+        try:
+            await conn.execute(text("DROP TABLE IF EXISTS monero_wallet_transactions"))
+            print("✓ Dropped monero_wallet_transactions table (decommissioned)")
+        except Exception as e:
+            print(f"⚠️  Failed to drop monero_wallet_transactions table: {e}")
