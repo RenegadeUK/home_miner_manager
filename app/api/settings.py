@@ -372,7 +372,27 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     """Get Solopool stats for all miners using Solopool pools (BCH, DGB, BTC, and XMR)"""
     # Check if Solopool integration is enabled
     if not app_config.get("solopool_enabled", False):
-        return {"enabled": False, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "xmr_pools": [], "xmr_miners": []}
+        return {"enabled": False, "strategy_enabled": False, "active_target": None, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "xmr_pools": [], "xmr_miners": []}
+    
+    # Check if Agile Solo Strategy is enabled
+    from core.database import AgileStrategy
+    from core.agile_solo_strategy import PriceBand
+    
+    strategy_result = await db.execute(select(AgileStrategy))
+    strategy = strategy_result.scalar_one_or_none()
+    strategy_enabled = strategy and strategy.enabled
+    current_band = strategy.current_price_band if strategy else None
+    
+    # Map price band to active target coin
+    active_target = None
+    if strategy_enabled and current_band:
+        if current_band == PriceBand.LOW:
+            active_target = "DGB"
+        elif current_band == PriceBand.MED:
+            active_target = "BTC"
+        elif current_band == PriceBand.HIGH:
+            active_target = "BCH"
+        # OFF band means all grayed out (active_target stays None)
     
     # Get all pools
     pool_result = await db.execute(select(Pool))
@@ -588,8 +608,122 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
                         "stats": formatted_stats
                     })
     
+    # If Agile Solo Strategy is enabled, ensure DGB/BTC/BCH tiles always exist (even with 0 miners)
+    if strategy_enabled:
+        # Create stub for DGB if no active miners
+        if not dgb_stats_list and dgb_pools:
+            # Get first DGB pool for username
+            first_dgb_pool = next(iter(dgb_pools.values()))
+            username = SolopoolService.extract_username(first_dgb_pool.user)
+            dgb_stats = await SolopoolService.get_dgb_account_stats(username)
+            if dgb_stats:
+                formatted_stats = SolopoolService.format_stats_summary(dgb_stats)
+                # Calculate ETTB
+                if dgb_network_stats:
+                    network_hashrate = dgb_network_stats.get("stats", {}).get("hashrate", 0)
+                    user_hashrate = formatted_stats.get("hashrate_raw", 0)
+                    ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 15)
+                    formatted_stats["ettb"] = ettb
+                    formatted_stats["network_hashrate"] = network_hashrate
+                
+                dgb_stats_list.append({
+                    "miner_id": None,
+                    "miner_name": "No miners assigned",
+                    "pool_url": first_dgb_pool.url,
+                    "pool_port": first_dgb_pool.port,
+                    "username": username,
+                    "coin": "DGB",
+                    "stats": formatted_stats,
+                    "is_strategy_pool": True,
+                    "is_active_target": active_target == "DGB"
+                })
+        
+        # Create stub for BTC if no active miners
+        if not btc_stats_list and btc_pools:
+            first_btc_pool = next(iter(btc_pools.values()))
+            username = SolopoolService.extract_username(first_btc_pool.user)
+            btc_stats = await SolopoolService.get_btc_account_stats(username)
+            if btc_stats:
+                formatted_stats = SolopoolService.format_stats_summary(btc_stats)
+                if btc_network_stats:
+                    network_hashrate = btc_network_stats.get("stats", {}).get("hashrate", 0)
+                    user_hashrate = formatted_stats.get("hashrate_raw", 0)
+                    ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 600)
+                    formatted_stats["ettb"] = ettb
+                    formatted_stats["network_hashrate"] = network_hashrate
+                
+                btc_stats_list.append({
+                    "miner_id": None,
+                    "miner_name": "No miners assigned",
+                    "pool_url": first_btc_pool.url,
+                    "pool_port": first_btc_pool.port,
+                    "username": username,
+                    "coin": "BTC",
+                    "stats": formatted_stats,
+                    "is_strategy_pool": True,
+                    "is_active_target": active_target == "BTC"
+                })
+        
+        # Create stub for BCH if no active miners
+        if not bch_stats_list and bch_pools:
+            first_bch_pool = next(iter(bch_pools.values()))
+            username = SolopoolService.extract_username(first_bch_pool.user)
+            bch_stats = await SolopoolService.get_bch_account_stats(username)
+            if bch_stats:
+                formatted_stats = SolopoolService.format_stats_summary(bch_stats)
+                if bch_network_stats:
+                    network_hashrate = bch_network_stats.get("stats", {}).get("hashrate", 0)
+                    user_hashrate = formatted_stats.get("hashrate_raw", 0)
+                    ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 600)
+                    formatted_stats["ettb"] = ettb
+                    formatted_stats["network_hashrate"] = network_hashrate
+                
+                bch_stats_list.append({
+                    "miner_id": None,
+                    "miner_name": "No miners assigned",
+                    "pool_url": first_bch_pool.url,
+                    "pool_port": first_bch_pool.port,
+                    "username": username,
+                    "coin": "BCH",
+                    "stats": formatted_stats,
+                    "is_strategy_pool": True,
+                    "is_active_target": active_target == "BCH"
+                })
+        
+        # Mark existing entries as strategy pools and set active status
+        for entry in dgb_stats_list:
+            if "is_strategy_pool" not in entry:
+                entry["is_strategy_pool"] = True
+                entry["is_active_target"] = active_target == "DGB"
+        for entry in btc_stats_list:
+            if "is_strategy_pool" not in entry:
+                entry["is_strategy_pool"] = True
+                entry["is_active_target"] = active_target == "BTC"
+        for entry in bch_stats_list:
+            if "is_strategy_pool" not in entry:
+                entry["is_strategy_pool"] = True
+                entry["is_active_target"] = active_target == "BCH"
+    
+    # Sort: strategy pools first (DGB → BCH → BTC order matching LOW → MED → HIGH)
+    def sort_key(entry):
+        if entry.get("is_strategy_pool"):
+            coin = entry.get("coin", "")
+            if coin == "DGB":
+                return (0, 0)  # First (LOW)
+            elif coin == "BCH":
+                return (0, 1)  # Second (MED)
+            elif coin == "BTC":
+                return (0, 2)  # Third (HIGH)
+        return (1, entry.get("coin", ""))  # Other pools after
+    
+    dgb_stats_list.sort(key=sort_key)
+    btc_stats_list.sort(key=sort_key)
+    bch_stats_list.sort(key=sort_key)
+    
     return {
         "enabled": True,
+        "strategy_enabled": strategy_enabled,
+        "active_target": active_target,
         "bch_miners": bch_stats_list,
         "dgb_miners": dgb_stats_list,
         "btc_miners": btc_stats_list,

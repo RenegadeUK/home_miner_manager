@@ -1832,11 +1832,28 @@ class SchedulerService:
                 pools = result.scalars().all()
                 
                 for pool in pools:
-                    try:
-                        await PoolHealthService.monitor_pool(pool.id, db)
-                        print(f"🌊 Pool health check completed: {pool.name}")
-                    except Exception as e:
-                        print(f"❌ Failed to monitor pool {pool.name}: {e}")
+                    # Store pool name before try block to avoid post-failure DB access
+                    pool_name = pool.name
+                    pool_id = pool.id
+                    
+                    # Retry logic for database locks
+                    max_retries = 3
+                    for attempt in range(max_retries):
+                        try:
+                            await PoolHealthService.monitor_pool(pool_id, db)
+                            print(f"🌊 Pool health check completed: {pool_name}")
+                            break
+                        except Exception as e:
+                            error_str = str(e)
+                            if "database is locked" in error_str and attempt < max_retries - 1:
+                                print(f"⚠️ Pool health check for {pool_name} locked, retrying (attempt {attempt + 1}/{max_retries})...")
+                                await db.rollback()
+                                await asyncio.sleep(0.5 * (attempt + 1))  # Exponential backoff
+                            else:
+                                # Final attempt failed or non-lock error
+                                await db.rollback()
+                                print(f"❌ Failed to monitor pool {pool_name}: {e}")
+                                break
                     
                     # Stagger requests to avoid overwhelming pools
                     await asyncio.sleep(2)

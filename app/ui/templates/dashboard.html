@@ -110,6 +110,23 @@
 #p2pool-stats .stat-value,
 #monero-solo-stats .stat-value,
 #ckpool-stats .stat-value { font-size: 1rem !important; line-height: 1.3 !important; }
+
+/* Agile Solo Strategy pool styling */
+.strategy-pool-active {
+    border: 3px solid #22c55e !important;
+    border-radius: 8px;
+    padding: 4px !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.strategy-pool-inactive {
+    opacity: 0.6;
+    filter: grayscale(30%);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 4px !important;
+    margin-bottom: 0.5rem !important;
+}
 </style>
 
 {% endblock %}
@@ -406,6 +423,8 @@ async function loadSolopoolStats() {
         
         // Create stats tiles for BCH miners
         const bchTilesHTML = bchMiners.filter(m => {
+            // Always show strategy pools, even with 0 workers
+            if (m.is_strategy_pool) return true;
             const workers = m.stats?.workers || 0;
             return workers > 0;
         }).map(m => {
@@ -414,8 +433,13 @@ async function loadSolopoolStats() {
             const paidGBP = bchPriceGBP > 0 ? (paidBCH * bchPriceGBP).toFixed(2) : '0.00';
             const currentShares = stats.shares || 0;
             
+            // Strategy pool styling
+            const tileClass = m.is_strategy_pool ? 
+                (m.is_active_target ? 'strategy-pool-active' : 'strategy-pool-inactive') : '';
+            const gridClass = tileClass ? `stats-grid ${tileClass}` : 'stats-grid';
+            
             return `
-                <div class="stats-grid">
+                <div class="${gridClass}">
                     <div class="stat-card">
                         <div class="stat-label">${bchLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
@@ -447,6 +471,7 @@ async function loadSolopoolStats() {
         
         // Create stats tiles for DGB miners
         const dgbTilesHTML = dgbMiners.filter(m => {
+            if (m.is_strategy_pool) return true;
             const workers = m.stats?.workers || 0;
             return workers > 0;
         }).map(m => {
@@ -455,8 +480,13 @@ async function loadSolopoolStats() {
             const paidGBP = dgbPriceGBP > 0 ? (paidDGB * dgbPriceGBP).toFixed(2) : '0.00';
             const currentShares = stats.shares || 0;
             
+            // Strategy pool styling
+            const tileClass = m.is_strategy_pool ? 
+                (m.is_active_target ? 'strategy-pool-active' : 'strategy-pool-inactive') : '';
+            const gridClass = tileClass ? `stats-grid ${tileClass}` : 'stats-grid';
+            
             return `
-                <div class="stats-grid">
+                <div class="${gridClass}">
                     <div class="stat-card">
                         <div class="stat-label">${dgbLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
@@ -488,6 +518,7 @@ async function loadSolopoolStats() {
         
         // Create stats tiles for BTC miners
         const btcTilesHTML = btcMiners.filter(m => {
+            if (m.is_strategy_pool) return true;
             const workers = m.stats?.workers || 0;
             return workers > 0;
         }).map(m => {
@@ -496,8 +527,13 @@ async function loadSolopoolStats() {
             const paidGBP = btcPriceGBP > 0 ? (paidBTC * btcPriceGBP).toFixed(2) : '0.00';
             const currentShares = stats.shares || 0;
             
+            // Strategy pool styling
+            const tileClass = m.is_strategy_pool ? 
+                (m.is_active_target ? 'strategy-pool-active' : 'strategy-pool-inactive') : '';
+            const gridClass = tileClass ? `stats-grid ${tileClass}` : 'stats-grid';
+            
             return `
-                <div class="stats-grid">
+                <div class="${gridClass}">
                     <div class="stat-card">
                         <div class="stat-label">${btcLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
@@ -574,7 +610,7 @@ async function loadSolopoolStats() {
             }).join('');
         }
         
-        statsDiv.innerHTML = bchTilesHTML + dgbTilesHTML + btcTilesHTML + xmrTilesHTML;
+        statsDiv.innerHTML = dgbTilesHTML + bchTilesHTML + btcTilesHTML + xmrTilesHTML;
     } catch (error) {
         console.error('Failed to load Solopool stats:', error);
         document.getElementById('solopool-stats').style.display = 'none';
