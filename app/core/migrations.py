@@ -75,18 +75,8 @@ async def run_migrations():
             # Table already exists
             pass
         
-        # Migration 5: Add default alert configs for new alert types
-        try:
-            await conn.execute(text("""
-                INSERT OR IGNORE INTO alert_config (alert_type, enabled, config, created_at, updated_at)
-                VALUES 
-                    ('pool_failover', 1, '{"cooldown_minutes": 30}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-                    ('health_prediction', 1, '{"cooldown_minutes": 240}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """))
-            print("✓ Added new alert types: pool_failover, health_prediction")
-        except Exception:
-            # Already exists
-            pass
+        # Migration 5: Removed (legacy alert types no longer used)
+        # pool_failover and health_prediction alert types removed
         
         # Migration 6: Add luck_percentage column to pool_health
         try:
@@ -839,5 +829,33 @@ async def run_migrations():
                 CREATE INDEX IF NOT EXISTS idx_miner_coin ON blocks_found(miner_id, coin)
             """))
             print("✓ Created blocks_found table")
+        except Exception:
+            pass
+        
+        # Migration 24: Remove obsolete alert types
+        try:
+            await conn.execute(text("""
+                DELETE FROM alert_config 
+                WHERE alert_type IN (
+                    'miner_offline', 
+                    'high_reject_rate', 
+                    'pool_failure', 
+                    'low_hashrate', 
+                    'pool_failover', 
+                    'health_prediction'
+                )
+            """))
+            await conn.execute(text("""
+                DELETE FROM alert_throttle 
+                WHERE alert_type IN (
+                    'miner_offline', 
+                    'high_reject_rate', 
+                    'pool_failure', 
+                    'low_hashrate', 
+                    'pool_failover', 
+                    'health_prediction'
+                )
+            """))
+            print("✓ Removed obsolete alert types")
         except Exception:
             pass

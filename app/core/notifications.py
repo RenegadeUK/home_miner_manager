@@ -160,11 +160,7 @@ async def send_alert(message: str, alert_type: str = "general"):
 # Default alert configurations that should always exist
 # Note: label and description are frontend-only (in notifications.html)
 DEFAULT_ALERT_TYPES = [
-    {"alert_type": "miner_offline", "config": {"timeout_minutes": 5}, "enabled": True},
     {"alert_type": "high_temperature", "config": {"threshold_celsius": 75}, "enabled": True},
-    {"alert_type": "high_reject_rate", "config": {"threshold_percent": 5}, "enabled": True},
-    {"alert_type": "pool_failure", "config": {}, "enabled": True},
-    {"alert_type": "low_hashrate", "config": {"drop_percent": 30}, "enabled": True},
     {"alert_type": "block_found", "config": {}, "enabled": True}
 ]
 
