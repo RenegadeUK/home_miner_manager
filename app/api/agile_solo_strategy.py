@@ -72,7 +72,8 @@ async def get_agile_strategy_settings(db: AsyncSession = Depends(get_db)):
     miners_by_type = {
         "bitaxe": [],
         "nerdqaxe": [],
-        "avalon_nano": []
+        "avalon_nano": [],
+        "nmminer": []
     }
     
     for miner in all_miners:
@@ -89,6 +90,8 @@ async def get_agile_strategy_settings(db: AsyncSession = Depends(get_db)):
             miners_by_type["nerdqaxe"].append(miner_dict)
         elif miner.miner_type == "avalon_nano":
             miners_by_type["avalon_nano"].append(miner_dict)
+        elif miner.miner_type == "nmminer":
+            miners_by_type["nmminer"].append(miner_dict)
     
     return {
         "enabled": strategy.enabled,

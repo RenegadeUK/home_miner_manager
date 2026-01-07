@@ -294,6 +294,12 @@
                 <div class="miner-checkboxes" id="avalon-miners"></div>
             </div>
             
+            <!-- NMMiner ESP32 Miners -->
+            <div class="miner-type-section" id="nmminer-section" style="display: none;">
+                <div class="miner-type-header">🎰 NMMiner ESP32 (Lottery Miners)</div>
+                <div class="miner-checkboxes" id="nmminer-miners"></div>
+            </div>
+            
             <div id="no-miners-message" style="display: none; text-align: center; padding: 2rem; color: var(--text-secondary);">
                 No miners available. Please add miners first.
             </div>
@@ -418,16 +424,19 @@ function populateMiners(minersByType) {
     const bitaxeSection = document.getElementById('bitaxe-section');
     const nerdqaxeSection = document.getElementById('nerdqaxe-section');
     const avalonSection = document.getElementById('avalon-section');
+    const nmminerSection = document.getElementById('nmminer-section');
     const noMinersMessage = document.getElementById('no-miners-message');
     
     const bitaxeContainer = document.getElementById('bitaxe-miners');
     const nerdqaxeContainer = document.getElementById('nerdqaxe-miners');
     const avalonContainer = document.getElementById('avalon-miners');
+    const nmminerContainer = document.getElementById('nmminer-miners');
     
     // Clear containers
     bitaxeContainer.innerHTML = '';
     nerdqaxeContainer.innerHTML = '';
     avalonContainer.innerHTML = '';
+    nmminerContainer.innerHTML = '';
     
     let hasMiners = false;
     
@@ -465,6 +474,18 @@ function populateMiners(minersByType) {
         });
     } else {
         avalonSection.style.display = 'none';
+    }
+    
+    // NMMiner ESP32 miners
+    if (minersByType.nmminer && minersByType.nmminer.length > 0) {
+        hasMiners = true;
+        nmminerSection.style.display = 'block';
+        minersByType.nmminer.forEach(miner => {
+            const item = createMinerCheckbox(miner);
+            nmminerContainer.appendChild(item);
+        });
+    } else {
+        nmminerSection.style.display = 'none';
     }
     
     noMinersMessage.style.display = hasMiners ? 'none' : 'block';
