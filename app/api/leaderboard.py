@@ -1,5 +1,5 @@
 """
-Leaderboard API endpoints for high difficulty shares and coin hunter
+Leaderboard API endpoints for Hall of Pain and Coin Hunter
 """
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
