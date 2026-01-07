@@ -310,7 +310,6 @@ class NMMinerUDPListener:
         """Save NMMiner telemetry to database"""
         try:
             from core.database import AsyncSessionLocal, Telemetry
-            from core.mqtt import mqtt_client
             
             # Create telemetry object
             telemetry = adapter.last_telemetry
@@ -339,12 +338,6 @@ class NMMinerUDPListener:
                 db.add(db_telemetry)
                 await db.commit()
                 print(f"💾 Saved telemetry for {adapter.miner_name} ({miner_telemetry.hashrate} H/s)")
-            
-            # Publish to MQTT
-            mqtt_client.publish(
-                f"telemetry/{adapter.miner_id}",
-                miner_telemetry.to_dict()
-            )
         
         except Exception as e:
             print(f"❌ Failed to save telemetry for {adapter.miner_name}: {e}")
