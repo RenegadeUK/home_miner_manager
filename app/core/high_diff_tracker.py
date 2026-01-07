@@ -39,29 +39,34 @@ async def get_network_difficulty(coin: str) -> Optional[float]:
     try:
         async with aiohttp.ClientSession() as session:
             if coin == "BTC":
-                # Use blockchain.info API
-                async with session.get("https://blockchain.info/q/getdifficulty", timeout=5) as resp:
-                    if resp.status == 200:
-                        diff = float(await resp.text())
-                        _network_diff_cache[coin] = (diff, now)
-                        return diff
-            
-            elif coin == "BCH":
-                # Use blockchain.info BCH API
-                async with session.get("https://bch.blockchain.info/q/getdifficulty", timeout=5) as resp:
-                    if resp.status == 200:
-                        diff = float(await resp.text())
-                        _network_diff_cache[coin] = (diff, now)
-                        return diff
-            
-            elif coin == "DGB":
-                # Use DigiExplorer API
-                async with session.get("https://digiexplorer.info/api/status?q=getDifficulty", timeout=5) as resp:
+                # Use Solopool.org BTC API
+                async with session.get("https://btc.solopool.org/api/stats", timeout=5) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        diff = float(data.get("difficulty", 0))
-                        _network_diff_cache[coin] = (diff, now)
-                        return diff
+                        diff = float(data.get("stats", {}).get("difficulty", 0))
+                        if diff > 0:
+                            _network_diff_cache[coin] = (diff, now)
+                            return diff
+            
+            elif coin == "BCH":
+                # Use Solopool.org BCH API
+                async with session.get("https://bch.solopool.org/api/stats", timeout=5) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        diff = float(data.get("stats", {}).get("difficulty", 0))
+                        if diff > 0:
+                            _network_diff_cache[coin] = (diff, now)
+                            return diff
+            
+            elif coin == "DGB":
+                # Use Solopool.org DGB API
+                async with session.get("https://dgb-sha.solopool.org/api/stats", timeout=5) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        diff = float(data.get("stats", {}).get("difficulty", 0))
+                        if diff > 0:
+                            _network_diff_cache[coin] = (diff, now)
+                            return diff
     
     except Exception as e:
         logger.warning(f"Failed to fetch network difficulty for {coin}: {e}")
