@@ -222,25 +222,47 @@ class NMMinerUDPListener:
     
     async def start(self):
         """Start UDP listener"""
-        self.running = True
-        
-        # Create UDP socket using asyncio protocol
-        loop = asyncio.get_event_loop()
-        
-        # Create UDP endpoint
-        transport, protocol = await loop.create_datagram_endpoint(
-            lambda: self._UDPProtocol(self),
-            local_addr=("0.0.0.0", NMMinerAdapter.TELEMETRY_PORT)
-        )
-        
-        print(f"📡 NMMiner UDP listener started on port {NMMinerAdapter.TELEMETRY_PORT}")
-        
-        # Keep running until stopped
         try:
-            while self.running:
-                await asyncio.sleep(1)
-        finally:
-            transport.close()
+            self.running = True
+            
+            # Create UDP socket using asyncio protocol
+            loop = asyncio.get_event_loop()
+            
+            print(f"📡 Creating UDP endpoint on 0.0.0.0:{NMMinerAdapter.TELEMETRY_PORT}...")
+            
+            # Create UDP endpoint
+            transport, protocol = await loop.create_datagram_endpoint(
+                lambda: self._UDPProtocol(self),
+                local_addr=("0.0.0.0", NMMinerAdapter.TELEMETRY_PORT)
+            )
+            
+            # Verify transport is valid
+            if transport is None:
+                raise RuntimeError("Transport is None after create_datagram_endpoint")
+            
+            # Get socket from transport to verify it's bound
+            sock = transport.get_extra_info('socket')
+            if sock:
+                sockname = sock.getsockname()
+                print(f"✅ NMMiner UDP listener bound to {sockname}")
+            else:
+                print(f"⚠️ NMMiner UDP listener: no socket info available")
+            
+            print(f"📡 NMMiner UDP listener started on port {NMMinerAdapter.TELEMETRY_PORT}")
+            
+            # Keep running until stopped
+            try:
+                while self.running:
+                    await asyncio.sleep(1)
+            finally:
+                transport.close()
+                print(f"📡 NMMiner UDP listener stopped")
+        
+        except Exception as e:
+            print(f"❌ Failed to start NMMiner UDP listener: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
     
     class _UDPProtocol(asyncio.DatagramProtocol):
         """Internal UDP protocol handler"""
