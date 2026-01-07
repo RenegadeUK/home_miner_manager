@@ -127,7 +127,7 @@ small {
         <div class="detail-card-body">
             <form id="add-pool-form">
         <div class="form-group">
-            <label class="form-label">Select Pool Provider <button type="button" class="btn-icon" onclick="showPoolHelp()" title="Help">ℹ️</button></label>
+            <label class="form-label">1️⃣ Select Pool Provider <button type="button" class="btn-icon" onclick="showPoolHelp()" title="Help">ℹ️</button></label>
             <select class="form-input" id="preset-pool" onchange="applyPreset()" required>
                 <option value="">-- Select an approved pool provider --</option>
                 <optgroup label="Solopool.org - Bitcoin (BTC)">
@@ -148,8 +148,8 @@ small {
                     <option value="supportxmr">SupportXMR Pool (XMR)</option>
                 </optgroup>
             </select>
-            <small style="color: var(--warning-color); display: block; margin-top: 0.5rem;">
-                ⚠️ Note: Only approved pool providers are supported. XMR (Monero) uses RandomX algorithm and can only be mined with CPU miners.
+            <small style="color: #60a5fa; display: block; margin-top: 0.5rem;">
+                👉 Select a pool provider above, then the username field will appear below
             </small>
         </div>
         
@@ -169,8 +169,9 @@ small {
         
         <div class="form-group" id="username-group" style="display: none;">
         <div class="form-group" id="username-group" style="display: none;">
-            <label class="form-label">Wallet Address / Username</label>
+            <label class="form-label">2️⃣ Wallet Address / Username</label>
             <input type="text" class="form-input" id="user" required placeholder="Enter your wallet address or pool username">
+            <small>This is the only information you need to provide - pool details are pre-configured</small>
             <span class="form-error" id="user-error"></span>
         </div>
         
