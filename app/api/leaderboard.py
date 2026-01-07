@@ -219,3 +219,18 @@ async def get_coin_hunter_leaderboard(
         total_miners=len(ranked_entries),
         scoring=SCORING
     )
+
+
+@router.post("/leaderboard/backfill-difficulty")
+async def backfill_network_difficulty_endpoint(db: AsyncSession = Depends(get_db)):
+    """
+    Backfill network difficulty for existing shares that don't have it.
+    This is a one-time operation to populate % of Block calculations for historical shares.
+    """
+    from core.high_diff_tracker import backfill_network_difficulty
+    
+    try:
+        await backfill_network_difficulty(db)
+        return {"message": "Network difficulty backfill completed successfully"}
+    except Exception as e:
+        return {"error": f"Backfill failed: {str(e)}"}, 500
