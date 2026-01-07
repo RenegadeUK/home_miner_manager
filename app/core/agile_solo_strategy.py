@@ -187,13 +187,41 @@ class AgileSoloStrategy:
 
     
     @staticmethod
+    async def get_next_slot_price(db: AsyncSession) -> Optional[float]:
+        """
+        Get the price for the next Agile slot (30 minutes from now)
+        
+        Returns:
+            Price in pence/kWh or None if not available
+        """
+        from core.config import app_config
+        
+        region = app_config.get("octopus_agile.region", "H")
+        now = datetime.utcnow()
+        next_slot_start = now + timedelta(minutes=30)
+        
+        result = await db.execute(
+            select(EnergyPrice)
+            .where(EnergyPrice.region == region)
+            .where(EnergyPrice.valid_from <= next_slot_start)
+            .where(EnergyPrice.valid_to > next_slot_start)
+            .limit(1)
+        )
+        next_price = result.scalar_one_or_none()
+        return next_price.price_pence if next_price else None
+    
+    @staticmethod
     async def determine_band_with_hysteresis(
         db: AsyncSession,
         current_price: float,
         strategy: AgileStrategy
     ) -> Tuple[str, int]:
         """
-        Determine target price band with hysteresis logic
+        Determine target price band with look-ahead confirmation
+        
+        When upgrading to a better band, checks if the NEXT slot also
+        qualifies for that band. Only upgrades if confirmed, preventing
+        oscillation from single cheap slots.
         
         Args:
             db: Database session
@@ -205,7 +233,6 @@ class AgileSoloStrategy:
         """
         current_band = strategy.current_price_band or PriceBand.OFF
         new_band = AgileSoloStrategy.calculate_price_band(current_price)
-        counter = strategy.hysteresis_counter
         
         # Define band ordering (worse to better)
         band_order = [
@@ -225,16 +252,31 @@ class AgileSoloStrategy:
         
         # If price improved (moving down the list = better pricing)
         if new_idx > current_idx:
-            # Upgrading band - need hysteresis
-            counter += 1
-            if counter >= AgileSoloStrategy.HYSTERESIS_SLOTS:
-                # Hysteresis satisfied, upgrade
-                logger.info(f"Hysteresis satisfied ({counter} slots), upgrading from {current_band} to {new_band}")
+            # Upgrading band - check next slot for confirmation
+            next_slot_price = await AgileSoloStrategy.get_next_slot_price(db)
+            
+            if next_slot_price is None:
+                # No future price data, stay in current band
+                logger.warning(f"No next slot price available, staying in {current_band}")
+                return (current_band, 0)
+            
+            next_slot_band = AgileSoloStrategy.calculate_price_band(next_slot_price)
+            
+            try:
+                next_idx = band_order.index(next_slot_band)
+            except ValueError:
+                # Invalid next band, stay safe
+                return (current_band, 0)
+            
+            # Check if next slot is also in the better band (or even better)
+            if next_idx >= new_idx:
+                # Next slot confirms the improvement, upgrade immediately
+                logger.info(f"Next slot confirms improvement (current: {current_price:.2f}p → next: {next_slot_price:.2f}p), upgrading from {current_band} to {new_band}")
                 return (new_band, 0)
             else:
-                # Stay in current band, increment counter
-                logger.info(f"Price improved but hysteresis not satisfied ({counter}/{AgileSoloStrategy.HYSTERESIS_SLOTS}), staying in {current_band}")
-                return (current_band, counter)
+                # Next slot goes back to worse band, stay put
+                logger.info(f"Next slot returns to worse pricing (current: {current_price:.2f}p → next: {next_slot_price:.2f}p), staying in {current_band}")
+                return (current_band, 0)
         
         # If price worsened (moving up the list = worse pricing)
         elif new_idx < current_idx:
@@ -244,7 +286,7 @@ class AgileSoloStrategy:
         
         # Price unchanged
         else:
-            # Reset counter if we're stable in this band
+            # Stay in current band
             return (current_band, 0)
     
     @staticmethod
