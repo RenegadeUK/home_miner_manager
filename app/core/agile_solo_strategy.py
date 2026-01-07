@@ -88,37 +88,43 @@ class AgileSoloStrategy:
         
         Args:
             price_band: Price band
-            miner_type: Miner type (bitaxe, nerdqaxe, avalon_nano)
+            miner_type: Miner type (bitaxe, nerdqaxe, avalon_nano, nmminer)
             
         Returns:
             Mode string or None for OFF
+            Note: NMMiner has no configurable modes (always runs at fixed performance)
         """
         # Mode mappings per spec
         mode_map = {
             PriceBand.OFF: {
                 "bitaxe": None,
                 "nerdqaxe": None,
-                "avalon_nano": None
+                "avalon_nano": None,
+                "nmminer": "fixed"  # NMMiner stays on (no power control)
             },
             PriceBand.DGB_HIGH: {  # 12-20p
                 "bitaxe": "eco",  # Can be eco or standard
                 "nerdqaxe": "eco",
-                "avalon_nano": "low"  # Can be OFF or low
+                "avalon_nano": "low",  # Can be OFF or low
+                "nmminer": "fixed"
             },
             PriceBand.DGB_MED: {  # 7-12p
                 "bitaxe": "standard",
                 "nerdqaxe": "standard",
-                "avalon_nano": "high"  # Ramps from low to high
+                "avalon_nano": "high",  # Ramps from low to high
+                "nmminer": "fixed"
             },
             PriceBand.BCH: {  # 4-7p
                 "bitaxe": "oc",
                 "nerdqaxe": "standard",
-                "avalon_nano": "high"
+                "avalon_nano": "high",
+                "nmminer": "fixed"
             },
             PriceBand.BTC: {  # <4p
                 "bitaxe": "oc",
                 "nerdqaxe": "oc",
-                "avalon_nano": "high"
+                "avalon_nano": "high",
+                "nmminer": "fixed"
             }
         }
         
