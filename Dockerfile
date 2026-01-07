@@ -22,8 +22,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ /app/
 
-# Write git commit to file
-RUN echo "${GIT_COMMIT}" > /app/.git_commit
+# Write git commit to file (use first 7 chars for short hash)
+RUN echo "${GIT_COMMIT}" | cut -c1-7 > /app/.git_commit
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
