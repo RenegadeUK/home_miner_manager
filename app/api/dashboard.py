@@ -1002,7 +1002,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
             "total_miners": len(miners),
             "active_miners": sum(1 for m in miners if m.enabled),
             "offline_miners": offline_miners_count,
-            "total_hashrate_ghs": round(total_hashrate, 2),
+            "total_hashrate_ghs": total_hashrate,  # Don't round - preserve precision for KH/s miners
             "current_energy_price_pence": current_energy_price,
             "total_cost_24h_pence": round(total_cost_24h_pence, 2),
             "total_cost_24h_pounds": round(total_cost_24h_pence / 100, 2),
