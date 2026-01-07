@@ -16,6 +16,7 @@ router = APIRouter()
 
 class LeaderboardEntry(BaseModel):
     """Single leaderboard entry"""
+    id: int  # Share ID for deletion
     rank: int
     miner_id: int
     miner_name: str
@@ -82,6 +83,7 @@ async def get_high_diff_leaderboard(
         
         entries.append(
             LeaderboardEntry(
+                id=share.id,
                 rank=rank,
                 miner_id=share.miner_id,
                 miner_name=share.miner_name,
@@ -249,3 +251,30 @@ async def sync_blocks_to_coin_hunter(db: AsyncSession = Depends(get_db)):
         return {"message": "Block solves synced to Coin Hunter successfully"}
     except Exception as e:
         return {"error": f"Sync failed: {str(e)}"}, 500
+
+
+@router.delete("/leaderboard/{share_id}")
+async def delete_leaderboard_entry(share_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Delete a specific high difficulty share from the leaderboard.
+    
+    - **share_id**: ID of the share to delete
+    """
+    from core.database import HighDiffShare
+    
+    try:
+        result = await db.execute(
+            select(HighDiffShare).where(HighDiffShare.id == share_id)
+        )
+        share = result.scalar_one_or_none()
+        
+        if not share:
+            return {"error": "Share not found"}, 404
+        
+        await db.delete(share)
+        await db.commit()
+        
+        return {"message": f"Deleted share {share_id} successfully"}
+    except Exception as e:
+        await db.rollback()
+        return {"error": f"Delete failed: {str(e)}"}, 500
