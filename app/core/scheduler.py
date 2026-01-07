@@ -202,13 +202,6 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
-            self._check_pool_failover,
-            IntervalTrigger(minutes=5),
-            id="check_pool_failover",
-            name="Check for pool failover conditions"
-        )
-        
-        self.scheduler.add_job(
             self._reconcile_strategy_miners,
             IntervalTrigger(minutes=5),
             id="reconcile_strategy_miners",
@@ -1518,19 +1511,6 @@ class SchedulerService:
                                         alert_triggered = True
                                         message = f"⚡ <b>Low Hashrate Alert</b>\n\n{miner.name} hashrate dropped {drop_percent}% below average\nCurrent: {latest_telemetry.hashrate:.2f} GH/s\nAverage: {avg_hashrate:.2f} GH/s"
                         
-                                        # Check health predictions for critical issues
-                        elif alert_config.alert_type == "health_prediction":
-                            from core.predictions import HealthPredictionService
-                            
-                            prediction = await HealthPredictionService.predict_hardware_issues(miner.id, db)
-                            if prediction and prediction.risk_score >= 70:  # High risk threshold
-                                # Find the most severe prediction
-                                critical_predictions = [p for p in prediction.predictions if p['severity'] in ['high', 'critical']]
-                                if critical_predictions:
-                                    top_issue = critical_predictions[0]
-                                    alert_triggered = True
-                                    message = f"⚠️ <b>Hardware Health Alert</b>\n\n{miner.name}: {top_issue['issue']}\n\nRisk Score: {prediction.risk_score:.0f}/100\n{top_issue['details']}"
-                        
                         # Send notification if alert triggered
                         if alert_triggered:
                             # Check throttling - get cooldown period from alert config (default 1 hour)
@@ -1900,97 +1880,6 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to purge old CKPool metrics: {e}")
-    
-    async def _check_pool_failover(self):
-        """Check if any miners need pool failover due to poor health"""
-        from core.database import AsyncSessionLocal, Miner, Telemetry, Pool
-        from core.pool_health import PoolHealthService
-        from core.config import app_config
-        from sqlalchemy import select
-        
-        # Check if auto-failover is enabled
-        failover_enabled = app_config.get("pool_failover.enabled", True)
-        if not failover_enabled:
-            return
-        
-        try:
-            async with AsyncSessionLocal() as db:
-                # Get all enabled miners
-                result = await db.execute(select(Miner).where(Miner.enabled == True))
-                miners = result.scalars().all()
-                
-                for miner in miners:
-                    # Skip NMMiner (handled differently)
-                    if miner.miner_type == 'nmminer':
-                        continue
-                    
-                    try:
-                        # Get latest telemetry to determine current pool
-                        result = await db.execute(
-                            select(Telemetry)
-                            .where(Telemetry.miner_id == miner.id)
-                            .order_by(Telemetry.timestamp.desc())
-                            .limit(1)
-                        )
-                        latest_telemetry = result.scalar_one_or_none()
-                        
-                        if not latest_telemetry or not latest_telemetry.pool_in_use:
-                            continue
-                        
-                        # Find pool ID from pool_in_use string
-                        result = await db.execute(select(Pool).where(Pool.enabled == True))
-                        pools = result.scalars().all()
-                        
-                        current_pool = None
-                        for pool in pools:
-                            if pool.url in latest_telemetry.pool_in_use:
-                                current_pool = pool
-                                break
-                        
-                        if not current_pool:
-                            continue
-                        
-                        # Check if failover should trigger
-                        failover_check = await PoolHealthService.should_trigger_failover(
-                            current_pool.id, db
-                        )
-                        
-                        if failover_check["should_failover"]:
-                            print(f"🔄 Failover triggered for {miner.name}: {failover_check['reason']}")
-                            
-                            # Find best alternative pool
-                            best_pool = await PoolHealthService.find_best_failover_pool(
-                                current_pool.id, miner.id, db
-                            )
-                            
-                            if best_pool:
-                                print(f"🔄 Switching {miner.name} to {best_pool['pool_name']} (health: {best_pool['health_score']}/100)")
-                                
-                                # Execute failover
-                                result = await PoolHealthService.execute_failover(
-                                    miner.id,
-                                    best_pool["pool_id"],
-                                    failover_check["reason"],
-                                    db
-                                )
-                                
-                                if result["success"]:
-                                    print(f"✅ Failover successful: {miner.name} → {best_pool['pool_name']}")
-                                else:
-                                    print(f"❌ Failover failed for {miner.name}: {result.get('error')}")
-                            else:
-                                print(f"⚠️ No suitable failover pool found for {miner.name}")
-                    
-                    except Exception as e:
-                        print(f"❌ Failed to check failover for {miner.name}: {e}")
-                    
-                    # Stagger requests to avoid overwhelming miners
-                    await asyncio.sleep(2)
-        
-        except Exception as e:
-            print(f"❌ Failed to check pool failover: {e}")
-            import traceback
-            traceback.print_exc()
     
     async def _execute_pool_strategies(self):
         """Execute active pool strategies"""
