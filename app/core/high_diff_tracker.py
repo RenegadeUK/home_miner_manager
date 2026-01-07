@@ -281,3 +281,59 @@ async def backfill_network_difficulty(db: AsyncSession):
     
     await db.commit()
     logger.info(f"✅ Backfilled network difficulty for {updated_count}/{len(shares_to_update)} shares")
+    
+    # Sync block solves to blocks_found table
+    await sync_block_solves_to_blocks_found(db)
+
+
+async def sync_block_solves_to_blocks_found(db: AsyncSession):
+    """
+    Sync shares marked as block solves to the blocks_found table
+    Ensures Coin Hunter leaderboard includes all found blocks
+    """
+    # Get all shares marked as block solves
+    result = await db.execute(
+        select(HighDiffShare).where(HighDiffShare.was_block_solve == True)
+    )
+    block_shares = result.scalars().all()
+    
+    if not block_shares:
+        logger.info("✅ No block solves to sync")
+        return
+    
+    synced_count = 0
+    for share in block_shares:
+        # Check if block already exists in blocks_found
+        existing = await db.execute(
+            select(BlockFound).where(
+                BlockFound.miner_id == share.miner_id,
+                BlockFound.timestamp == share.timestamp,
+                BlockFound.difficulty == share.difficulty
+            )
+        )
+        
+        if existing.scalar_one_or_none():
+            continue  # Already exists
+        
+        # Create BlockFound entry
+        block = BlockFound(
+            miner_id=share.miner_id,
+            miner_name=share.miner_name,
+            miner_type=share.miner_type,
+            coin=share.coin,
+            pool_name=share.pool_name,
+            difficulty=share.difficulty,
+            network_difficulty=share.network_difficulty,
+            block_height=None,
+            block_reward=None,
+            hashrate=share.hashrate,
+            hashrate_unit=share.hashrate_unit,
+            miner_mode=share.miner_mode,
+            timestamp=share.timestamp
+        )
+        db.add(block)
+        synced_count += 1
+        logger.info(f"🏆 Synced block solve to Coin Hunter: {share.miner_name} ({share.coin}) - {share.difficulty:,.0f}")
+    
+    await db.commit()
+    logger.info(f"✅ Synced {synced_count} block solves to Coin Hunter leaderboard")
