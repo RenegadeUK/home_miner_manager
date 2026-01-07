@@ -223,6 +223,8 @@ class AgileSoloStrategy:
         qualifies for that band. Only upgrades if confirmed, preventing
         oscillation from single cheap slots.
         
+        CRITICAL: OFF band (≥20p) is ALWAYS immediate - no confirmation needed.
+        
         Args:
             db: Database session
             current_price: Current energy price (p/kWh)
@@ -233,6 +235,11 @@ class AgileSoloStrategy:
         """
         current_band = strategy.current_price_band or PriceBand.OFF
         new_band = AgileSoloStrategy.calculate_price_band(current_price)
+        
+        # SAFETY: If current price hits OFF band (≥20p), turn off immediately
+        if new_band == PriceBand.OFF:
+            logger.warning(f"Price hit OFF threshold (≥20p): {current_price:.2f}p - IMMEDIATE shutdown")
+            return (PriceBand.OFF, 0)
         
         # Define band ordering (worse to better)
         band_order = [
