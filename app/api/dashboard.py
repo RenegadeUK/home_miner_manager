@@ -678,9 +678,13 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
                     pool_display = latest_telemetry.pool_in_use
             
             # Only add to total if it's in GH/s (ASIC miners)
-            # CPU miners (KH/s) are not comparable so we exclude them from total
-            if miner.enabled and hashrate_unit == "GH/s":
-                total_hashrate += hashrate
+            # CPU miners (KH/s) are summed separately
+            if miner.enabled:
+                if hashrate_unit == "GH/s":
+                    total_hashrate += hashrate
+                elif hashrate_unit == "KH/s":
+                    # Convert KH/s to GH/s for consistent storage
+                    total_hashrate += hashrate / 1000000
         
         # Calculate accurate 24h cost using historical telemetry + energy prices (using cached prices)
         miner_cost_24h = 0.0

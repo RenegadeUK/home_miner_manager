@@ -1014,7 +1014,16 @@ async function loadDashboard() {
         // Update stats
         const stats = data.stats;
         document.getElementById('total-miners').textContent = stats.total_miners;
-        document.getElementById('total-hashrate').textContent = formatHashrate(stats.total_hashrate_ghs);
+        
+        // Format hashrate based on dashboard type
+        if (dashboardType === 'cpu') {
+            // CPU dashboard: show in KH/s (convert from GH/s)
+            const hashrateKhs = stats.total_hashrate_ghs * 1000000; // GH/s to KH/s
+            document.getElementById('total-hashrate').textContent = formatHashrate(hashrateKhs, 'KH/s');
+        } else {
+            // ASIC dashboard: show in GH/s or TH/s
+            document.getElementById('total-hashrate').textContent = formatHashrate(stats.total_hashrate_ghs);
+        }
         
         // Update offline miners count with color coding
         const offlineCount = stats.offline_miners || 0;
