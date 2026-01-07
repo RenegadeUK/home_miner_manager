@@ -234,3 +234,18 @@ async def backfill_network_difficulty_endpoint(db: AsyncSession = Depends(get_db
         return {"message": "Network difficulty backfill completed successfully"}
     except Exception as e:
         return {"error": f"Backfill failed: {str(e)}"}, 500
+
+
+@router.post("/leaderboard/sync-blocks")
+async def sync_blocks_to_coin_hunter(db: AsyncSession = Depends(get_db)):
+    """
+    Sync block solves from high_diff_shares to blocks_found table (Coin Hunter leaderboard).
+    Ensures all found blocks appear in Coin Hunter.
+    """
+    from core.high_diff_tracker import sync_block_solves_to_blocks_found
+    
+    try:
+        await sync_block_solves_to_blocks_found(db)
+        return {"message": "Block solves synced to Coin Hunter successfully"}
+    except Exception as e:
+        return {"error": f"Sync failed: {str(e)}"}, 500
