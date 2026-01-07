@@ -155,7 +155,10 @@
             <nav>
                 <ul class="sidebar-nav">
                     <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
-                        📊 Dashboard
+                        ⚡ ASIC Dashboard
+                    </a></li>
+                    <li><a href="/dashboard/cpu" class="{% if request.url.path == '/dashboard/cpu' %}active{% endif %}">
+                        🖥️ CPU Dashboard
                     </a></li>
                     <li><a href="/miners" class="{% if '/miners' in request.url.path %}active{% endif %}">
                         🖥️ Miners

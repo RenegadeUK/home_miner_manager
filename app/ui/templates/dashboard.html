@@ -326,7 +326,7 @@ async function loadSupportXMRStats() {
 }
 
 // Load Solopool stats
-async function loadSolopoolStats() {
+async function loadSolopoolStats(dashboardType = 'all') {
     try {
         const response = await fetch('/api/settings/solopool/stats');
         const data = await response.json();
@@ -340,7 +340,18 @@ async function loadSolopoolStats() {
         const xmrMiners = data.xmr_miners || [];
         const xmrPools = data.xmr_pools || [];
         
-        if (!data.enabled || (bchMiners.length === 0 && dgbMiners.length === 0 && btcMiners.length === 0 && xmrMiners.length === 0 && xmrPools.length === 0)) {
+        // Filter pools based on dashboard type
+        let hasRelevantPools = false;
+        if (dashboardType === 'asic') {
+            hasRelevantPools = bchMiners.length > 0 || dgbMiners.length > 0 || btcMiners.length > 0;
+        } else if (dashboardType === 'cpu') {
+            hasRelevantPools = xmrMiners.length > 0 || xmrPools.length > 0;
+        } else {
+            // 'all' - show if any pools have miners
+            hasRelevantPools = bchMiners.length > 0 || dgbMiners.length > 0 || btcMiners.length > 0 || xmrMiners.length > 0 || xmrPools.length > 0;
+        }
+        
+        if (!data.enabled || !hasRelevantPools) {
             statsDiv.style.display = 'none';
             return;
         }
@@ -610,7 +621,17 @@ async function loadSolopoolStats() {
             }).join('');
         }
         
-        statsDiv.innerHTML = dgbTilesHTML + bchTilesHTML + btcTilesHTML + xmrTilesHTML;
+        // Filter tiles based on dashboard type
+        let tilesHTML = '';
+        if (dashboardType === 'asic') {
+            tilesHTML = dgbTilesHTML + bchTilesHTML + btcTilesHTML;
+        } else if (dashboardType === 'cpu') {
+            tilesHTML = xmrTilesHTML;
+        } else {
+            tilesHTML = dgbTilesHTML + bchTilesHTML + btcTilesHTML + xmrTilesHTML;
+        }
+        
+        statsDiv.innerHTML = tilesHTML;
     } catch (error) {
         console.error('Failed to load Solopool stats:', error);
         document.getElementById('solopool-stats').style.display = 'none';
@@ -1067,13 +1088,21 @@ async function loadDashboard() {
             poolHealthElement.style.color = ''; // default
         }
 
-        // Load pool integration stats
-        await loadBraiinsStats();
-        await loadSupportXMRStats();
-        await loadSolopoolStats();
-        await loadP2PoolStats();
-        await loadMoneroSoloStats();
-        await loadCKPoolStats();
+        // Load pool integration stats (filtered by dashboard type)
+        const dashboardType = '{{ dashboard_type }}';
+        
+        if (dashboardType === 'asic') {
+            // ASIC Dashboard: SHA256 pools only
+            await loadBraiinsStats();
+            await loadSolopoolStats('asic');  // BTC, BCH, DGB only
+            await loadCKPoolStats();
+        } else if (dashboardType === 'cpu') {
+            // CPU Dashboard: RandomX pools only
+            await loadSupportXMRStats();
+            await loadSolopoolStats('cpu');  // XMR only
+            await loadP2PoolStats();
+            await loadMoneroSoloStats();
+        }
     } catch (error) {
         console.error('Failed to load dashboard:', error);
     }

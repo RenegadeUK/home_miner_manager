@@ -19,10 +19,7 @@ router = APIRouter()
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    """Dashboard page - redirects to default dashboard if set"""
-    # NOTE: Default dashboard preference is checked client-side via localStorage
-    # The original main dashboard is ALWAYS accessible here at "/"
-    # Custom dashboards are accessed via "/dashboards/{id}"
+    """ASIC Dashboard page (default) - SHA256 miners only"""
     
     # Get basic stats
     result = await db.execute(select(Miner))
@@ -30,9 +27,26 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
-        "page_title": "",
-        "breadcrumbs": [{"label": "Dashboard", "url": "/"}],
-        "miners_count": len(miners)
+        "page_title": "ASIC Dashboard",
+        "breadcrumbs": [{"label": "ASIC Dashboard", "url": "/"}],
+        "miners_count": len(miners),
+        "dashboard_type": "asic"
+    })
+
+
+@router.get("/dashboard/cpu", response_class=HTMLResponse)
+async def dashboard_cpu(request: Request, db: AsyncSession = Depends(get_db)):
+    """CPU Dashboard page - RandomX/Monero miners only"""
+    # Get basic stats
+    result = await db.execute(select(Miner))
+    miners = result.scalars().all()
+    
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "page_title": "CPU Dashboard",
+        "breadcrumbs": [{"label": "CPU Dashboard", "url": "/dashboard/cpu"}],
+        "miners_count": len(miners),
+        "dashboard_type": "cpu"
     })
 
 
@@ -774,29 +788,4 @@ async def faq(request: Request):
     })
 
 
-@router.get("/dashboards", response_class=HTMLResponse)
-async def custom_dashboards_list(request: Request):
-    """Custom dashboards management page"""
-    return templates.TemplateResponse("dashboards/list.html", {
-        "request": request,
-        "page_title": "Custom Dashboards",
-        "breadcrumbs": [
-            {"label": "Dashboard", "url": "/"},
-            {"label": "Custom Dashboards", "url": "/dashboards"}
-        ]
-    })
 
-
-@router.get("/dashboards/{dashboard_id}", response_class=HTMLResponse)
-async def view_custom_dashboard(request: Request, dashboard_id: int):
-    """View a specific custom dashboard"""
-    return templates.TemplateResponse("dashboards/view.html", {
-        "request": request,
-        "page_title": "Custom Dashboard",
-        "breadcrumbs": [
-            {"label": "Dashboard", "url": "/"},
-            {"label": "Custom Dashboards", "url": "/dashboards"},
-            {"label": "View", "url": f"/dashboards/{dashboard_id}"}
-        ],
-        "dashboard_id": dashboard_id
-    })

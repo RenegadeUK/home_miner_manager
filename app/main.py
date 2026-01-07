@@ -33,7 +33,7 @@ from core.config import settings
 from core.database import init_db
 from core.mqtt import mqtt_client
 from core.scheduler import scheduler
-from api import miners, pools, automation, dashboard, settings as settings_api, notifications, analytics, energy, pool_health, discovery, tuning, bulk, audit, dashboards, widgets, strategy_pools, overview, monero_solo, monero_solo_analytics, agile_solo_strategy, leaderboard
+from api import miners, pools, automation, dashboard, settings as settings_api, notifications, analytics, energy, pool_health, discovery, tuning, bulk, audit, strategy_pools, overview, monero_solo, monero_solo_analytics, agile_solo_strategy, leaderboard
 from ui import routes as ui_routes
 
 logger.info("All imports successful")
@@ -130,8 +130,6 @@ app.include_router(discovery.router, prefix="/api", tags=["discovery"])
 app.include_router(tuning.router, prefix="/api/tuning", tags=["tuning"])
 app.include_router(bulk.router, prefix="/api/bulk", tags=["bulk"])
 app.include_router(audit.router)
-app.include_router(dashboards.router, prefix="/api/dashboards", tags=["dashboards"])
-app.include_router(widgets.router, prefix="/api/widgets", tags=["widgets"])
 app.include_router(strategy_pools.router, prefix="/api", tags=["strategy-pools"])
 app.include_router(overview.router, tags=["overview"])
 app.include_router(monero_solo.router, prefix="/api", tags=["monero-solo"])
