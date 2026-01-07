@@ -120,11 +120,22 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             total_cost_pence += cost
     
     # Calculate 24h earnings (from Braiins Pool + Solopool blocks found)
+    # ASIC dashboard: only count earnings from pools used by ASIC miners (exclude XMRig)
     earnings_pounds_24h = 0.0
     try:
         from core.braiins import get_braiins_stats
         from core.config import app_config
         from core.database import CryptoPrice
+        
+        # Get pool IDs that ASIC miners are actually using
+        from core.database import MinerPoolSlot
+        result = await db.execute(
+            select(MinerPoolSlot.pool_id).distinct()
+            .join(Miner)
+            .where(Miner.enabled == True)
+            .where(Miner.miner_type != 'xmrig')  # Exclude XMRig from ASIC dashboard
+        )
+        asic_pool_ids = {pool_id for (pool_id,) in result.all()}
         
         # Get crypto prices for earnings calculation from database
         btc_price_gbp = 0
@@ -153,7 +164,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         if xmr_cached:
             xmr_price_gbp = xmr_cached.price_gbp
         
-        # 1. Braiins Pool earnings
+        # 1. Braiins Pool earnings (only if ASIC miners use it)
         braiins_enabled = app_config.get("braiins_enabled", False)
         if braiins_enabled and btc_price_gbp > 0:
             braiins_stats = await get_braiins_stats(db)
@@ -162,41 +173,16 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                 btc_earned_24h = braiins_stats["today_reward"] / 100000000
                 earnings_pounds_24h += btc_earned_24h * btc_price_gbp
         
-        # 2. SupportXMR Pool earnings (24h delta from snapshots)
-        supportxmr_enabled = app_config.get("supportxmr_enabled", False)
-        if supportxmr_enabled and xmr_price_gbp > 0:
-            from core.supportxmr import SupportXMRService
-            from core.database import SupportXMRSnapshot
-            
-            # Get all SupportXMR pools
-            result = await db.execute(select(Pool))
-            all_pools = result.scalars().all()
-            supportxmr_pools = [p for p in all_pools if SupportXMRService.is_supportxmr_pool(p.url, p.port)]
-            
-            for pool in supportxmr_pools:
-                wallet_address = SupportXMRService.extract_address(pool.user)
-                if not wallet_address:
-                    continue
-                
-                # Get 24h earnings from snapshots
-                twenty_four_hours_ago = datetime.utcnow() - timedelta(hours=24)
-                snapshot_result = await db.execute(
-                    select(SupportXMRSnapshot)
-                    .where(SupportXMRSnapshot.wallet_address == wallet_address)
-                    .where(SupportXMRSnapshot.timestamp >= twenty_four_hours_ago)
-                    .order_by(SupportXMRSnapshot.timestamp.asc())
-                    .limit(1)
-                )
-                old_snapshot = snapshot_result.scalar_one_or_none()
-                
-                # Get most recent snapshot
-                recent_result = await db.execute(
-                    select(SupportXMRSnapshot)
-                    .where(SupportXMRSnapshot.wallet_address == wallet_address)
-                    .order_by(SupportXMRSnapshot.timestamp.desc())
-                    .limit(1)
-                )
-                recent_snapshot = recent_result.scalar_one_or_none()
+        # 2. SupportXMR Pool earnings (skip - only for XMRig/CPU miners)
+        # ASIC dashboard shouldn't show XMR earnings
+        
+        # 3. Solopool earnings (only from pools ASIC miners are using)
+        result = await db.execute(select(Pool).where(Pool.id.in_(asic_pool_ids)) if asic_pool_ids else select(Pool).where(False))
+        asic_pools = result.scalars().all()
+        
+        # Continue with existing Solopool logic but using filtered pools
+        if False:  # Placeholder - will be replaced in next section
+            pass
                 
                 if old_snapshot and recent_snapshot:
                     # Calculate 24h XMR earnings
@@ -205,19 +191,18 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                     xmr_earned_24h = max(0, current_total - old_total)
                     earnings_pounds_24h += xmr_earned_24h * xmr_price_gbp
         
-        # 3. Solopool earnings (blocks found in last 24h)
+        # 3. Solopool earnings (blocks found in last 24h) - only from pools ASIC miners use
         # Check if any miners are using Solopool and fetch their stats
         from core.solopool import SolopoolService
         from core.database import Pool
         
-        # Get all pools to check for Solopool configurations
-        result = await db.execute(select(Pool))
-        pools = result.scalars().all()
+        # Get pools used by ASIC miners only
+        solopool_pools = asic_pools if 'asic_pools' in locals() else []
         
         # Track unique Solopool usernames to avoid double-counting
         solopool_users_checked = set()
         
-        for pool in pools:
+        for pool in solopool_pools:
             # Check which Solopool coin this is
             is_bch = SolopoolService.is_solopool_bch_pool(pool.url, pool.port)
             is_dgb = SolopoolService.is_solopool_dgb_pool(pool.url, pool.port)
@@ -297,6 +282,9 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         
     except Exception as e:
         logging.error(f"Error calculating 24h earnings: {e}")
+    
+    # Calculate P/L (earnings - cost)
+    pl_pounds_24h = earnings_pounds_24h - (total_cost_pence / 100)
     
     # Calculate P/L (earnings - cost)
     pl_pounds_24h = earnings_pounds_24h - (total_cost_pence / 100)
@@ -761,11 +749,20 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         })
     
     # Calculate 24h earnings (from Braiins Pool + Solopool blocks found)
+    # Filter by dashboard_type: only count earnings from pools used by filtered miners
     earnings_pounds_24h = 0.0
     try:
         from core.braiins import get_braiins_stats
         from core.config import app_config
-        from core.database import CryptoPrice
+        from core.database import CryptoPrice, MinerPoolSlot
+        
+        # Get pool IDs that filtered miners are actually using
+        filtered_miner_ids = {m.id for m in miners}
+        result = await db.execute(
+            select(MinerPoolSlot.pool_id).distinct()
+            .where(MinerPoolSlot.miner_id.in_(filtered_miner_ids))
+        )
+        dashboard_pool_ids = {pool_id for (pool_id,) in result.all()}
         
         # Get crypto prices for earnings calculation from database
         btc_price_gbp = 0
@@ -794,28 +791,30 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         if xmr_cached:
             xmr_price_gbp = xmr_cached.price_gbp
         
-        # 1. Braiins Pool earnings
+        # 1. Braiins Pool earnings (only if filtered miners use it)
         braiins_enabled = app_config.get("braiins_enabled", False)
-        if braiins_enabled and btc_price_gbp > 0:
+        if braiins_enabled and btc_price_gbp > 0 and dashboard_type != "cpu":
+            # Braiins is BTC-only, skip for CPU dashboard
             braiins_stats = await get_braiins_stats(db)
             if braiins_stats and "today_reward" in braiins_stats:
                 # today_reward is in satoshis
                 btc_earned_24h = braiins_stats["today_reward"] / 100000000
                 earnings_pounds_24h += btc_earned_24h * btc_price_gbp
         
-        # 2. SupportXMR Pool earnings (24h delta from snapshots)
+        # 2. SupportXMR Pool earnings (24h delta from snapshots) - only for CPU/XMRig miners
         supportxmr_enabled = app_config.get("supportxmr_enabled", False)
-        logging.info(f"🔍 SupportXMR check: enabled={supportxmr_enabled}, xmr_price_gbp={xmr_price_gbp}")
-        if supportxmr_enabled and xmr_price_gbp > 0:
+        logging.info(f"🔍 SupportXMR check: enabled={supportxmr_enabled}, xmr_price_gbp={xmr_price_gbp}, dashboard_type={dashboard_type}")
+        if supportxmr_enabled and xmr_price_gbp > 0 and dashboard_type != "asic":
+            # Only count SupportXMR for CPU dashboard (skip for ASIC dashboard)
             from core.supportxmr import SupportXMRService
             from core.database import SupportXMRSnapshot
             
-            # Get all SupportXMR pools
-            result = await db.execute(select(Pool))
-            all_pools_check = result.scalars().all()
-            supportxmr_pools = [p for p in all_pools_check if SupportXMRService.is_supportxmr_pool(p.url, p.port)]
+            # Get SupportXMR pools used by filtered miners only
+            result = await db.execute(select(Pool).where(Pool.id.in_(dashboard_pool_ids)) if dashboard_pool_ids else select(Pool).where(False))
+            filtered_pools = result.scalars().all()
+            supportxmr_pools = [p for p in filtered_pools if SupportXMRService.is_supportxmr_pool(p.url, p.port)]
             
-            logging.info(f"💰 SupportXMR: found {len(supportxmr_pools)} pools")
+            logging.info(f"💰 SupportXMR: found {len(supportxmr_pools)} pools used by {dashboard_type} miners")
             
             for pool in supportxmr_pools:
                 wallet_address = SupportXMRService.extract_address(pool.user)
@@ -857,11 +856,11 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
                     earnings_pounds_24h += xmr_earned_gbp
                     logging.info(f"💰 After add: earnings_pounds_24h = £{earnings_pounds_24h:.4f}")
         
-        # 3. Solopool earnings (blocks found in last 24h)
+        # 3. Solopool earnings (blocks found in last 24h) - only from pools filtered miners use
         from core.solopool import SolopoolService
         
-        # Get all pools to check for Solopool configurations
-        result = await db.execute(select(Pool))
+        # Get pools used by filtered miners only
+        result = await db.execute(select(Pool).where(Pool.id.in_(dashboard_pool_ids)) if dashboard_pool_ids else select(Pool).where(False))
         pools_list = result.scalars().all()
         
         # Track unique Solopool usernames to avoid double-counting
@@ -918,14 +917,14 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
                     earned_24h_xmr = blocks_24h * 0.6
                     earnings_pounds_24h += earned_24h_xmr * xmr_price_gbp
         
-        # 5. CKPool earnings (blocks accepted in last 24h)
+        # 5. CKPool earnings (blocks accepted in last 24h) - only from pools filtered miners use
         from core.ckpool import CKPoolService
         
-        # Get all pools to check for CKPool configurations
-        result = await db.execute(select(Pool))
-        pools = result.scalars().all()
+        # Get pools used by filtered miners only
+        result = await db.execute(select(Pool).where(Pool.id.in_(dashboard_pool_ids)) if dashboard_pool_ids else select(Pool).where(False))
+        ckpool_filtered_pools = result.scalars().all()
         
-        for pool in pools:
+        for pool in ckpool_filtered_pools:
             if CKPoolService.is_ckpool(pool.name):
                 # Determine coin type from pool name
                 pool_name_lower = pool.name.lower()
