@@ -111,7 +111,7 @@ class AgileSoloStrategy:
             PriceBand.DGB_MED: {  # 7-12p
                 "bitaxe": "standard",
                 "nerdqaxe": "standard",
-                "avalon_nano": "high",  # Ramps from low to high
+                "avalon_nano": "med",
                 "nmminer": "fixed"
             },
             PriceBand.BCH: {  # 4-7p
