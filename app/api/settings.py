@@ -43,40 +43,6 @@ async def restart_application():
     return {"message": "Restarting application..."}
 
 
-class XMRAgentsSettings(BaseModel):
-    enabled: bool
-
-
-@router.get("/xmr_agents")
-async def get_xmr_agents_settings():
-    """Get XMR Agents settings"""
-    agents_config = app_config.get("xmr_agents", {})
-    return {
-        "enabled": agents_config.get("enabled", False)
-    }
-
-
-@router.post("/xmr_agents")
-async def save_xmr_agents_settings(settings: XMRAgentsSettings):
-    """Save XMR Agents settings"""
-    app_config.set("xmr_agents.enabled", settings.enabled)
-    app_config.save()
-    
-    # Log the change
-    async with AsyncSessionLocal() as db:
-        event = Event(
-            event_type="info",
-            source="api",
-            message=f"XMR Agents {'enabled' if settings.enabled else 'disabled'}"
-        )
-        db.add(event)
-        await db.commit()
-    
-    return {
-        "message": "XMR Agents settings saved successfully"
-    }
-
-
 class SolopoolSettings(BaseModel):
     enabled: bool
 

@@ -515,20 +515,6 @@ async def discovery_settings(request: Request):
     })
 
 
-@router.get("/settings/agents", response_class=HTMLResponse)
-async def xmr_agents_settings(request: Request):
-    """XMR Agents Configuration page"""
-    return templates.TemplateResponse("settings/agents.html", {
-        "request": request,
-        "page_title": "XMR Agents",
-        "breadcrumbs": [
-            {"label": "Dashboard", "url": "/"},
-            {"label": "Settings", "url": "/settings"},
-            {"label": "XMR Agents", "url": "/settings/agents"}
-        ]
-    })
-
-
 @router.get("/settings/pools", response_class=HTMLResponse)
 async def pool_integrations_settings(request: Request):
     """Pool Integrations page"""
