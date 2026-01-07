@@ -15,16 +15,20 @@
 <!-- Stats Grid -->
 <div class="stats-grid compact-grid">
     <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-        <div class="stat-label">Total Miners</div>
-        <div class="stat-value" id="total-miners">{{ miners_count }}</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="text-align: left;">
+                <div class="stat-label">Total Miners</div>
+                <div class="stat-value" id="total-miners">{{ miners_count }}</div>
+            </div>
+            <div style="text-align: right;">
+                <div class="stat-label" style="font-size: 0.75rem;">Offline</div>
+                <div class="stat-value" id="offline-miners" style="font-size: 1.5rem; color: var(--danger);">0</div>
+            </div>
+        </div>
     </div>
     <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
         <div class="stat-label">Total Hashrate</div>
         <div class="stat-value" id="total-hashrate">0 GH/s</div>
-    </div>
-    <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-        <div class="stat-label">Offline Miners</div>
-        <div class="stat-value" id="offline-miners">0</div>
     </div>
     <div class="stat-card" onclick="window.location.href='/pools'" style="cursor: pointer;">
         <div class="stat-label">Avg Pool Health</div>
@@ -1030,15 +1034,10 @@ async function loadDashboard() {
         const offlineElement = document.getElementById('offline-miners');
         offlineElement.textContent = offlineCount;
         
-        // Style the stat card based on offline count
-        const offlineCard = offlineElement.closest('.stat-card');
+        // Color code the offline count (no card styling since it's combined with total)
         if (offlineCount > 0) {
-            offlineCard.style.backgroundColor = 'rgba(249, 115, 22, 0.1)';
-            offlineCard.style.borderColor = '#f97316';
-            offlineElement.style.color = '#f97316';
+            offlineElement.style.color = '#f97316'; // orange when offline
         } else {
-            offlineCard.style.backgroundColor = '';
-            offlineCard.style.borderColor = '';
             offlineElement.style.color = '#10b981'; // green when all online
         }
         
