@@ -308,6 +308,31 @@ async function loadSolopoolStats(dashboardType = 'all') {
         const xmrMiners = data.xmr_miners || [];
         const xmrPools = data.xmr_pools || [];
         
+        // CLIENT-SIDE FIX: Calculate active_target from current energy price (already loaded in dashboard)
+        // This avoids stale data when strategy hasn't executed yet after price change
+        if (data.strategy_enabled && window.currentEnergyPrice !== undefined) {
+            const price = window.currentEnergyPrice;
+            let activeTarget = null;
+            
+            // Match thresholds from core/agile_solo_strategy.py
+            if (price >= 20.0) {
+                activeTarget = null; // OFF
+            } else if (price >= 12.0) {
+                activeTarget = "DGB"; // DGB_HIGH
+            } else if (price >= 7.0) {
+                activeTarget = "DGB"; // DGB_MED
+            } else if (price >= 4.0) {
+                activeTarget = "BCH";
+            } else {
+                activeTarget = "BTC";
+            }
+            
+            // Override is_active_target for all pools based on calculated active target
+            dgbMiners.forEach(m => { if (m.is_strategy_pool) m.is_active_target = activeTarget === "DGB"; });
+            bchMiners.forEach(m => { if (m.is_strategy_pool) m.is_active_target = activeTarget === "BCH"; });
+            btcMiners.forEach(m => { if (m.is_strategy_pool) m.is_active_target = activeTarget === "BTC"; });
+        }
+        
         // Filter pools based on dashboard type
         let hasRelevantPools = false;
         if (dashboardType === 'asic') {
@@ -623,6 +648,9 @@ async function loadDashboard() {
         // Update stats
         const stats = data.stats;
         document.getElementById('total-miners').textContent = stats.total_miners;
+        
+        // Store current energy price globally for solopool stats calculation
+        window.currentEnergyPrice = stats.current_energy_price_pence;
         
         // Format hashrate based on dashboard type
         if (dashboardType === 'cpu') {
