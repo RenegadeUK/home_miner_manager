@@ -120,7 +120,16 @@ async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
     braiins_pools = [p for p in all_pools if BraiinsPoolService.is_braiins_pool(p.url, p.port)]
     
     if not braiins_pools:
-        return {"enabled": True, "stats": None, "miners_using": 0}
+        # Return empty stats structure so tiles show (greyed out)
+        empty_stats = {
+            "workers_online": 0,
+            "workers_offline": 0,
+            "hashrate_5m": None,
+            "current_balance": 0,
+            "today_reward": 0,
+            "all_time_reward": 0
+        }
+        return {"enabled": True, "stats": empty_stats, "username": "", "workers_using": 0}
     
     # Get miners using Braiins pools
     miner_result = await db.execute(select(Miner).where(Miner.enabled == True))
@@ -140,10 +149,6 @@ async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
             if "braiins.com" in latest_telemetry.pool_in_use.lower():
                 miners_using_braiins += 1
     
-    # Only fetch stats if miners are actually using Braiins Pool
-    if miners_using_braiins == 0:
-        return {"enabled": True, "stats": None, "miners_using": 0}
-    
     # Get username from the first Braiins pool (they should all have same username)
     braiins_username = ""
     if braiins_pools:
@@ -158,11 +163,22 @@ async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
     
     stats = BraiinsPoolService.format_stats_summary(workers_data, profile_data, rewards_data)
     
+    # Ensure stats is never None - provide fallback
+    if not stats:
+        stats = {
+            "workers_online": 0,
+            "workers_offline": 0,
+            "hashrate_5m": None,
+            "current_balance": 0,
+            "today_reward": 0,
+            "all_time_reward": 0
+        }
+    
     return {
         "enabled": True,
-        "miners_using": miners_using_braiins,
+        "stats": stats,
         "username": braiins_username,
-        "stats": stats
+        "workers_using": miners_using_braiins
     }
 
 

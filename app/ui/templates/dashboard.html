@@ -102,12 +102,21 @@ async function loadBraiinsStats() {
         
         const statsDiv = document.getElementById('braiins-stats');
         
-        if (!data.enabled || !data.stats) {
+        if (!data.enabled) {
+            statsDiv.style.display = 'none';
+            return;
+        }
+        
+        if (!data.stats) {
             statsDiv.style.display = 'none';
             return;
         }
         
         statsDiv.style.display = 'block';
+        
+        // Apply greyed-out styling if no workers
+        const hasWorkers = data.workers_using > 0;
+        const greyedStyle = !hasWorkers ? 'opacity: 0.4; pointer-events: none;' : '';
         
         const stats = data.stats;
         
@@ -155,7 +164,7 @@ async function loadBraiinsStats() {
         const onclickAttr = braiinsUsername ? `onclick="window.open('${braiinsUrl}', '_blank')"` : '';
         
         const tilesHTML = `
-            <div class="stats-grid">
+            <div class="stats-grid" style="${greyedStyle}">
                 <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                     <div class="stat-label">${braiinsLogo}Workers (Braiins)</div>
                     <div class="stat-value" style="font-size: 1.5rem;">
@@ -198,14 +207,12 @@ async function loadSupportXMRStats() {
             return;
         }
         
+        statsDiv.style.display = 'block';
+        
         // Check if there are any active workers across all wallets
         const totalWorkers = data.wallets.reduce((sum, wallet) => sum + (wallet.worker_count || 0), 0);
-        if (totalWorkers === 0) {
-            statsDiv.style.display = 'none';
-            return;
-        }
-        
-        statsDiv.style.display = 'block';
+        const hasWorkers = totalWorkers > 0;
+        const greyedStyle = !hasWorkers ? 'opacity: 0.4; pointer-events: none;' : '';
         
         // Get XMR price in GBP with cache age indicator
         let xmrPriceGBP = 0;
@@ -255,7 +262,7 @@ async function loadSupportXMRStats() {
             const clickableStyle = address ? 'cursor: pointer;' : '';
             
             return `
-                <div class="stats-grid">
+                <div class="stats-grid" style="${greyedStyle}">
                     <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                         <div class="stat-label">${supportXMRLogo}Workers - ${last4Digits}</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
@@ -312,6 +319,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
             hasRelevantPools = bchMiners.length > 0 || dgbMiners.length > 0 || btcMiners.length > 0 || xmrMiners.length > 0 || xmrPools.length > 0;
         }
         
+        // Always show if enabled and pools are configured (even if 0 workers)
         if (!data.enabled || !hasRelevantPools) {
             statsDiv.style.display = 'none';
             return;
@@ -536,22 +544,19 @@ async function loadSolopoolStats(dashboardType = 'all') {
         }).join('');
         
         // Create stats tiles for XMR miners
-        // Filter out miners with 0 workers
-        const activeXmrMiners = xmrMiners.filter(m => {
-            const workers = m.stats?.workers || 0;
-            return workers > 0;
-        });
-        
         let xmrTilesHTML = '';
-        if (activeXmrMiners.length > 0) {
-            xmrTilesHTML = activeXmrMiners.map(m => {
+        if (xmrMiners.length > 0) {
+            xmrTilesHTML = xmrMiners.map(m => {
                 const stats = m.stats || {};
+                const workers = stats.workers || 0;
+                const hasWorkers = workers > 0;
+                const greyedStyle = !hasWorkers ? 'opacity: 0.4; pointer-events: none;' : '';
                 const paidXMR = stats.paid ? (stats.paid / 1000000000000) : 0;
                 const paidGBP = xmrPriceGBP > 0 ? (paidXMR * xmrPriceGBP).toFixed(2) : '0.00';
                 const currentShares = stats.shares || 0;
                 
                 return `
-                    <div class="stats-grid">
+                    <div class="stats-grid" style="${greyedStyle}">
                         <div class="stat-card">
                             <div class="stat-label">${xmrLogo}Workers Online</div>
                             <div class="stat-value" style="font-size: 1.5rem;">
