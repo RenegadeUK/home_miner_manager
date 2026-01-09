@@ -15,10 +15,14 @@
 <!-- Stats Grid -->
 <div class="stats-grid compact-grid">
     <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
             <div style="text-align: left;">
                 <div class="stat-label">Total Miners</div>
                 <div class="stat-value" id="total-miners">{{ miners_count }}</div>
+                <div class="stat-subtext">
+                    <div id="pool-hashrate">Pool: N/A</div>
+                    <div id="pool-efficiency" style="font-size: 0.65rem;">⚡ N/A</div>
+                </div>
             </div>
             <div style="text-align: right;">
                 <div class="stat-label" style="font-size: 0.75rem;">Offline</div>
@@ -132,6 +136,9 @@
 
 {% block extra_scripts %}
 <script>
+// Track pool-reported hashrate for efficiency calculation
+let totalPoolHashrateRaw = 0; // In H/s
+
 // Load Braiins Pool stats
 async function loadBraiinsStats() {
     try {
@@ -226,6 +233,12 @@ async function loadBraiinsStats() {
         `;
         
         statsDiv.innerHTML = tilesHTML;
+        
+        // Update global pool hashrate (Braiins hashrate_5m is in H/s)
+        if (stats.hashrate_5m) {
+            totalPoolHashrateRaw += stats.hashrate_5m;
+            updatePoolEfficiency();
+        }
     } catch (error) {
         console.error('Failed to load Braiins stats:', error);
         document.getElementById('braiins-stats').style.display = 'none';
@@ -336,6 +349,9 @@ async function loadSolopoolStats(dashboardType = 'all') {
     try {
         const response = await fetch('/api/settings/solopool/stats');
         const data = await response.json();
+        
+        // Track pool hashrate for efficiency calculation
+        let solopoolHashrate = 0;
         
         const statsDiv = document.getElementById('solopool-stats');
         
@@ -471,6 +487,9 @@ async function loadSolopoolStats(dashboardType = 'all') {
             const workers = m.stats?.workers || 0;
             return workers > 0;
         }).map(m => {
+            // Sum pool hashrate
+            solopoolHashrate += m.stats?.hashrate_raw || 0;
+            
             const stats = m.stats;
             const paidBCH = stats.paid ? (stats.paid / 100000000) : 0;
             const paidGBP = bchPriceGBP > 0 ? (paidBCH * bchPriceGBP).toFixed(2) : '0.00';
@@ -518,6 +537,9 @@ async function loadSolopoolStats(dashboardType = 'all') {
             const workers = m.stats?.workers || 0;
             return workers > 0;
         }).map(m => {
+            // Sum pool hashrate
+            solopoolHashrate += m.stats?.hashrate_raw || 0;
+            
             const stats = m.stats;
             const paidDGB = stats.paid ? (stats.paid / 1000000000) : 0;  // DGB uses 9 decimals
             const paidGBP = dgbPriceGBP > 0 ? (paidDGB * dgbPriceGBP).toFixed(2) : '0.00';
@@ -565,6 +587,9 @@ async function loadSolopoolStats(dashboardType = 'all') {
             const workers = m.stats?.workers || 0;
             return workers > 0;
         }).map(m => {
+            // Sum pool hashrate
+            solopoolHashrate += m.stats?.hashrate_raw || 0;
+            
             const stats = m.stats;
             const paidBTC = stats.paid ? (stats.paid / 100000000) : 0;
             const paidGBP = btcPriceGBP > 0 ? (paidBTC * btcPriceGBP).toFixed(2) : '0.00';
@@ -661,15 +686,94 @@ async function loadSolopoolStats(dashboardType = 'all') {
         }
         
         statsDiv.innerHTML = tilesHTML;
+        
+        // Update global pool hashrate and efficiency display
+        totalPoolHashrateRaw = solopoolHashrate;
+        updatePoolEfficiency();
     } catch (error) {
         console.error('Failed to load Solopool stats:', error);
         document.getElementById('solopool-stats').style.display = 'none';
     }
 }
 
+// Update pool efficiency display in Total Miners tile
+function updatePoolEfficiency() {
+    // Get miner-reported hashrate from dashboard stats
+    const minerHashrateText = document.getElementById('total-hashrate')?.textContent || '0 GH/s';
+    
+    // Parse miner hashrate (convert to H/s)
+    let minerHashrateRaw = 0;
+    const match = minerHashrateText.match(/([\d.]+)\s*([KMGTP]?H\/s)/i);
+    if (match) {
+        const value = parseFloat(match[1]);
+        const unit = match[2].toUpperCase();
+        
+        // Convert to H/s
+        if (unit.startsWith('T')) minerHashrateRaw = value * 1e12;
+        else if (unit.startsWith('G')) minerHashrateRaw = value * 1e9;
+        else if (unit.startsWith('M')) minerHashrateRaw = value * 1e6;
+        else if (unit.startsWith('K')) minerHashrateRaw = value * 1e3;
+        else minerHashrateRaw = value;
+    }
+    
+    // Format pool hashrate for display
+    const poolHashrateElem = document.getElementById('pool-hashrate');
+    const poolEfficiencyElem = document.getElementById('pool-efficiency');
+    
+    if (!poolHashrateElem || !poolEfficiencyElem) return;
+    
+    if (totalPoolHashrateRaw === 0) {
+        poolHashrateElem.textContent = 'Pool: N/A';
+        poolEfficiencyElem.textContent = '⚡ N/A';
+        poolEfficiencyElem.style.color = '';
+        return;
+    }
+    
+    // Format pool hashrate
+    let poolHashrateFormatted = '';
+    if (totalPoolHashrateRaw >= 1e12) {
+        poolHashrateFormatted = `${(totalPoolHashrateRaw / 1e12).toFixed(2)} TH/s`;
+    } else if (totalPoolHashrateRaw >= 1e9) {
+        poolHashrateFormatted = `${(totalPoolHashrateRaw / 1e9).toFixed(2)} GH/s`;
+    } else if (totalPoolHashrateRaw >= 1e6) {
+        poolHashrateFormatted = `${(totalPoolHashrateRaw / 1e6).toFixed(2)} MH/s`;
+    } else if (totalPoolHashrateRaw >= 1e3) {
+        poolHashrateFormatted = `${(totalPoolHashrateRaw / 1e3).toFixed(2)} KH/s`;
+    } else {
+        poolHashrateFormatted = `${totalPoolHashrateRaw.toFixed(2)} H/s`;
+    }
+    
+    poolHashrateElem.textContent = `Pool: ${poolHashrateFormatted}`;
+    
+    // Calculate efficiency percentage
+    if (minerHashrateRaw === 0) {
+        poolEfficiencyElem.textContent = '⚡ N/A';
+        poolEfficiencyElem.style.color = '';
+        return;
+    }
+    
+    const efficiencyPercent = (totalPoolHashrateRaw / minerHashrateRaw) * 100;
+    
+    // Apply color based on thresholds
+    let color = '';
+    if (efficiencyPercent >= 95) {
+        color = '#28a745'; // green
+    } else if (efficiencyPercent >= 85) {
+        color = '#ffc107'; // amber
+    } else {
+        color = '#dc3545'; // red
+    }
+    
+    poolEfficiencyElem.textContent = `⚡ ${efficiencyPercent.toFixed(0)}% of expected`;
+    poolEfficiencyElem.style.color = color;
+}
+
 // Load dashboard data
 async function loadDashboard() {
     try {
+        // Reset pool hashrate counter
+        totalPoolHashrateRaw = 0;
+        
         // Get dashboard type from template
         const dashboardType = '{{ dashboard_type }}';
         

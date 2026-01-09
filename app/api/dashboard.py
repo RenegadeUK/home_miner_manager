@@ -96,10 +96,35 @@ async def get_best_share_24h(db: AsyncSession) -> dict:
         if current_best and latest_telem.timestamp > cutoff_24h:
             if current_best > best_diff:
                 best_diff = current_best
-                best_timestamp = latest_telem.timestamp
-                best_miner_id = miner.id
-                # Get coin from pool_in_use
                 best_coin = parse_coin_from_pool(latest_telem.pool_in_use)
+                
+                # Find when this best share value first appeared by querying backwards
+                # This gives us the actual time the share was found
+                find_result = await db.execute(
+                    select(Telemetry)
+                    .where(Telemetry.miner_id == miner.id)
+                    .where(Telemetry.timestamp > cutoff_24h)
+                    .where(Telemetry.data.isnot(None))
+                    .order_by(Telemetry.timestamp.asc())
+                )
+                all_telemetry = find_result.scalars().all()
+                
+                # Find the first occurrence of this best share value
+                best_timestamp = latest_telem.timestamp  # fallback
+                for telem in all_telemetry:
+                    if not telem.data:
+                        continue
+                    telem_best = None
+                    if miner.miner_type in ['bitaxe', 'nerdqaxe']:
+                        telem_best = telem.data.get('best_session_diff')
+                    elif miner.miner_type == 'avalon_nano':
+                        telem_best = telem.data.get('best_share')
+                    
+                    if telem_best and telem_best >= current_best:
+                        best_timestamp = telem.timestamp
+                        break
+                
+                best_miner_id = miner.id
     
     # If no shares found
     if best_diff == 0:
