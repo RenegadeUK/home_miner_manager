@@ -159,11 +159,12 @@ async function loadBraiinsStats() {
         
         statsDiv.style.display = 'block';
         
-        // Apply greyed-out styling if no workers
-        const hasWorkers = data.workers_using > 0;
+        const stats = data.stats;
+        
+        // Apply greyed-out styling if no workers online at the pool
+        const hasWorkers = stats.workers_online > 0;
         const greyedStyle = !hasWorkers ? 'opacity: 0.4; pointer-events: none;' : '';
         
-        const stats = data.stats;
         
         // Fetch BTC price in GBP from our backend
         let btcPriceGBP = 0;
@@ -234,11 +235,10 @@ async function loadBraiinsStats() {
         
         statsDiv.innerHTML = tilesHTML;
         
-        // Update global pool hashrate (Braiins hashrate_5m is in H/s)
-        if (stats.hashrate_5m) {
-            totalPoolHashrateRaw += stats.hashrate_5m;
-            updatePoolEfficiency();
-        }
+        // Note: Braiins hashrate_5m is a formatted string, not raw number
+        // Pool efficiency currently only tracks Solopool (which has hashrate_raw)
+        // But still need to update efficiency display after Braiins loads
+        updatePoolEfficiency();
     } catch (error) {
         console.error('Failed to load Braiins stats:', error);
         document.getElementById('braiins-stats').style.display = 'none';
