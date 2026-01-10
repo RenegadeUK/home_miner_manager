@@ -187,6 +187,36 @@ class BandUpdate(BaseModel):
     avalon_nano_mode: Optional[str] = None
 
 
+def validate_band_update(update: BandUpdate) -> Optional[str]:
+    """
+    Validate band update values
+    
+    Returns:
+        Error message if validation fails, None if valid
+    """
+    from core.agile_bands import VALID_COINS, VALID_MODES
+    
+    # Validate coin
+    if update.target_coin is not None:
+        if update.target_coin not in VALID_COINS:
+            return f"Invalid coin '{update.target_coin}'. Must be one of: {', '.join(VALID_COINS)}"
+    
+    # Validate modes
+    if update.bitaxe_mode is not None:
+        if update.bitaxe_mode not in VALID_MODES["bitaxe"]:
+            return f"Invalid Bitaxe mode '{update.bitaxe_mode}'. Must be one of: {', '.join(VALID_MODES['bitaxe'])}"
+    
+    if update.nerdqaxe_mode is not None:
+        if update.nerdqaxe_mode not in VALID_MODES["nerdqaxe"]:
+            return f"Invalid NerdQaxe mode '{update.nerdqaxe_mode}'. Must be one of: {', '.join(VALID_MODES['nerdqaxe'])}"
+    
+    if update.avalon_nano_mode is not None:
+        if update.avalon_nano_mode not in VALID_MODES["avalon_nano"]:
+            return f"Invalid Avalon Nano mode '{update.avalon_nano_mode}'. Must be one of: {', '.join(VALID_MODES['avalon_nano'])}"
+    
+    return None
+
+
 @router.get("/agile-solo-strategy/bands")
 async def get_strategy_bands_api(db: AsyncSession = Depends(get_db)):
     """Get configured price bands for strategy"""
@@ -236,6 +266,11 @@ async def update_strategy_band(
 ):
     """Update a specific band's settings"""
     from core.database import AgileStrategyBand
+    
+    # Validate input
+    validation_error = validate_band_update(update)
+    if validation_error:
+        raise HTTPException(status_code=400, detail=validation_error)
     
     # Get band
     result = await db.execute(

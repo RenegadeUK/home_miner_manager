@@ -12,6 +12,18 @@ from core.database import AgileStrategy, AgileStrategyBand
 logger = logging.getLogger(__name__)
 
 
+# Valid coin options for Agile Solo Strategy (all Solopool)
+VALID_COINS = ["OFF", "DGB", "BCH", "BTC"]
+
+# Valid modes per miner type
+VALID_MODES = {
+    "bitaxe": ["managed_externally", "eco", "std", "turbo", "oc"],
+    "nerdqaxe": ["managed_externally", "eco", "std", "turbo", "oc"],
+    "avalon_nano": ["managed_externally", "low", "med", "high"],
+    "nmminer": ["fixed"]  # NMMiner has no configurable modes
+}
+
+
 DEFAULT_BANDS = [
     {
         "sort_order": 0,
@@ -64,9 +76,6 @@ DEFAULT_BANDS = [
         "description": "<4p - Jackpot probability"
     }
 ]
-
-
-VALID_COINS = ["OFF", "DGB", "BCH", "BTC"]  # All use Solopool for solo mining
 
 
 async def ensure_strategy_bands(db: AsyncSession, strategy_id: int) -> bool:
