@@ -345,7 +345,8 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     
     # Check if Agile Solo Strategy is enabled
     from core.database import AgileStrategy
-    from core.agile_solo_strategy import PriceBand
+    from core.agile_bands import ensure_strategy_bands, get_strategy_bands, get_band_for_price
+    from core.agile_solo_strategy import AgileSoloStrategy
     
     strategy_result = await db.execute(select(AgileStrategy))
     strategy = strategy_result.scalar_one_or_none()
@@ -354,13 +355,20 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     
     # Map price band to active target coin
     active_target = None
-    if strategy_enabled and current_band:
-        if current_band in [PriceBand.DGB_HIGH, PriceBand.DGB_MED, PriceBand.DGB_LOW]:
-            active_target = "DGB"
-        elif current_band == PriceBand.BCH:
-            active_target = "BCH"
-        elif current_band == PriceBand.BTC:
-            active_target = "BTC"
+    if strategy_enabled and strategy:
+        # Ensure bands exist
+        await ensure_strategy_bands(db, strategy.id)
+        
+        # Get current price and find matching band
+        from core.energy import get_current_energy_price
+        current_price_obj = await get_current_energy_price(db)
+        if current_price_obj is not None:
+            current_price_p_kwh = current_price_obj.price_pence
+            bands = await get_strategy_bands(db, strategy.id)
+            band = get_band_for_price(bands, current_price_p_kwh)
+            
+            if band and band.target_coin != "OFF":
+                active_target = band.target_coin
         # OFF band means all grayed out (active_target stays None)
     
     # Get all pools

@@ -8,128 +8,20 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
 import logging
 
-from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice, Telemetry
+from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice, Telemetry, AgileStrategyBand
 from core.energy import get_current_energy_price
 from core.audit import log_audit
 from core.solopool import SolopoolService
+from core.agile_bands import ensure_strategy_bands, get_strategy_bands, get_band_for_price
 
 logger = logging.getLogger(__name__)
-
-
-class PriceBand:
-    """Price band definitions"""
-    OFF = "off"           # ≥20p - Hard OFF
-    DGB_HIGH = "dgb_high"  # 12-20p - DGB Eco/Low
-    DGB_MED = "dgb_med"    # 7-12p - DGB Std/Med
-    DGB_LOW = "dgb_low"    # Unused in current spec
-    BCH = "bch"            # 4-7p - BCH High/OC
-    BTC = "btc"            # <4p - BTC Max/OC
 
 
 class AgileSoloStrategy:
     """Agile Solo Strategy execution engine"""
     
-    # Price thresholds (pence per kWh)
-    THRESHOLD_OFF = 20.0
-    THRESHOLD_DGB_HIGH = 12.0
-    THRESHOLD_DGB_MED = 7.0
-    THRESHOLD_BCH = 4.0
-    THRESHOLD_BTC = 0.0
-    
     # Hysteresis counter requirement for upgrading bands
     HYSTERESIS_SLOTS = 2
-    
-    @staticmethod
-    def calculate_price_band(price_p_kwh: float) -> str:
-        """
-        Calculate price band from energy price
-        
-        Args:
-            price_p_kwh: Current energy price in pence per kWh
-            
-        Returns:
-            Price band string (off, dgb_high, dgb_med, bch, btc)
-        """
-        if price_p_kwh >= AgileSoloStrategy.THRESHOLD_OFF:
-            return PriceBand.OFF
-        elif price_p_kwh >= AgileSoloStrategy.THRESHOLD_DGB_HIGH:
-            return PriceBand.DGB_HIGH
-        elif price_p_kwh >= AgileSoloStrategy.THRESHOLD_DGB_MED:
-            return PriceBand.DGB_MED
-        elif price_p_kwh >= AgileSoloStrategy.THRESHOLD_BCH:
-            return PriceBand.BCH
-        else:
-            return PriceBand.BTC
-    
-    @staticmethod
-    def get_coin_for_band(price_band: str) -> Optional[str]:
-        """
-        Map price band to target coin
-        
-        Args:
-            price_band: Price band (off, dgb_high, dgb_med, bch, btc)
-            
-        Returns:
-            Coin symbol (DGB, BCH, BTC) or None for OFF
-        """
-        coin_map = {
-            PriceBand.OFF: None,
-            PriceBand.DGB_HIGH: "DGB",
-            PriceBand.DGB_MED: "DGB",
-            PriceBand.BCH: "BCH",
-            PriceBand.BTC: "BTC"
-        }
-        return coin_map.get(price_band)
-    
-    @staticmethod
-    def get_mode_for_band(price_band: str, miner_type: str) -> Optional[str]:
-        """
-        Get target mode for miner type and price band
-        
-        Args:
-            price_band: Price band
-            miner_type: Miner type (bitaxe, nerdqaxe, avalon_nano, nmminer)
-            
-        Returns:
-            Mode string or None for OFF
-            Note: NMMiner has no configurable modes (always runs at fixed performance)
-        """
-        # Mode mappings per spec
-        mode_map = {
-            PriceBand.OFF: {
-                "bitaxe": None,
-                "nerdqaxe": None,
-                "avalon_nano": None,
-                "nmminer": "fixed"  # NMMiner stays on (no power control)
-            },
-            PriceBand.DGB_HIGH: {  # 12-20p
-                "bitaxe": "eco",  # Can be eco or standard
-                "nerdqaxe": "eco",
-                "avalon_nano": "low",  # Can be OFF or low
-                "nmminer": "fixed"
-            },
-            PriceBand.DGB_MED: {  # 7-12p
-                "bitaxe": "standard",
-                "nerdqaxe": "standard",
-                "avalon_nano": "med",
-                "nmminer": "fixed"
-            },
-            PriceBand.BCH: {  # 4-7p
-                "bitaxe": "oc",
-                "nerdqaxe": "standard",
-                "avalon_nano": "high",
-                "nmminer": "fixed"
-            },
-            PriceBand.BTC: {  # <4p
-                "bitaxe": "oc",
-                "nerdqaxe": "oc",
-                "avalon_nano": "high",
-                "nmminer": "fixed"
-            }
-        }
-        
-        band_modes = mode_map.get(price_band, {})
-        return band_modes.get(miner_type)
     
     @staticmethod
     async def get_enrolled_miners(db: AsyncSession) -> List[Miner]:
@@ -214,8 +106,9 @@ class AgileSoloStrategy:
     async def determine_band_with_hysteresis(
         db: AsyncSession,
         current_price: float,
-        strategy: AgileStrategy
-    ) -> Tuple[str, int]:
+        strategy: AgileStrategy,
+        bands: List[AgileStrategyBand]
+    ) -> Tuple[AgileStrategyBand, int]:
         """
         Determine target price band with look-ahead confirmation
         
@@ -223,78 +116,84 @@ class AgileSoloStrategy:
         qualifies for that band. Only upgrades if confirmed, preventing
         oscillation from single cheap slots.
         
-        CRITICAL: OFF band (≥20p) is ALWAYS immediate - no confirmation needed.
+        CRITICAL: OFF band is ALWAYS immediate - no confirmation needed.
         
         Args:
             db: Database session
             current_price: Current energy price (p/kWh)
             strategy: Current strategy state
+            bands: List of configured price bands (ordered by sort_order)
             
         Returns:
-            (target_band, new_hysteresis_counter)
+            (target_band_object, new_hysteresis_counter)
         """
-        current_band = strategy.current_price_band or PriceBand.OFF
-        new_band = AgileSoloStrategy.calculate_price_band(current_price)
+        # Get current and new band objects
+        current_band_obj = None
+        if strategy.current_price_band:
+            # Find current band by matching target_coin
+            for band in bands:
+                if band.target_coin == strategy.current_price_band:
+                    current_band_obj = band
+                    break
         
-        # SAFETY: If current price hits OFF band (≥20p), turn off immediately
-        if new_band == PriceBand.OFF:
-            logger.warning(f"Price hit OFF threshold (≥20p): {current_price:.2f}p - IMMEDIATE shutdown")
-            return (PriceBand.OFF, 0)
+        # If no current band, start with first band (worst/OFF)
+        if not current_band_obj:
+            current_band_obj = bands[0]
         
-        # Define band ordering (worse to better)
-        band_order = [
-            PriceBand.OFF,
-            PriceBand.DGB_HIGH,
-            PriceBand.DGB_MED,
-            PriceBand.BCH,
-            PriceBand.BTC
-        ]
+        # Get new band for current price
+        new_band_obj = get_band_for_price(bands, current_price)
         
-        try:
-            current_idx = band_order.index(current_band)
-            new_idx = band_order.index(new_band)
-        except ValueError:
-            # Invalid band, reset to calculated
-            return (new_band, 0)
+        if not new_band_obj:
+            logger.error("Could not determine band for current price")
+            return (bands[0], 0)  # Default to first band (OFF)
         
-        # If price improved (moving down the list = better pricing)
+        # SAFETY: If current price hits OFF band, turn off immediately
+        if new_band_obj.target_coin == "OFF":
+            logger.warning(f"Price hit OFF threshold: {current_price:.2f}p - IMMEDIATE shutdown")
+            return (new_band_obj, 0)
+        
+        # Compare band positions (higher sort_order = better pricing/lower cost)
+        current_idx = current_band_obj.sort_order
+        new_idx = new_band_obj.sort_order
+        
+        # If price improved (higher sort_order = better band)
         if new_idx > current_idx:
             # Upgrading band - check next slot for confirmation
             next_slot_price = await AgileSoloStrategy.get_next_slot_price(db)
             
             if next_slot_price is None:
                 # No future price data, stay in current band
-                logger.warning(f"No next slot price available, staying in {current_band}")
-                return (current_band, 0)
+                logger.warning(f"No next slot price available, staying in {current_band_obj.target_coin}")
+                return (current_band_obj, 0)
             
-            next_slot_band = AgileSoloStrategy.calculate_price_band(next_slot_price)
+            next_band_obj = get_band_for_price(bands, next_slot_price)
             
-            try:
-                next_idx = band_order.index(next_slot_band)
-            except ValueError:
+            if not next_band_obj:
                 # Invalid next band, stay safe
-                return (current_band, 0)
+                return (current_band_obj, 0)
+            
+            next_idx = next_band_obj.sort_order
             
             # Check if next slot is also in the better band (or even better)
             if next_idx >= new_idx:
                 # Next slot confirms the improvement, upgrade immediately
-                logger.info(f"Next slot confirms improvement (current: {current_price:.2f}p → next: {next_slot_price:.2f}p), upgrading from {current_band} to {new_band}")
-                return (new_band, 0)
+                logger.info(f"Next slot confirms improvement (current: {current_price:.2f}p → next: {next_slot_price:.2f}p), upgrading from {current_band_obj.target_coin} to {new_band_obj.target_coin}")
+                return (new_band_obj, 0)
             else:
                 # Next slot goes back to worse band, stay put
-                logger.info(f"Next slot returns to worse pricing (current: {current_price:.2f}p → next: {next_slot_price:.2f}p), staying in {current_band}")
-                return (current_band, 0)
+                logger.info(f"Next slot returns to worse pricing (current: {current_price:.2f}p → next: {next_slot_price:.2f}p), staying in {current_band_obj.target_coin}")
+                return (current_band_obj, 0)
         
-        # If price worsened (moving up the list = worse pricing)
+        # If price worsened (lower sort_order = worse band)
         elif new_idx < current_idx:
             # Immediate downgrade
-            logger.info(f"Price worsened, immediate downgrade from {current_band} to {new_band}")
-            return (new_band, 0)
+            logger.info(f"Price worsened, immediate downgrade from {current_band_obj.target_coin} to {new_band_obj.target_coin}")
+            return (new_band_obj, 0)
         
         # Price unchanged
         else:
             # Stay in current band
-            return (current_band, 0)
+            return (current_band_obj, 0)
     
     @staticmethod
     async def find_solo_pool(db: AsyncSession, coin: str) -> Optional[Pool]:
@@ -345,6 +244,16 @@ class AgileSoloStrategy:
             logger.info("Strategy disabled, skipping execution")
             return {"enabled": False, "message": "Strategy is disabled"}
         
+        # Ensure bands are initialized (handles migration from old versions)
+        await ensure_strategy_bands(db, strategy.id)
+        
+        # Get configured bands
+        bands = await get_strategy_bands(db, strategy.id)
+        
+        if not bands:
+            logger.error("No bands configured for strategy")
+            return {"error": "NO_BANDS", "message": "No price bands configured"}
+        
         # Get enrolled miners
         enrolled_miners = await AgileSoloStrategy.get_enrolled_miners(db)
         
@@ -388,27 +297,41 @@ class AgileSoloStrategy:
         current_price = current_price_obj.price_pence
         logger.info(f"Current energy price: {current_price}p/kWh")
         
-        # Determine target band with hysteresis
-        target_band, new_counter = await AgileSoloStrategy.determine_band_with_hysteresis(
-            db, current_price, strategy
+        # Apply hysteresis logic to determine target band with look-ahead confirmation
+        target_band_obj, new_counter = await AgileSoloStrategy.determine_band_with_hysteresis(
+            db, current_price, strategy, bands
         )
         
-        logger.info(f"Target band: {target_band} (hysteresis counter: {new_counter})")
+        if not target_band_obj:
+            logger.error("Could not determine band for current price")
+            return {"error": "BAND_ERROR", "message": "Could not determine price band"}
         
-        # Update strategy state
-        strategy.current_price_band = target_band
+        logger.info(f"Target band: {target_band_obj.target_coin} @ {current_price}p/kWh")
+        
+        # Store band identifier for state tracking (use sort_order as identifier)
+        target_band_id = target_band_obj.sort_order
+        
+        # Update strategy state  
+        strategy.current_price_band = target_band_obj.target_coin  # Store coin for backward compatibility
+        strategy.last_price_checked = current_price
+        strategy.last_action_time = datetime.utcnow()
         strategy.hysteresis_counter = new_counter
+        # Store band identifier for state tracking (use sort_order as identifier)
+        target_band_id = target_band_obj.sort_order
+        
+        # Update strategy state  
+        strategy.current_price_band = target_band_obj.target_coin  # Store coin for backward compatibility
         strategy.last_price_checked = current_price
         strategy.last_action_time = datetime.utcnow()
         
-        # Get target coin
-        target_coin = AgileSoloStrategy.get_coin_for_band(target_band)
+        # Get target coin from band
+        target_coin = target_band_obj.target_coin
         
         actions_taken = []
         
-        # Handle OFF state (≥20p) - managed externally
-        if target_band == PriceBand.OFF:
-            logger.info(f"Target band is OFF (price: {current_price}p/kWh ≥ 20p) - shutdown managed externally")
+        # Handle OFF state - managed externally
+        if target_coin == "OFF":
+            logger.info(f"Target coin is OFF (price: {current_price}p/kWh) - shutdown managed externally")
             
             await log_audit(
                 db,
@@ -423,7 +346,7 @@ class AgileSoloStrategy:
             return {
                 "enabled": True,
                 "price": current_price,
-                "band": PriceBand.OFF,
+                "band": "OFF",
                 "coin": None,
                 "miners": len(enrolled_miners),
                 "message": "OFF state - shutdown managed externally",
@@ -447,7 +370,24 @@ class AgileSoloStrategy:
             from adapters import get_adapter
             
             for miner in enrolled_miners:
-                target_mode = AgileSoloStrategy.get_mode_for_band(target_band, miner.miner_type)
+                # Get target mode from band based on miner type
+                if miner.miner_type == "bitaxe":
+                    target_mode = target_band_obj.bitaxe_mode
+                elif miner.miner_type == "nerdqaxe":
+                    target_mode = target_band_obj.nerdqaxe_mode
+                elif miner.miner_type == "avalon_nano":
+                    target_mode = target_band_obj.avalon_nano_mode
+                elif miner.miner_type == "nmminer":
+                    target_mode = "fixed"  # NMMiner has no configurable modes
+                else:
+                    logger.warning(f"Unknown miner type {miner.miner_type} for {miner.name}")
+                    target_mode = None
+                
+                # Handle "managed_externally" mode - skip this miner
+                if target_mode == "managed_externally":
+                    logger.info(f"Miner {miner.name} set to 'managed_externally', skipping")
+                    actions_taken.append(f"{miner.name}: SKIPPED (managed externally)")
+                    continue
                 
                 logger.info(f"Miner {miner.name} ({miner.miner_type}): target mode = {target_mode}")
                 
@@ -570,6 +510,10 @@ class AgileSoloStrategy:
         if not strategy or not strategy.enabled:
             return {"reconciled": False, "message": "Strategy disabled"}
         
+        # Ensure bands exist
+        from core.agile_bands import ensure_strategy_bands, get_strategy_bands, get_band_for_price
+        await ensure_strategy_bands(db, strategy.id)
+        
         # Get enrolled miners
         enrolled_miners = await AgileSoloStrategy.get_enrolled_miners(db)
         
@@ -582,10 +526,26 @@ class AgileSoloStrategy:
             logger.debug("No current band set, skipping reconciliation")
             return {"reconciled": False, "message": "No band state"}
         
-        target_coin = AgileSoloStrategy.get_coin_for_band(current_band)
+        # Get bands and find matching band
+        bands = await get_strategy_bands(db, strategy.id)
+        
+        # Get current price to find the band
+        current_price_obj = await get_current_energy_price(db)
+        if current_price_obj is None:
+            logger.warning("Could not fetch current price for reconciliation")
+            return {"reconciled": False, "message": "No price data"}
+        
+        current_price_p_kwh = current_price_obj.price_pence
+        band = get_band_for_price(bands, current_price_p_kwh)
+        
+        if not band:
+            logger.warning("No matching band found for reconciliation")
+            return {"reconciled": False, "message": "No matching band"}
+        
+        target_coin = band.target_coin
         
         # If OFF state, ensure all miners are disabled
-        if current_band == PriceBand.OFF:
+        if target_coin == "OFF":
             return {"reconciled": True, "message": "OFF state - no reconciliation needed"}
         
         # Find target pool
@@ -599,7 +559,17 @@ class AgileSoloStrategy:
         corrections = []
         
         for miner in enrolled_miners:
-            target_mode = AgileSoloStrategy.get_mode_for_band(current_band, miner.miner_type)
+            # Determine target mode based on miner type
+            if miner.miner_type in ["bitaxe", "nerdqaxe"]:
+                target_mode = band.bitaxe_mode if miner.miner_type == "bitaxe" else band.nerdqaxe_mode
+            elif miner.miner_type == "avalon_nano":
+                target_mode = band.avalon_nano_mode
+            else:
+                target_mode = None
+            
+            # Skip managed_externally miners
+            if target_mode == "managed_externally":
+                continue
             
             # Check if miner's current mode matches target
             if miner.current_mode != target_mode:

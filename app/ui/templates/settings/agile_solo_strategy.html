@@ -112,6 +112,29 @@
     background: var(--bg-hover);
 }
 
+.band-dropdown {
+    width: 100%;
+    padding: 0.4rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.band-dropdown:hover {
+    border-color: var(--info);
+    background: var(--bg-hover);
+}
+
+.band-dropdown:focus {
+    outline: none;
+    border-color: var(--info);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .toggle-switch {
     display: flex;
     align-items: center;
@@ -310,13 +333,17 @@
     <div class="detail-card">
         <div class="detail-card-header">
             <h3>📈 Price Band Strategy</h3>
+            <button class="btn btn-secondary" onclick="resetBandsToDefaults()" style="padding: 0.5rem 1rem;">
+                Reset to Defaults
+            </button>
         </div>
         <div class="detail-card-body">
             <p style="margin-bottom: 1rem; color: var(--text-secondary);">
                 Automatic coin and mode selection based on Octopus Agile energy pricing (p/kWh).
+                Click on a dropdown to customize the strategy for each price band.
             </p>
             
-            <table class="price-band-table">
+            <table class="price-band-table" id="bands-table">
                 <thead>
                     <tr>
                         <th>Price Band (p/kWh)</th>
@@ -327,47 +354,12 @@
                         <th>Strategy</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr style="background: rgba(107, 114, 128, 0.1);">
-                        <td>≥ 20p</td>
-                        <td><strong>OFF</strong></td>
-                        <td colspan="3" style="text-align: center; font-style: italic; color: var(--text-secondary);">Managed Externally</td>
-                        <td>Capital preservation (external automation)</td>
-                    </tr>
-                    <tr>
-                        <td>12–20p</td>
-                        <td><strong>DGB Solo</strong></td>
-                        <td>Eco</td>
-                        <td>Eco</td>
-                        <td>Low</td>
-                        <td>Frequent wins, low regret</td>
-                    </tr>
-                    <tr>
-                        <td>7–12p</td>
-                        <td><strong>DGB Solo</strong></td>
-                        <td>Std</td>
-                        <td>Std</td>
-                        <td>Med</td>
-                        <td>Baseline probability</td>
-                    </tr>
-                    <tr>
-                        <td>4–7p</td>
-                        <td><strong>BCH Solo</strong></td>
-                        <td>OC</td>
-                        <td>Std</td>
-                        <td>High</td>
-                        <td>Meaningful upside</td>
-                    </tr>
-                    <tr style="background: rgba(59, 130, 246, 0.1);">
-                        <td>< 4p</td>
-                        <td><strong>BTC Solo</strong></td>
-                        <td>OC</td>
-                        <td>OC</td>
-                        <td>High</td>
-                        <td>Jackpot probability</td>
-                    </tr>
+                <tbody id="bands-tbody">
+                    <!-- Will be populated dynamically -->
                 </tbody>
             </table>
+        </div>
+    </div>
             
             <div style="margin-top: 1.5rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 6px;">
                 <h4 style="margin: 0 0 0.5rem 0; font-size: 0.95rem;">⏱️ Hysteresis Rules</h4>
@@ -561,7 +553,173 @@ async function saveSettings() {
     }
 }
 
-// Load settings on page load
+// Load and display price bands
+async function loadBands() {
+    try {
+        const response = await fetch('/api/settings/agile-solo-strategy/bands');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('bands-tbody');
+        tbody.innerHTML = '';
+        
+        const descriptions = [
+            'Capital preservation (external automation)',
+            'Frequent wins, low regret',
+            'Baseline probability',
+            'Meaningful upside',
+            'Jackpot probability'
+        ];
+        
+        data.bands.forEach((band, index) => {
+            const row = document.createElement('tr');
+            
+            // Format price range
+            let priceRange = '';
+            if (band.min_price !== null && band.max_price !== null) {
+                priceRange = `${band.min_price}–${band.max_price}p`;
+            } else if (band.max_price !== null) {
+                priceRange = `< ${band.max_price}p`;
+            } else if (band.min_price !== null) {
+                priceRange = `≥ ${band.min_price}p`;
+            }
+            
+            // Special styling for OFF and BTC bands
+            let rowStyle = '';
+            if (band.target_coin === 'OFF') {
+                rowStyle = 'background: rgba(107, 114, 128, 0.1);';
+            } else if (band.target_coin === 'BTC') {
+                rowStyle = 'background: rgba(59, 130, 246, 0.1);';
+            }
+            
+            row.style.cssText = rowStyle;
+            
+            // If OFF, show managed externally colspan
+            if (band.target_coin === 'OFF') {
+                row.innerHTML = `
+                    <td>${priceRange}</td>
+                    <td>${createCoinDropdown(band)}</td>
+                    <td colspan="3" style="text-align: center; font-style: italic; color: var(--text-secondary);">Managed Externally</td>
+                    <td>${descriptions[index] || ''}</td>
+                `;
+            } else {
+                row.innerHTML = `
+                    <td>${priceRange}</td>
+                    <td>${createCoinDropdown(band)}</td>
+                    <td>${createModeDropdown(band, 'bitaxe')}</td>
+                    <td>${createModeDropdown(band, 'nerdqaxe')}</td>
+                    <td>${createModeDropdown(band, 'avalon_nano')}</td>
+                    <td>${descriptions[index] || ''}</td>
+                `;
+            }
+            
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('Failed to load bands:', error);
+    }
+}
+
+// Create coin dropdown
+function createCoinDropdown(band) {
+    const coins = ['OFF', 'DGB', 'BCH', 'BTC'];
+    const displayNames = {
+        'OFF': 'OFF',
+        'DGB': 'DGB Solo',
+        'BCH': 'BCH Solo',
+        'BTC': 'BTC Solo'
+    };
+    
+    let html = `<select class="band-dropdown" onchange="updateBand(${band.id}, 'target_coin', this.value)" ${band.target_coin === 'OFF' ? 'style="font-weight: bold;"' : ''}>`;
+    coins.forEach(coin => {
+        const selected = coin === band.target_coin ? 'selected' : '';
+        html += `<option value="${coin}" ${selected}>${displayNames[coin]}</option>`;
+    });
+    html += '</select>';
+    return html;
+}
+
+// Create mode dropdown
+function createModeDropdown(band, minerType) {
+    let modes = [];
+    let currentMode = '';
+    
+    if (minerType === 'bitaxe' || minerType === 'nerdqaxe') {
+        modes = ['managed_externally', 'eco', 'std', 'turbo', 'oc'];
+        currentMode = band[`${minerType}_mode`];
+    } else if (minerType === 'avalon_nano') {
+        modes = ['managed_externally', 'low', 'med', 'high'];
+        currentMode = band.avalon_nano_mode;
+    }
+    
+    const displayNames = {
+        'managed_externally': 'External',
+        'eco': 'Eco',
+        'std': 'Std',
+        'turbo': 'Turbo',
+        'oc': 'OC',
+        'low': 'Low',
+        'med': 'Med',
+        'high': 'High'
+    };
+    
+    let html = `<select class="band-dropdown" onchange="updateBand(${band.id}, '${minerType}_mode', this.value)">`;
+    modes.forEach(mode => {
+        const selected = mode === currentMode ? 'selected' : '';
+        html += `<option value="${mode}" ${selected}>${displayNames[mode]}</option>`;
+    });
+    html += '</select>';
+    return html;
+}
+
+// Update a band setting
+async function updateBand(bandId, field, value) {
+    try {
+        const update = {};
+        update[field] = value;
+        
+        const response = await fetch(`/api/settings/agile-solo-strategy/bands/${bandId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(update)
+        });
+        
+        if (response.ok) {
+            // Reload bands to reflect any auto-adjustments (e.g., OFF forcing managed_externally)
+            await loadBands();
+        } else {
+            const error = await response.json();
+            alert('❌ Failed to update: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+// Reset bands to defaults
+async function resetBandsToDefaults() {
+    if (!confirm('⚠️ Reset all price bands to default configuration?\n\nThis will overwrite any customizations you have made.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/settings/agile-solo-strategy/bands/reset', {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            alert('✅ Bands reset to defaults');
+            await loadBands();
+        } else {
+            const error = await response.json();
+            alert('❌ Failed to reset: ' + (error.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+}
+
+// Load settings and bands on page load
 loadSettings();
+loadBands();
 </script>
 {% endblock %}

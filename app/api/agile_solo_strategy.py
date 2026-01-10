@@ -178,3 +178,122 @@ async def reconcile_agile_strategy_manual(db: AsyncSession = Depends(get_db)):
             "error": str(e),
             "traceback": traceback.format_exc()
         }
+
+
+class BandUpdate(BaseModel):
+    target_coin: Optional[str] = None
+    bitaxe_mode: Optional[str] = None
+    nerdqaxe_mode: Optional[str] = None
+    avalon_nano_mode: Optional[str] = None
+
+
+@router.get("/agile-solo-strategy/bands")
+async def get_strategy_bands_api(db: AsyncSession = Depends(get_db)):
+    """Get configured price bands for strategy"""
+    from core.database import AgileStrategyBand
+    from core.agile_bands import ensure_strategy_bands
+    
+    # Get strategy
+    result = await db.execute(select(AgileStrategy))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    # Ensure bands exist
+    await ensure_strategy_bands(db, strategy.id)
+    
+    # Get bands
+    bands_result = await db.execute(
+        select(AgileStrategyBand)
+        .where(AgileStrategyBand.strategy_id == strategy.id)
+        .order_by(AgileStrategyBand.sort_order)
+    )
+    bands = bands_result.scalars().all()
+    
+    return {
+        "bands": [
+            {
+                "id": band.id,
+                "sort_order": band.sort_order,
+                "min_price": band.min_price,
+                "max_price": band.max_price,
+                "target_coin": band.target_coin,
+                "bitaxe_mode": band.bitaxe_mode,
+                "nerdqaxe_mode": band.nerdqaxe_mode,
+                "avalon_nano_mode": band.avalon_nano_mode
+            }
+            for band in bands
+        ]
+    }
+
+
+@router.patch("/agile-solo-strategy/bands/{band_id}")
+async def update_strategy_band(
+    band_id: int,
+    update: BandUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update a specific band's settings"""
+    from core.database import AgileStrategyBand
+    
+    # Get band
+    result = await db.execute(
+        select(AgileStrategyBand).where(AgileStrategyBand.id == band_id)
+    )
+    band = result.scalar_one_or_none()
+    
+    if not band:
+        raise HTTPException(status_code=404, detail="Band not found")
+    
+    # Update fields if provided
+    if update.target_coin is not None:
+        band.target_coin = update.target_coin
+        # If setting to OFF, force all modes to managed_externally
+        if update.target_coin == "OFF":
+            band.bitaxe_mode = "managed_externally"
+            band.nerdqaxe_mode = "managed_externally"
+            band.avalon_nano_mode = "managed_externally"
+    
+    if update.bitaxe_mode is not None:
+        band.bitaxe_mode = update.bitaxe_mode
+    
+    if update.nerdqaxe_mode is not None:
+        band.nerdqaxe_mode = update.nerdqaxe_mode
+    
+    if update.avalon_nano_mode is not None:
+        band.avalon_nano_mode = update.avalon_nano_mode
+    
+    await db.commit()
+    await db.refresh(band)
+    
+    return {
+        "id": band.id,
+        "sort_order": band.sort_order,
+        "min_price": band.min_price,
+        "max_price": band.max_price,
+        "target_coin": band.target_coin,
+        "bitaxe_mode": band.bitaxe_mode,
+        "nerdqaxe_mode": band.nerdqaxe_mode,
+        "avalon_nano_mode": band.avalon_nano_mode
+    }
+
+
+@router.post("/agile-solo-strategy/bands/reset")
+async def reset_strategy_bands_api(db: AsyncSession = Depends(get_db)):
+    """Reset all bands to default configuration"""
+    from core.agile_bands import reset_bands_to_default
+    
+    # Get strategy
+    result = await db.execute(select(AgileStrategy))
+    strategy = result.scalar_one_or_none()
+    
+    if not strategy:
+        raise HTTPException(status_code=404, detail="Strategy not found")
+    
+    success = await reset_bands_to_default(db, strategy.id)
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to reset bands")
+    
+    return {"message": "Bands reset to defaults"}

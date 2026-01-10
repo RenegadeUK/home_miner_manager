@@ -528,6 +528,28 @@ class AgileStrategy(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class AgileStrategyBand(Base):
+    """Configurable price bands for Agile Solo Strategy"""
+    __tablename__ = "agile_strategy_bands"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    strategy_id: Mapped[int] = mapped_column(Integer, index=True)  # FK to AgileStrategy
+    min_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Minimum price (p/kWh), None for lowest band
+    max_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Maximum price (p/kWh), None for highest band
+    target_coin: Mapped[str] = mapped_column(String(10))  # OFF, DGB, BCH, BTC
+    bitaxe_mode: Mapped[str] = mapped_column(String(20))  # managed_externally, eco, std, turbo, oc
+    nerdqaxe_mode: Mapped[str] = mapped_column(String(20))  # managed_externally, eco, std, turbo, oc
+    avalon_nano_mode: Mapped[str] = mapped_column(String(20))  # managed_externally, low, med, high
+    sort_order: Mapped[int] = mapped_column(Integer, default=0)  # Display order (0-based)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Ensure bands are unique per strategy and sort order
+    __table_args__ = (
+        Index('ix_strategy_bands_unique', 'strategy_id', 'sort_order', unique=True),
+    )
+
+
 class MinerStrategy(Base):
     """Links miners to Agile Solo Strategy"""
     __tablename__ = "miner_strategy"

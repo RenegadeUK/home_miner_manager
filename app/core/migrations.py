@@ -874,3 +874,24 @@ async def run_migrations():
             print("✓ Dropped monero_wallet_transactions table (decommissioned)")
         except Exception as e:
             print(f"⚠️  Failed to drop monero_wallet_transactions table: {e}")
+        
+        # Migration: Ensure AgileStrategyBand table exists and initialize default bands
+        try:
+            # Table will be created by init_db(), but we need to populate it for existing strategies
+            from sqlalchemy.ext.asyncio import AsyncSession
+            from core.database import AsyncSessionLocal, AgileStrategy
+            from core.agile_bands import ensure_strategy_bands
+            
+            async with AsyncSessionLocal() as session:
+                from sqlalchemy import select
+                result = await session.execute(select(AgileStrategy))
+                strategies = result.scalars().all()
+                
+                for strategy in strategies:
+                    await ensure_strategy_bands(session, strategy.id)
+                
+                if strategies:
+                    print(f"✓ Initialized/verified bands for {len(strategies)} agile strategies")
+        except Exception as e:
+            print(f"⚠️  Failed to initialize agile strategy bands: {e}")
+
