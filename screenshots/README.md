@@ -11,9 +11,11 @@ The main README references the following screenshot files:
 3. **band-editor.png** - Band configuration editor with dropdowns for coins and modes
 4. **pool-analytics.png** - Pool analytics showing Solopool/SupportXMR statistics with sparkline charts
 5. **miner-dashboard.png** - Main miner management dashboard with telemetry
-6. **notifications.png** - Notifications configuration page
-7. **pool-health.png** - Pool health monitoring dashboard
-8. **band-config.png** - Close-up of band configuration interface
+6. **asic-dashboard.png** - ASIC-specific dashboard showing Avalon Nano, Bitaxe, NerdQaxe miners
+7. **cpu-dashboard.png** - CPU mining dashboard with XMRig instances and Monero stats
+8. **notifications.png** - Notifications configuration page
+9. **pool-health.png** - Pool health monitoring dashboard
+10. **band-config.png** - Close-up of band configuration interface
 
 ## How to Add Screenshots
 

@@ -61,6 +61,8 @@ Access at `http://localhost:8080`
 
 - [Features](#-features)
 - [Supported Hardware](#-supported-hardware)
+- [ASIC Dashboard](#-asic-dashboard)
+- [CPU Dashboard](#-cpu-dashboard)
 - [Installation](#-installation)
 - [Configuration](#-configuration)
 - [Agile Solo Strategy Setup](#-agile-solo-strategy-setup)
@@ -133,7 +135,31 @@ The crown jewel—fully database-driven band configuration:
 - 📊 **Real-time Telemetry** - Hashrate, temperature, power, fan speed, chip stats
 
 ![Miner Management](screenshots/miner-dashboard.png)
+### ⚙️ ASIC Dashboard
 
+**Specialized view for ASIC miners:**
+
+- **Avalon Nano / Bitaxe / NerdQaxe** - All ASIC devices in one view
+- **Pool Slot Management** - Visual pool assignment per miner
+- **Mode Controls** - Quick access to eco/standard/turbo/overclock settings
+- **Agile Strategy Integration** - See current band and target modes
+- **Real-time Stats** - Hashrate, temperature, power consumption
+- **Bulk Actions** - Manage multiple ASICs simultaneously
+
+![ASIC Dashboard](screenshots/asic-dashboard.png)
+
+### 💻 CPU Dashboard
+
+**Dedicated view for CPU mining:**
+
+- **XMRig Instances** - Monitor all CPU miners
+- **Monero Mining** - SupportXMR integration with balance tracking
+- **Thread Management** - View active mining threads and efficiency
+- **Temperature Monitoring** - CPU temps and thermal throttling detection
+- **Profitability Tracking** - XMR earnings vs energy cost
+- **Pool Statistics** - Hashrate, shares, and 24-hour earnings
+
+![CPU Dashboard](screenshots/cpu-dashboard.png)
 ###  Notifications & Alerts
 
 **Stay informed without being overwhelmed:**
