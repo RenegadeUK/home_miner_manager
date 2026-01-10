@@ -241,6 +241,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     
     # Calculate total 24h cost across all miners using actual telemetry + energy prices
     total_cost_pence = 0.0
+    total_kwh_consumed_24h = 0.0
     for miner in miners:
         # Get telemetry for last 24 hours
         result = await db.execute(
@@ -279,6 +280,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             kwh = (power / 1000.0) * duration_hours
             cost = kwh * price_pence
             total_cost_pence += cost
+            total_kwh_consumed_24h += kwh
     
     # Calculate 24h earnings (from Braiins Pool + Solopool blocks found)
     # ASIC dashboard: only count earnings from pools used by ASIC miners (exclude XMRig)
@@ -405,6 +407,11 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     # Calculate P/L (earnings - cost)
     pl_pounds_24h = earnings_pounds_24h - (total_cost_pence / 100)
     
+    # Calculate average price per kWh (weighted by consumption)
+    avg_price_per_kwh = None
+    if total_kwh_consumed_24h > 0:
+        avg_price_per_kwh = total_cost_pence / total_kwh_consumed_24h
+    
     # Calculate P/L (earnings - cost)
     pl_pounds_24h = earnings_pounds_24h - (total_cost_pence / 100)
     
@@ -470,6 +477,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         "total_power_watts": round(total_power_watts, 1),
         "avg_efficiency_wth": round(avg_efficiency_wth, 1) if avg_efficiency_wth is not None else None,
         "current_energy_price_pence": current_price,
+        "avg_price_per_kwh_pence": round(avg_price_per_kwh, 2) if avg_price_per_kwh is not None else None,
         "recent_events_24h": recent_events,
         "total_cost_24h_pence": round(total_cost_pence, 2),
         "total_cost_24h_pounds": round(total_cost_pence / 100, 2),
@@ -749,6 +757,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     total_hashrate = 0.0
     total_power_watts = 0.0
     total_cost_24h_pence = 0.0
+    total_kwh_consumed_24h = 0.0
     
     for miner in miners:
         # Get latest telemetry (last 5 minutes)
@@ -845,6 +854,27 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         
         if miner.enabled:
             total_cost_24h_pence += miner_cost_24h
+            # Track total kWh from telemetry records
+            for i, (tel_power, tel_timestamp) in enumerate(telemetry_records):
+                power = tel_power
+                if not power or power <= 0:
+                    if miner.manual_power_watts:
+                        power = miner.manual_power_watts
+                    else:
+                        continue
+                
+                if i < len(telemetry_records) - 1:
+                    next_timestamp = telemetry_records[i + 1][1]
+                    duration_seconds = (next_timestamp - tel_timestamp).total_seconds()
+                    duration_hours = duration_seconds / 3600.0
+                    max_duration_hours = 10.0 / 60.0
+                    if duration_hours > max_duration_hours:
+                        duration_hours = max_duration_hours
+                else:
+                    duration_hours = 30.0 / 3600.0
+                
+                kwh = (power / 1000.0) * duration_hours
+                total_kwh_consumed_24h += kwh
         
         # Get latest health score for this miner
         health_score = None
@@ -1053,6 +1083,11 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     # Calculate P/L
     pl_pounds_24h = earnings_pounds_24h - (total_cost_24h_pence / 100)
     
+    # Calculate average price per kWh (weighted by consumption)
+    avg_price_per_kwh = None
+    if total_kwh_consumed_24h > 0:
+        avg_price_per_kwh = total_cost_24h_pence / total_kwh_consumed_24h
+    
     # Count offline/online miners
     offline_miners_count = sum(1 for m in miners_data if m["is_offline"])
     online_miners_count = sum(1 for m in miners_data if not m["is_offline"])
@@ -1107,6 +1142,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
             "total_power_watts": round(total_power_watts, 1),
             "avg_efficiency_wth": round(avg_efficiency_wth, 1) if avg_efficiency_wth is not None else None,
             "current_energy_price_pence": current_energy_price,
+            "avg_price_per_kwh_pence": round(avg_price_per_kwh, 2) if avg_price_per_kwh is not None else None,
             "total_cost_24h_pence": round(total_cost_24h_pence, 2),
             "total_cost_24h_pounds": round(total_cost_24h_pence / 100, 2),
             "earnings_24h_pounds": round(earnings_pounds_24h, 2),
