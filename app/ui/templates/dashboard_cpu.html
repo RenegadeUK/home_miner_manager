@@ -11,11 +11,11 @@
             <div id="pool-efficiency" style="font-size: 0.65rem;">⚡ Unavailable</div>
         </div>
     </div>
-    <div class="stat-card">
-        <div class="stat-label">Pool Hashrate</div>
-        <div class="stat-value" id="pool-hashrate-value">Unavailable</div>
+    <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
+        <div class="stat-label">Power Use</div>
+        <div class="stat-value" id="total-power">0 W</div>
         <div class="stat-subtext">
-            <div id="pool-efficiency-alt">Efficiency: Unavailable</div>
+            <div id="power-efficiency">Efficiency: Unavailable</div>
         </div>
     </div>
     <div class="stat-card">
@@ -67,6 +67,20 @@ async function loadDashboard() {
         // Store miner hashrate globally - convert from GH/s to KH/s for CPU miners
         // (API stores KH/s as GH/s by dividing by 1000000, so multiply by 1000000 to get KH/s back)
         window.currentMinerHashrate = (stats.total_hashrate_ghs || 0) * 1000000;
+        
+        // Update power use
+        const totalPower = stats.total_power_watts || 0;
+        document.getElementById('total-power').textContent = totalPower > 0 ? `${Math.round(totalPower)} W` : '0 W';
+        
+        // Update efficiency (W/KH for CPU miners)
+        const efficiencyEl = document.getElementById('power-efficiency');
+        const hashrate = window.currentMinerHashrate || 0;
+        if (totalPower > 0 && hashrate > 0) {
+            const wPerKH = totalPower / hashrate;
+            efficiencyEl.textContent = `Efficiency: ${wPerKH.toFixed(2)} W/KH`;
+        } else {
+            efficiencyEl.textContent = 'Efficiency: Unavailable';
+        }
         
         // Update cost (24h)
         document.getElementById('total-cost-24h').textContent = 
