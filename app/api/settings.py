@@ -21,6 +21,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Braiins API cache (5 minute TTL to prevent rate limiting)
+_braiins_cache = {
+    "workers": None,
+    "profile": None,
+    "rewards": None,
+    "timestamp": None
+}
+_braiins_cache_ttl = 300  # 5 minutes in seconds
+
 
 @router.post("/restart")
 async def restart_application():
@@ -156,10 +165,27 @@ async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
         pool_user = braiins_pools[0].user
         braiins_username = pool_user.split('.')[0] if pool_user else ""
     
-    # Fetch data from Braiins API
-    workers_data = await BraiinsPoolService.get_workers(api_token)
-    profile_data = await BraiinsPoolService.get_profile(api_token)
-    rewards_data = await BraiinsPoolService.get_rewards(api_token)
+    # Fetch data from Braiins API (with caching to prevent rate limiting)
+    now = datetime.utcnow().timestamp()
+    cache_valid = (_braiins_cache["timestamp"] and 
+                   (now - _braiins_cache["timestamp"]) < _braiins_cache_ttl)
+    
+    if cache_valid:
+        # Use cached data
+        workers_data = _braiins_cache["workers"]
+        profile_data = _braiins_cache["profile"]
+        rewards_data = _braiins_cache["rewards"]
+    else:
+        # Fetch fresh data from API
+        workers_data = await BraiinsPoolService.get_workers(api_token)
+        profile_data = await BraiinsPoolService.get_profile(api_token)
+        rewards_data = await BraiinsPoolService.get_rewards(api_token)
+        
+        # Update cache
+        _braiins_cache["workers"] = workers_data
+        _braiins_cache["profile"] = profile_data
+        _braiins_cache["rewards"] = rewards_data
+        _braiins_cache["timestamp"] = now
     
     stats = BraiinsPoolService.format_stats_summary(workers_data, profile_data, rewards_data)
     
