@@ -15,19 +15,11 @@
 <!-- Stats Grid -->
 <div class="stats-grid compact-grid">
     <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
-            <div style="text-align: left;">
-                <div class="stat-label">Total Miners</div>
-                <div class="stat-value" id="total-miners">{{ miners_count }}</div>
-                <div class="stat-subtext">
-                    <div id="pool-hashrate">Pool: N/A</div>
-                    <div id="pool-efficiency" style="font-size: 0.65rem;">⚡ N/A</div>
-                </div>
-            </div>
-            <div style="text-align: right;">
-                <div class="stat-label" style="font-size: 0.75rem;">Offline</div>
-                <div class="stat-value" id="offline-miners" style="color: var(--danger);">0</div>
-            </div>
+        <div class="stat-label">Workers Online</div>
+        <div class="stat-value" id="workers-online">0</div>
+        <div class="stat-subtext">
+            <div id="pool-hashrate">Pool: N/A</div>
+            <div id="pool-efficiency" style="font-size: 0.65rem;">⚡ N/A</div>
         </div>
     </div>
     <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
@@ -789,7 +781,7 @@ async function loadDashboard() {
         
         // Update stats
         const stats = data.stats;
-        document.getElementById('total-miners').textContent = stats.total_miners;
+        document.getElementById('workers-online').textContent = stats.online_miners || 0;
         
         // Store current energy price globally for solopool stats calculation
         window.currentEnergyPrice = stats.current_energy_price_pence;
@@ -805,16 +797,6 @@ async function loadDashboard() {
         }
         
         // Update offline miners count with color coding
-        const offlineCount = stats.offline_miners || 0;
-        const offlineElement = document.getElementById('offline-miners');
-        offlineElement.textContent = offlineCount;
-        
-        // Color code the offline count (no card styling since it's combined with total)
-        if (offlineCount > 0) {
-            offlineElement.style.color = '#f97316'; // orange when offline
-        } else {
-            offlineElement.style.color = '#10b981'; // green when all online
-        }
         
         document.getElementById('total-cost-24h').textContent = 
             stats.total_cost_24h_pounds !== undefined ? '£' + stats.total_cost_24h_pounds.toFixed(2) : '£0.00';

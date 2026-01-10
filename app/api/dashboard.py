@@ -176,6 +176,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     
     # Get latest telemetry for each enabled miner
     total_hashrate = 0.0
+    online_miners = 0
     result = await db.execute(select(Miner).where(Miner.enabled == True))
     miners = result.scalars().all()
     
@@ -191,6 +192,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         latest_hashrate = result.scalar()
         if latest_hashrate:
             total_hashrate += latest_hashrate
+            online_miners += 1
     
     # Get current energy price
     now = datetime.utcnow()
@@ -451,6 +453,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     return {
         "total_miners": total_miners,
         "active_miners": active_miners,
+        "online_miners": online_miners,
         "total_hashrate_ghs": round(total_hashrate, 2),
         "current_energy_price_pence": current_price,
         "recent_events_24h": recent_events,
@@ -1032,8 +1035,9 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     # Calculate P/L
     pl_pounds_24h = earnings_pounds_24h - (total_cost_24h_pence / 100)
     
-    # Count offline miners
+    # Count offline/online miners
     offline_miners_count = sum(1 for m in miners_data if m["is_offline"])
+    online_miners_count = sum(1 for m in miners_data if not m["is_offline"])
     
     # Calculate average pool health
     avg_pool_health = None
@@ -1072,6 +1076,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         "stats": {
             "total_miners": len(miners),
             "active_miners": sum(1 for m in miners if m.enabled),
+            "online_miners": online_miners_count,
             "offline_miners": offline_miners_count,
             "total_hashrate_ghs": total_hashrate,  # Don't round - preserve precision for KH/s miners
             "current_energy_price_pence": current_energy_price,
