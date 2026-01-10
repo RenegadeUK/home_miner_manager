@@ -179,20 +179,20 @@ async function loadBraiinsStats() {
                     <div class="stat-label">${braiinsLogo}Workers (Braiins)</div>
                     <div class="stat-value" style="font-size: 1.5rem;">
                         ${stats.workers_online || 0}
-                        ${stats.hashrate_5m ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">${stats.hashrate_5m}</small>` : ''}
+                        ${stats.hashrate_5m ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">${stats.hashrate_5m}</small>` : ''}
                     </div>
                 </div>
                 <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                     <div class="stat-label">${braiinsLogo}Today's Reward</div>
-                    <div class="stat-value" style="font-size: 1.25rem;">${todayBTC.toFixed(8)} BTC<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${todayGBP}${cacheAgeIndicator}</span></div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${todayBTC.toFixed(8)} BTC<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${todayGBP}${cacheAgeIndicator}</span></div>
                 </div>
                 <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                     <div class="stat-label">${braiinsLogo}Current Balance</div>
-                    <div class="stat-value" style="font-size: 1.25rem;">${balanceBTC.toFixed(8)} BTC<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${balanceGBP}${cacheAgeIndicator}</span></div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${balanceBTC.toFixed(8)} BTC<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${balanceGBP}${cacheAgeIndicator}</span></div>
                 </div>
                 <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                     <div class="stat-label">${braiinsLogo}All Time Reward</div>
-                    <div class="stat-value" style="font-size: 1.25rem;">${allTimeBTC.toFixed(8)} BTC<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${allTimeGBP}${cacheAgeIndicator}</span></div>
+                    <div class="stat-value" style="font-size: 1.25rem;">${allTimeBTC.toFixed(8)} BTC<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${allTimeGBP}${cacheAgeIndicator}</span></div>
                 </div>
             </div>
         `;
@@ -284,20 +284,20 @@ async function loadSupportXMRStats() {
                         <div class="stat-label">${supportXMRLogo}Workers - ${last4Digits}</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${wallet.worker_count || 0}
-                            ${wallet.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">${wallet.hashrate}</small>` : ''}
+                            ${wallet.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">${wallet.hashrate}</small>` : ''}
                         </div>
                     </div>
                     <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                         <div class="stat-label">${supportXMRLogo}Today's Reward</div>
-                        <div class="stat-value" style="font-size: 1.25rem;">${todayRewardsXMR.toFixed(6)} XMR<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${todayRewardsGBP}${xmrCacheAgeIndicator}</span></div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${todayRewardsXMR.toFixed(6)} XMR<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${todayRewardsGBP}${xmrCacheAgeIndicator}</span></div>
                     </div>
                     <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                         <div class="stat-label">${supportXMRLogo}Amount Due</div>
-                        <div class="stat-value" style="font-size: 1.25rem;">${wallet.amount_due} XMR<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${amountDueGBP}${xmrCacheAgeIndicator}</span></div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${wallet.amount_due} XMR<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${amountDueGBP}${xmrCacheAgeIndicator}</span></div>
                     </div>
                     <div class="stat-card" ${onclickAttr} style="${clickableStyle}">
                         <div class="stat-label">${supportXMRLogo}Total Paid</div>
-                        <div class="stat-value" style="font-size: 1.25rem;">${wallet.amount_paid} XMR<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${amountPaidGBP}${xmrCacheAgeIndicator}</span></div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${wallet.amount_paid} XMR<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${amountPaidGBP}${xmrCacheAgeIndicator}</span></div>
                     </div>
                 </div>
             `;
@@ -472,26 +472,26 @@ async function loadSolopoolStats(dashboardType = 'all') {
                         <div class="stat-label">${bchLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${stats.workers || 0}
-                            ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">${stats.hashrate}</small>` : ''}
+                            ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">${stats.hashrate}</small>` : ''}
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://bch.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${bchLogo}Current Round Luck</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${luckFormat(stats.current_luck)}
-                            ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">ETTB: ${stats.ettb.formatted} - ${stats.lastBlockTimestamp ? `<span style="font-size: 0.75rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
+                            ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">ETTB: ${stats.ettb.formatted}<br>${stats.lastBlockTimestamp ? `<span style="font-size: 0.65rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://bch.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${bchLogo}Blocks (24h/7d/30d)</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}
-                            <br><small style="color: var(--text-secondary); font-size: 0.875rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
+                            <br><small style="color: var(--text-secondary); font-size: 0.75rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? `<br><span style="font-size: 0.65rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://bch.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${bchLogo}Total Paid</div>
-                        <div class="stat-value" style="font-size: 1.25rem;">${paidBCH.toFixed(8)} BCH<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${paidBCH.toFixed(8)} BCH<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
                     </div>
                 </div>
             `;
@@ -522,26 +522,26 @@ async function loadSolopoolStats(dashboardType = 'all') {
                         <div class="stat-label">${dgbLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${stats.workers || 0}
-                            ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">${stats.hashrate}</small>` : ''}
+                            ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">${stats.hashrate}</small>` : ''}
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://dgb-sha.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${dgbLogo}Current Round Luck</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${luckFormat(stats.current_luck)}
-                            ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">ETTB: ${stats.ettb.formatted} - ${stats.lastBlockTimestamp ? `<span style="font-size: 0.75rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
+                            ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">ETTB: ${stats.ettb.formatted}<br>${stats.lastBlockTimestamp ? `<span style="font-size: 0.65rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://dgb-sha.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${dgbLogo}Blocks (24h/7d/30d)</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}
-                            <br><small style="color: var(--text-secondary); font-size: 0.875rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
+                            <br><small style="color: var(--text-secondary); font-size: 0.75rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? `<br><span style="font-size: 0.65rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://dgb-sha.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${dgbLogo}Total Paid</div>
-                        <div class="stat-value" style="font-size: 1.25rem;">${paidDGB.toFixed(8)} DGB<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${paidDGB.toFixed(8)} DGB<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
                     </div>
                 </div>
             `;
@@ -572,26 +572,26 @@ async function loadSolopoolStats(dashboardType = 'all') {
                         <div class="stat-label">${btcLogo}Workers Online</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${stats.workers || 0}
-                            ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">${stats.hashrate}</small>` : ''}
+                            ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">${stats.hashrate}</small>` : ''}
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://btc.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${btcLogo}Current Round Luck</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${luckFormat(stats.current_luck)}
-                            ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">ETTB: ${stats.ettb.formatted} - ${stats.lastBlockTimestamp ? `<span style="font-size: 0.75rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
+                            ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">ETTB: ${stats.ettb.formatted}<br>${stats.lastBlockTimestamp ? `<span style="font-size: 0.65rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://btc.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${btcLogo}Blocks (24h/7d/30d)</div>
                         <div class="stat-value" style="font-size: 1.5rem;">
                             ${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}
-                            <br><small style="color: var(--text-secondary); font-size: 0.875rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
+                            <br><small style="color: var(--text-secondary); font-size: 0.75rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? `<br><span style="font-size: 0.65rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
                         </div>
                     </div>
                     <div class="stat-card" onclick="window.open('https://btc.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                         <div class="stat-label">${btcLogo}Total Paid</div>
-                        <div class="stat-value" style="font-size: 1.25rem;">${paidBTC.toFixed(8)} BTC<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${paidBTC.toFixed(8)} BTC<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
                     </div>
                 </div>
             `;
@@ -615,26 +615,26 @@ async function loadSolopoolStats(dashboardType = 'all') {
                             <div class="stat-label">${xmrLogo}Workers Online</div>
                             <div class="stat-value" style="font-size: 1.5rem;">
                                 ${stats.workers || 0}
-                                ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">${stats.hashrate}</small>` : ''}
+                                ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">${stats.hashrate}</small>` : ''}
                             </div>
                         </div>
                         <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                             <div class="stat-label">${xmrLogo}Current Round Luck</div>
                             <div class="stat-value" style="font-size: 1.5rem;">
                                 ${luckFormat(stats.current_luck)}
-                                ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.875rem;">ETTB: ${stats.ettb.formatted} - ${stats.lastBlockTimestamp ? `<span style="font-size: 0.75rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
+                                ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">ETTB: ${stats.ettb.formatted}<br>${stats.lastBlockTimestamp ? `<span style="font-size: 0.65rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
                             </div>
                         </div>
                         <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                             <div class="stat-label">${xmrLogo}Blocks (24h/7d/30d)</div>
                             <div class="stat-value" style="font-size: 1.5rem;">
                                 ${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}
-                                <br><small style="color: var(--text-secondary); font-size: 0.875rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? ` - <span style="font-size: 0.75rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
+                                <br><small style="color: var(--text-secondary); font-size: 0.75rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? `<br><span style="font-size: 0.65rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
                             </div>
                         </div>
                         <div class="stat-card" onclick="window.open('https://xmr.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
                             <div class="stat-label">${xmrLogo}Total Paid</div>
-                            <div class="stat-value" style="font-size: 1.25rem;">${paidXMR.toFixed(12)} XMR<br><span style="font-size: 0.9rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
+                            <div class="stat-value" style="font-size: 1.25rem;">${paidXMR.toFixed(12)} XMR<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
                         </div>
                     </div>
                 `;
