@@ -599,6 +599,8 @@ async function loadSolopoolStats(dashboardType = 'all') {
         
         // Create stats tiles for XMR miners
         let xmrTilesHTML = '';
+        let xmrPoolHashrate = 0; // Track XMR pool hashrate in KH/s for CPU dashboard
+        
         if (xmrMiners.length > 0) {
             xmrTilesHTML = xmrMiners.map(m => {
                 const stats = m.stats || {};
@@ -608,6 +610,26 @@ async function loadSolopoolStats(dashboardType = 'all') {
                 const paidXMR = stats.paid ? (stats.paid / 1000000000000) : 0;
                 const paidGBP = xmrPriceGBP > 0 ? (paidXMR * xmrPriceGBP).toFixed(2) : '0.00';
                 const currentShares = stats.shares || 0;
+                
+                // Parse XMR hashrate and add to total (convert to KH/s)
+                if (stats.hashrate) {
+                    const match = stats.hashrate.match(/([\d.]+)\s*([KMG]?H\/s)/i);
+                    if (match) {
+                        const value = parseFloat(match[1]);
+                        const unit = match[2].toUpperCase();
+                        
+                        // Convert to KH/s
+                        if (unit === 'H/S') {
+                            xmrPoolHashrate += value / 1000;
+                        } else if (unit === 'KH/S') {
+                            xmrPoolHashrate += value;
+                        } else if (unit === 'MH/S') {
+                            xmrPoolHashrate += value * 1000;
+                        } else if (unit === 'GH/S') {
+                            xmrPoolHashrate += value * 1000000;
+                        }
+                    }
+                }
                 
                 return `
                     <div class="stats-grid" style="${greyedStyle}">
@@ -640,6 +662,9 @@ async function loadSolopoolStats(dashboardType = 'all') {
                 `;
             }).join('');
         }
+        
+        // Store XMR pool hashrate globally for CPU dashboard Workers Online tile
+        window.solopoolXMRHashrate = xmrPoolHashrate;
         
         // Filter tiles based on dashboard type
         let tilesHTML = '';
