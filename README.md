@@ -66,7 +66,6 @@ Access at `http://localhost:8080`
 - [Agile Solo Strategy Setup](#-agile-solo-strategy-setup)
 - [Pool Management](#-pool-management)
 - [Notifications](#-notifications)
-- [Custom Dashboards](#-custom-dashboards)
 - [API Documentation](#-api-documentation)
 - [Development](#-development)
 - [Troubleshooting](#-troubleshooting)
@@ -135,35 +134,7 @@ The crown jewel—fully database-driven band configuration:
 
 ![Miner Management](screenshots/miner-dashboard.png)
 
-### 📈 Advanced Analytics
-
-**Make data-driven decisions:**
-
-- 📊 **Time-Series Charts** - Day/week/month views with zoom and pan
-- 🎯 **Health Scoring** - Composite score based on uptime, temperature, rejects, stability
-- 💰 **ROI Calculator** - Real-time profitability per miner (coin value - energy cost)
-- ⚡ **Energy Tracking** - Total kWh with per-miner breakdowns and cost analysis
-- 📉 **Reject Rate Monitoring** - Catch pool issues before they cost you blocks
-- 🎲 **Lottery Analytics** - Block-finding probability and near-miss tracking
-- 📥 **CSV Export** - Download all data for external analysis
-
-![Analytics Dashboard](screenshots/analytics.png)
-
-### 🎨 Modern UI/UX
-
-**Beautiful, accessible, and functional:**
-
-- 🌓 **Dark/Light Themes** - Automatic or manual toggle with localStorage persistence
-- 📱 **Progressive Web App** - Install on mobile/desktop with offline support
-- ♿ **WCAG AA Compliant** - 4.5:1 minimum contrast ratios, keyboard navigation
-- 🎨 **Custom Dashboards** - Drag-and-drop widget builder with 12+ widget types
-- 🔍 **Global Search** - Quick access to miners, pools, settings
-- 📊 **Live Updates** - WebSocket connections for real-time data
-- 🎯 **Responsive Design** - Works on phones, tablets, and desktops
-
-![UI Showcase](screenshots/ui-themes.png)
-
-### 🔔 Notifications & Alerts
+###  Notifications & Alerts
 
 **Stay informed without being overwhelmed:**
 
@@ -462,45 +433,6 @@ Notifications are rate-limited to prevent spam:
 
 ---
 
-## 🎨 Custom Dashboards
-
-Create personalized dashboards with 12+ widget types:
-
-### Available Widgets
-
-- 📊 **Total Hashrate** - Combined hashrate across all miners
-- 🌡️ **Average Temperature** - Mean temperature with min/max
-- ⚡ **Total Power** - Aggregate power consumption
-- 💰 **ROI Summary** - Total earnings vs energy cost
-- 🔥 **Health Score** - Average health across all miners
-- 📈 **Hashrate Chart** - Time-series line chart
-- 🌡️ **Temperature Chart** - Multi-miner temperature tracking
-- ⚡ **Energy Chart** - Power consumption over time
-- 🏊 **Pool Status** - Active pools with health indicators
-- 🎯 **Strategy Status** - Current band, target coin, next transition
-- 📊 **Miner List** - Compact miner overview
-- 💸 **Energy Pricing** - Current slot price with 24h forecast
-
-### Creating a Dashboard
-
-1. Navigate to **Dashboards → Create Dashboard**
-2. Enter dashboard name
-3. Select dashboard type (All/ASIC/GPU/Custom)
-4. Drag widgets from sidebar to grid
-5. Resize and reposition widgets
-6. Save dashboard
-
-### Dashboard Types
-
-- **All** - View all miners
-- **ASIC** - Filter to ASIC miners only (Avalon, Bitaxe, NerdQaxe)
-- **GPU** - Filter to GPU miners only
-- **Custom** - Manual miner selection
-
-![Custom Dashboard](screenshots/dashboard-builder.png)
-
----
-
 ## 📚 API Documentation
 
 Full REST API with OpenAPI/Swagger documentation at `/docs`
@@ -561,18 +493,6 @@ GET /api/energy/forecast
 
 # Update prices
 POST /api/energy/update-prices
-```
-
-**Analytics:**
-```bash
-# Get analytics
-GET /api/analytics/overview?period=day
-
-# Get miner health
-GET /api/analytics/health/{miner_id}
-
-# Export data
-GET /api/analytics/export?format=csv
 ```
 
 ### Authentication

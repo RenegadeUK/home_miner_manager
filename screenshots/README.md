@@ -9,14 +9,11 @@ The main README references the following screenshot files:
 1. **agile-solo-strategy.png** - Screenshot of the Agile Solo Strategy dashboard showing band configuration
 2. **energy-dashboard.png** - Energy pricing dashboard with 24-hour forecast and sparkline charts
 3. **band-editor.png** - Band configuration editor with dropdowns for coins and modes
-4. **pool-analytics.png** - Pool analytics showing Solopool/SupportXMR statistics
+4. **pool-analytics.png** - Pool analytics showing Solopool/SupportXMR statistics with sparkline charts
 5. **miner-dashboard.png** - Main miner management dashboard with telemetry
-6. **analytics.png** - Analytics dashboard with time-series charts
-7. **ui-themes.png** - Side-by-side comparison of dark and light themes
-8. **notifications.png** - Notifications configuration page
-9. **pool-health.png** - Pool health monitoring dashboard
-10. **dashboard-builder.png** - Custom dashboard builder with drag-and-drop widgets
-11. **band-config.png** - Close-up of band configuration interface
+6. **notifications.png** - Notifications configuration page
+7. **pool-health.png** - Pool health monitoring dashboard
+8. **band-config.png** - Close-up of band configuration interface
 
 ## How to Add Screenshots
 
