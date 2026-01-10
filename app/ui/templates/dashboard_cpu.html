@@ -12,16 +12,16 @@
     </div>
     <div class="stat-card">
         <div class="stat-label">Pool Hashrate</div>
-        <div class="stat-value" id="pool-hashrate-value">N/A</div>
+        <div class="stat-value" id="pool-hashrate-value">Unavailable</div>
         <div class="stat-subtext">
-            <div id="pool-efficiency">Efficiency: N/A</div>
+            <div id="pool-efficiency">Efficiency: Unavailable</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Cost (24h)</div>
         <div class="stat-value" id="total-cost-24h">£0.00</div>
         <div class="stat-subtext">
-            <div id="avg-price-per-kwh">Avg: N/A</div>
+            <div id="avg-price-per-kwh">Avg: Unavailable</div>
         </div>
     </div>
     <div class="stat-card">
@@ -80,7 +80,7 @@ async function loadDashboard() {
         if (stats.avg_price_per_kwh_pence && stats.avg_price_per_kwh_pence > 0) {
             avgPriceEl.textContent = `Avg: ${stats.avg_price_per_kwh_pence.toFixed(1)}p / kWh`;
         } else {
-            avgPriceEl.textContent = 'Avg: N/A';
+            avgPriceEl.textContent = 'Avg: Unavailable';
         }
         
         // Update earnings (24h) - will be populated after SupportXMR stats load
@@ -156,7 +156,7 @@ async function updatePoolHashrateTile() {
             if (totalPoolHashrate > 0) {
                 poolHashrateEl.textContent = totalPoolHashrate.toFixed(2) + ' KH/s';
             } else {
-                poolHashrateEl.textContent = 'N/A';
+                poolHashrateEl.textContent = 'Unavailable';
             }
             
             // Calculate efficiency (pool hashrate vs miner hashrate)
@@ -179,12 +179,12 @@ async function updatePoolHashrateTile() {
                 poolEfficiencyEl.textContent = `${efficiency.toFixed(0)}% of expected`;
                 poolEfficiencyEl.style.color = color;
             } else {
-                poolEfficiencyEl.textContent = 'Efficiency: N/A';
+                poolEfficiencyEl.textContent = 'Efficiency: Unavailable';
                 poolEfficiencyEl.style.color = '';
             }
         } else {
-            document.getElementById('pool-hashrate-value').textContent = 'N/A';
-            document.getElementById('pool-efficiency').textContent = 'Efficiency: N/A';
+            document.getElementById('pool-hashrate-value').textContent = 'Unavailable';
+            document.getElementById('pool-efficiency').textContent = 'Efficiency: Unavailable';
         }
     } catch (error) {
         console.error('Failed to update pool hashrate tile:', error);

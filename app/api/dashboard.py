@@ -20,6 +20,10 @@ def parse_coin_from_pool(pool_url: str) -> str:
     
     pool_url = pool_url.lower()
     
+    # Braiins Pool patterns
+    if "braiins" in pool_url or "slushpool" in pool_url:
+        return "BTC"
+    
     # Solopool.org patterns
     if "dgb" in pool_url:
         return "DGB"
@@ -62,68 +66,44 @@ async def get_best_share_24h(db: AsyncSession) -> dict:
             "time_ago_seconds": None
         }
     
-    # Find best share from telemetry data
-    # Strategy: Get latest telemetry per miner (best_session_diff/best_share is cumulative)
-    # Then check historical records only if timestamp is within 24h window
+    # Find best share from telemetry data within last 24h
+    # Strategy: Query ALL telemetry within 24h window and find maximum best_session_diff/best_share
     best_diff = 0
     best_timestamp = None
     best_miner_id = None
     best_coin = None
     
     for miner in asic_miners:
-        # Get LATEST telemetry for this miner (best shares are cumulative, so latest = best)
+        # Get ALL telemetry for this miner within last 24h
         result = await db.execute(
             select(Telemetry)
             .where(Telemetry.miner_id == miner.id)
+            .where(Telemetry.timestamp > cutoff_24h)
             .where(Telemetry.data.isnot(None))
             .order_by(Telemetry.timestamp.desc())
-            .limit(1)
         )
-        latest_telem = result.scalar_one_or_none()
+        telemetry_records = result.scalars().all()
         
-        if not latest_telem or not latest_telem.data:
+        if not telemetry_records:
             continue
         
-        # Extract best share based on miner type
-        current_best = None
-        if miner.miner_type in ['bitaxe', 'nerdqaxe']:
-            current_best = latest_telem.data.get('best_session_diff')
-        elif miner.miner_type == 'avalon_nano':
-            current_best = latest_telem.data.get('best_share')
-        
-        # Only count if the telemetry is from last 24h
-        # (This ensures we're only showing shares from active mining in last 24h)
-        if current_best and latest_telem.timestamp > cutoff_24h:
-            if current_best > best_diff:
+        # Find the maximum best share value within this 24h window
+        for telem in telemetry_records:
+            if not telem.data:
+                continue
+            
+            # Extract best share based on miner type
+            current_best = None
+            if miner.miner_type in ['bitaxe', 'nerdqaxe']:
+                current_best = telem.data.get('best_session_diff')
+            elif miner.miner_type == 'avalon_nano':
+                current_best = telem.data.get('best_share')
+            
+            # Track the highest share difficulty found
+            if current_best and current_best > best_diff:
                 best_diff = current_best
-                best_coin = parse_coin_from_pool(latest_telem.pool_in_use)
-                
-                # Find when this best share value first appeared by querying backwards
-                # This gives us the actual time the share was found
-                find_result = await db.execute(
-                    select(Telemetry)
-                    .where(Telemetry.miner_id == miner.id)
-                    .where(Telemetry.timestamp > cutoff_24h)
-                    .where(Telemetry.data.isnot(None))
-                    .order_by(Telemetry.timestamp.asc())
-                )
-                all_telemetry = find_result.scalars().all()
-                
-                # Find the first occurrence of this best share value
-                best_timestamp = latest_telem.timestamp  # fallback
-                for telem in all_telemetry:
-                    if not telem.data:
-                        continue
-                    telem_best = None
-                    if miner.miner_type in ['bitaxe', 'nerdqaxe']:
-                        telem_best = telem.data.get('best_session_diff')
-                    elif miner.miner_type == 'avalon_nano':
-                        telem_best = telem.data.get('best_share')
-                    
-                    if telem_best and telem_best >= current_best:
-                        best_timestamp = telem.timestamp
-                        break
-                
+                best_coin = parse_coin_from_pool(telem.pool_in_use)
+                best_timestamp = telem.timestamp
                 best_miner_id = miner.id
     
     # If no shares found

@@ -7,30 +7,30 @@
         <div class="stat-label">Workers Online</div>
         <div class="stat-value" id="workers-online">0</div>
         <div class="stat-subtext">
-            <div id="pool-hashrate">Pool: N/A</div>
-            <div id="pool-efficiency" style="font-size: 0.65rem;">⚡ N/A</div>
+            <div id="pool-hashrate">Pool: Unavailable</div>
+            <div id="pool-efficiency" style="font-size: 0.65rem;">⚡ Unavailable</div>
         </div>
     </div>
     <div class="stat-card" onclick="window.location.href='/miners'" style="cursor: pointer;">
         <div class="stat-label">Power Use</div>
         <div class="stat-value" id="total-power">0 W</div>
         <div class="stat-subtext">
-            <div id="power-efficiency">Efficiency: N/A</div>
+            <div id="power-efficiency">Efficiency: Unavailable</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Cost (24h)</div>
         <div class="stat-value" id="total-cost-24h">£0.00</div>
         <div class="stat-subtext">
-            <div id="avg-price-per-kwh">Avg: N/A</div>
+            <div id="avg-price-per-kwh">Avg: Unavailable</div>
         </div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Best Share (24h) <span id="best-share-coin-pill" class="coin-pill"></span></div>
         <div class="stat-value" id="best-share-percentage">0%</div>
         <div class="stat-subtext">
-            <div id="best-share-network-diff">Network diff: N/A</div>
-            <div id="best-share-time-ago" style="font-size: 0.65rem;">N/A</div>
+            <div id="best-share-network-diff">Network diff: Unavailable</div>
+            <div id="best-share-time-ago" style="font-size: 0.65rem;">Unavailable</div>
         </div>
     </div>
 </div>
@@ -77,7 +77,7 @@ async function loadDashboard() {
         if (stats.avg_efficiency_wth && stats.avg_efficiency_wth > 0) {
             efficiencyEl.textContent = `Efficiency: ${stats.avg_efficiency_wth.toFixed(1)} J/TH`;
         } else {
-            efficiencyEl.textContent = 'Efficiency: N/A';
+            efficiencyEl.textContent = 'Efficiency: Unavailable';
         }
         
         document.getElementById('total-cost-24h').textContent = 
@@ -88,7 +88,7 @@ async function loadDashboard() {
         if (stats.avg_price_per_kwh_pence && stats.avg_price_per_kwh_pence > 0) {
             avgPriceEl.textContent = `Avg: ${stats.avg_price_per_kwh_pence.toFixed(1)}p / kWh`;
         } else {
-            avgPriceEl.textContent = 'Avg: N/A';
+            avgPriceEl.textContent = 'Avg: Unavailable';
         }
         
         // Update best share (24h) - ASIC dashboard only
@@ -124,7 +124,7 @@ async function loadDashboard() {
                 }
                 networkDiff.textContent = `Network diff: ${diffFormatted}`;
             } else {
-                networkDiff.textContent = 'Network diff: N/A';
+                networkDiff.textContent = 'Network diff: Unavailable';
             }
             
             // Format time ago
@@ -147,7 +147,7 @@ async function loadDashboard() {
                 }
                 timeAgo.textContent = timeStr;
             } else {
-                timeAgo.textContent = 'N/A';
+                timeAgo.textContent = 'Unavailable';
             }
         }
 
