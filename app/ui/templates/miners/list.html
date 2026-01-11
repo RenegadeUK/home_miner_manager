@@ -299,11 +299,10 @@
                     <th>24h Cost</th>
                     <th>Mode</th>
                     <th id="table-best-diff-header">Best Diff</th>
-                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="miners-table-body">
-                <tr><td colspan="10" style="text-align: center; padding: 2rem;">Loading miners...</td></tr>
+                <tr><td colspan="9" style="text-align: center; padding: 2rem;">Loading miners...</td></tr>
             </tbody>
         </table>
     </div>
@@ -559,24 +558,11 @@ async function loadMiners() {
                     <td>£${m.cost_24h.toFixed(2)}</td>
                     <td>${m.current_mode || '—'}</td>
                     <td style="font-size: 0.875rem;">${formatBestDiff(m.best_diff, m.miner_type, m.firmware_version)}</td>
-                    <td>
-                        <div style="display: flex; gap: 0.25rem;">
-                            <button class="btn btn-secondary btn-sm" onclick="viewMiner(${m.id})" title="View">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-primary btn-sm" onclick="editMiner(${m.id})" title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteMiner(${m.id}, '${m.name}')" title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
                 </tr>
             `;
         }).join('');
         
-        tableBody.innerHTML = tableRows || '<tr><td colspan="10" style="text-align: center; padding: 2rem;">No miners configured</td></tr>';
+        tableBody.innerHTML = tableRows || '<tr><td colspan="9" style="text-align: center; padding: 2rem;">No miners configured</td></tr>';
         
         // Apply saved view preference
         setView(currentView);
@@ -584,7 +570,7 @@ async function loadMiners() {
     } catch (error) {
         console.error('Failed to load miners:', error);
         document.getElementById('miners-grid').innerHTML = '<p class="text-muted" style="grid-column: 1/-1; text-align: center;">Failed to load miners</p>';
-        document.getElementById('miners-table-body').innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem;">Failed to load miners</td></tr>';
+        document.getElementById('miners-table-body').innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">Failed to load miners</td></tr>';
     }
 }
 
