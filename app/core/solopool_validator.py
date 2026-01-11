@@ -9,9 +9,9 @@ cross-references with our HighDiffShare table.
 import logging
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
-from app.core.database import get_db
-from app.core.solopool import get_network_stats
+import sqlite3
 import requests
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -116,13 +116,19 @@ def check_block_in_database(
     Returns:
         Tuple of (share_id, was_block_solve) if found, None if not found
     """
-    db = next(get_db())
+    # Direct SQLite connection for sync operation
+    # Handle both Docker and local paths
+    db_path = os.getenv("DB_PATH", "/app/config/logs/high_diff_shares.db")
+    if not os.path.exists(db_path):
+        db_path = "config/logs/high_diff_shares.db"
+    
+    conn = sqlite3.connect(db_path)
     try:
         # Search for matching share within time window
         min_time = timestamp - tolerance_seconds
         max_time = timestamp + tolerance_seconds
         
-        cursor = db.execute("""
+        cursor = conn.execute("""
             SELECT id, was_block_solve
             FROM HighDiffShare
             WHERE miner_name = ?
@@ -139,7 +145,7 @@ def check_block_in_database(
         return None
         
     finally:
-        db.close()
+        conn.close()
 
 
 def validate_and_fix_blocks(coin: str, hours: int = 24, dry_run: bool = False) -> Dict:
@@ -225,8 +231,37 @@ def validate_and_fix_blocks(coin: str, hours: int = 24, dry_run: bool = False) -
                 # Fix it if not dry run
                 if not dry_run:
                     try:
-                        from app.api.leaderboard import mark_share_as_block
-                        mark_share_as_block(share_id)
+                        # Direct database update
+                        db_path = os.getenv("DB_PATH", "/app/config/logs/high_diff_shares.db")
+                        if not os.path.exists(db_path):
+                            db_path = "config/logs/high_diff_shares.db"
+                        
+                        conn = sqlite3.connect(db_path)
+                        try:
+                            # Mark as block in HighDiffShare
+                            conn.execute("""
+                                UPDATE HighDiffShare 
+                                SET was_block_solve = 1 
+                                WHERE id = ?
+                            """, (share_id,))
+                            
+                            # Add to BlockFound table if not exists
+                            conn.execute("""
+                                INSERT OR IGNORE INTO BlockFound 
+                                (miner_name, miner_type, coin, pool_name, difficulty, 
+                                 network_difficulty, hashrate, hashrate_unit, 
+                                 miner_mode, timestamp)
+                                SELECT miner_name, miner_type, coin, pool_name, 
+                                       share_difficulty, share_difficulty,
+                                       hashrate, hashrate_unit, miner_mode, timestamp
+                                FROM HighDiffShare
+                                WHERE id = ?
+                            """, (share_id,))
+                            
+                            conn.commit()
+                        finally:
+                            conn.close()
+                        
                         results['fixed'].append({
                             'share_id': share_id,
                             'miner': miner_name,
