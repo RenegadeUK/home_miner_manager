@@ -141,6 +141,32 @@ class CoinHunterResponse(BaseModel):
     scoring: dict  # {"BTC": 100, "BCH": 10, "DGB": 1}
 
 
+@router.delete("/debug/blocks-found/{block_id}")
+async def delete_blocks_found_entry(block_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Delete a block from blocks_found table (for removing duplicates)
+    """
+    from core.database import BlockFound
+    from sqlalchemy import select
+    
+    result = await db.execute(
+        select(BlockFound).where(BlockFound.id == block_id)
+    )
+    block = result.scalar_one_or_none()
+    
+    if not block:
+        return {"error": f"Block {block_id} not found"}, 404
+    
+    await db.delete(block)
+    await db.commit()
+    
+    return {
+        "message": f"Deleted block {block_id}",
+        "miner": block.miner_name,
+        "difficulty": block.difficulty
+    }
+
+
 @router.get("/debug/blocks-found")
 async def debug_blocks_found(db: AsyncSession = Depends(get_db)):
     """

@@ -266,18 +266,30 @@ def validate_and_fix_blocks(coin: str, hours: int = 24, dry_run: bool = False) -
                                 WHERE id = ?
                             """, (actual_network_diff, share_id))
                             
-                            # Add to BlockFound table if not exists (use actual network diff)
-                            conn.execute("""
-                                INSERT OR IGNORE INTO blocks_found 
-                                (miner_id, miner_name, miner_type, coin, pool_name, difficulty, 
-                                 network_difficulty, hashrate, hashrate_unit, 
-                                 miner_mode, timestamp)
-                                SELECT miner_id, miner_name, miner_type, coin, pool_name, 
-                                       difficulty, ?,
-                                       hashrate, hashrate_unit, miner_mode, timestamp
-                                FROM high_diff_shares
-                                WHERE id = ?
-                            """, (actual_network_diff, share_id))
+                            # Check if block already exists in blocks_found (by miner_id, coin, difficulty, timestamp)
+                            cursor = conn.execute("""
+                                SELECT COUNT(*) FROM blocks_found
+                                WHERE miner_id = ?
+                                  AND coin = ?
+                                  AND difficulty = (SELECT difficulty FROM high_diff_shares WHERE id = ?)
+                                  AND datetime(timestamp) = datetime((SELECT timestamp FROM high_diff_shares WHERE id = ?))
+                            """, (miner_id, coin, share_id, share_id))
+                            
+                            exists = cursor.fetchone()[0] > 0
+                            
+                            if not exists:
+                                # Add to blocks_found table (use actual network diff)
+                                conn.execute("""
+                                    INSERT INTO blocks_found 
+                                    (miner_id, miner_name, miner_type, coin, pool_name, difficulty, 
+                                     network_difficulty, hashrate, hashrate_unit, 
+                                     miner_mode, timestamp)
+                                    SELECT miner_id, miner_name, miner_type, coin, pool_name, 
+                                           difficulty, ?,
+                                           hashrate, hashrate_unit, miner_mode, timestamp
+                                    FROM high_diff_shares
+                                    WHERE id = ?
+                                """, (actual_network_diff, share_id))
                             
                             conn.commit()
                         finally:
