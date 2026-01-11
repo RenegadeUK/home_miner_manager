@@ -711,7 +711,9 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
 
 @router.get("/solopool/charts")
 async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
-    """Get Solopool chart data for sparkline visualization for all coins"""
+    """Get Solopool chart data for sparkline visualization for all coins (24-hour rolling window)"""
+    from datetime import datetime, timedelta
+    
     # Check if Solopool integration is enabled
     if not app_config.get("solopool_enabled", False):
         return {"enabled": False, "charts": {}}
@@ -735,9 +737,12 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
         elif SolopoolService.is_solopool_xmr_pool(pool.url, pool.port):
             xmr_pools[pool.url] = pool
     
+    # Calculate 24-hour cutoff timestamp
+    cutoff_timestamp = int((datetime.utcnow() - timedelta(hours=24)).timestamp())
+    
     charts_data = {}
     
-    # Fetch DGB charts
+    # Fetch DGB charts (24-hour rolling window)
     if dgb_pools:
         first_dgb_pool = next(iter(dgb_pools.values()))
         username = SolopoolService.extract_username(first_dgb_pool.user)
@@ -745,9 +750,10 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
             dgb_stats = await SolopoolService.get_dgb_account_stats(username, use_cache=False)
             if dgb_stats and "charts" in dgb_stats:
                 charts = dgb_stats.get("charts", [])
-                charts_data["dgb"] = charts[-48:] if len(charts) > 48 else charts
+                # Filter to only last 24 hours based on timestamp
+                charts_data["dgb"] = [c for c in charts if c.get("x", 0) >= cutoff_timestamp]
     
-    # Fetch BCH charts
+    # Fetch BCH charts (24-hour rolling window)
     if bch_pools:
         first_bch_pool = next(iter(bch_pools.values()))
         username = SolopoolService.extract_username(first_bch_pool.user)
@@ -755,9 +761,10 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
             bch_stats = await SolopoolService.get_bch_account_stats(username, use_cache=False)
             if bch_stats and "charts" in bch_stats:
                 charts = bch_stats.get("charts", [])
-                charts_data["bch"] = charts[-48:] if len(charts) > 48 else charts
+                # Filter to only last 24 hours based on timestamp
+                charts_data["bch"] = [c for c in charts if c.get("x", 0) >= cutoff_timestamp]
     
-    # Fetch BTC charts
+    # Fetch BTC charts (24-hour rolling window)
     if btc_pools:
         first_btc_pool = next(iter(btc_pools.values()))
         username = SolopoolService.extract_username(first_btc_pool.user)
@@ -765,9 +772,10 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
             btc_stats = await SolopoolService.get_btc_account_stats(username, use_cache=False)
             if btc_stats and "charts" in btc_stats:
                 charts = btc_stats.get("charts", [])
-                charts_data["btc"] = charts[-48:] if len(charts) > 48 else charts
+                # Filter to only last 24 hours based on timestamp
+                charts_data["btc"] = [c for c in charts if c.get("x", 0) >= cutoff_timestamp]
     
-    # Fetch XMR charts
+    # Fetch XMR charts (24-hour rolling window)
     if xmr_pools:
         first_xmr_pool = next(iter(xmr_pools.values()))
         username = SolopoolService.extract_username(first_xmr_pool.user)
@@ -775,7 +783,8 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
             xmr_stats = await SolopoolService.get_xmr_account_stats(username, use_cache=False)
             if xmr_stats and "charts" in xmr_stats:
                 charts = xmr_stats.get("charts", [])
-                charts_data["xmr"] = charts[-48:] if len(charts) > 48 else charts
+                # Filter to only last 24 hours based on timestamp
+                charts_data["xmr"] = [c for c in charts if c.get("x", 0) >= cutoff_timestamp]
     
     return {"enabled": True, "charts": charts_data}
 

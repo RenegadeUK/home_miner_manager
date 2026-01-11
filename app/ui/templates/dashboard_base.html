@@ -79,8 +79,22 @@
 #solopool-stats .stat-value { font-size: 1rem !important; line-height: 1.3 !important; }
 
 /* Agile Solo Strategy pool styling */
-.strategy-pool-active {
-    border: 3px solid #22c55e !important;
+.strategy-pool-active-dgb {
+    border: 3px solid rgba(59, 130, 246, 0.9) !important; /* Blue */
+    border-radius: 8px;
+    padding: 4px !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.strategy-pool-active-bch {
+    border: 3px solid rgba(34, 197, 94, 0.9) !important; /* Green */
+    border-radius: 8px;
+    padding: 4px !important;
+    margin-bottom: 0.5rem !important;
+}
+
+.strategy-pool-active-btc {
+    border: 3px solid rgba(234, 179, 8, 0.9) !important; /* Gold */
     border-radius: 8px;
     padding: 4px !important;
     margin-bottom: 0.5rem !important;
@@ -463,13 +477,13 @@ async function loadSolopoolStats(dashboardType = 'all') {
             
             // Strategy pool styling
             const tileClass = m.is_strategy_pool ? 
-                (m.is_active_target ? 'strategy-pool-active' : 'strategy-pool-inactive') : '';
+                (m.is_active_target ? 'strategy-pool-active-bch' : 'strategy-pool-inactive') : '';
             const gridClass = tileClass ? `stats-grid ${tileClass}` : 'stats-grid';
             
             return `
                 <div class="${gridClass}">
                     <div class="stat-card" style="position: relative; overflow: hidden;">
-                        <canvas id="bch-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.15;"></canvas>
+                        <canvas id="bch-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.25;"></canvas>
                         <div style="position: relative; z-index: 1;">
                             <div class="stat-label">${bchLogo}Workers Online</div>
                             <div class="stat-value" style="font-size: 1.5rem;">
@@ -516,13 +530,13 @@ async function loadSolopoolStats(dashboardType = 'all') {
             
             // Strategy pool styling
             const tileClass = m.is_strategy_pool ? 
-                (m.is_active_target ? 'strategy-pool-active' : 'strategy-pool-inactive') : '';
+                (m.is_active_target ? 'strategy-pool-active-dgb' : 'strategy-pool-inactive') : '';
             const gridClass = tileClass ? `stats-grid ${tileClass}` : 'stats-grid';
             
             return `
                 <div class="${gridClass}">
                     <div class="stat-card" style="position: relative; overflow: hidden;">
-                        <canvas id="dgb-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.15;"></canvas>
+                        <canvas id="dgb-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.25;"></canvas>
                         <div style="position: relative; z-index: 1;">
                             <div class="stat-label">${dgbLogo}Workers Online</div>
                             <div class="stat-value" style="font-size: 1.5rem;">
@@ -569,13 +583,13 @@ async function loadSolopoolStats(dashboardType = 'all') {
             
             // Strategy pool styling
             const tileClass = m.is_strategy_pool ? 
-                (m.is_active_target ? 'strategy-pool-active' : 'strategy-pool-inactive') : '';
+                (m.is_active_target ? 'strategy-pool-active-btc' : 'strategy-pool-inactive') : '';
             const gridClass = tileClass ? `stats-grid ${tileClass}` : 'stats-grid';
             
             return `
                 <div class="${gridClass}">
                     <div class="stat-card" style="position: relative; overflow: hidden;">
-                        <canvas id="btc-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.15;"></canvas>
+                        <canvas id="btc-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.25;"></canvas>
                         <div style="position: relative; z-index: 1;">
                             <div class="stat-label">${btcLogo}Workers Online</div>
                             <div class="stat-value" style="font-size: 1.5rem;">
@@ -643,7 +657,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
                 return `
                     <div class="stats-grid" style="${greyedStyle}">
                         <div class="stat-card" style="position: relative; overflow: hidden;">
-                            <canvas id="xmr-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.15;"></canvas>
+                            <canvas id="xmr-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.25;"></canvas>
                             <div style="position: relative; z-index: 1;">
                                 <div class="stat-label">${xmrLogo}Workers Online</div>
                                 <div class="stat-value" style="font-size: 1.5rem;">
@@ -709,42 +723,56 @@ async function loadPoolHashrateChartsForAllPools(dgbMiners, bchMiners, btcMiners
         const response = await fetch('/api/settings/solopool/charts');
         const data = await response.json();
         
-        if (!data.enabled || !data.charts) return;
+        if (!data.enabled || !data.charts) {
+            console.log('Solopool charts disabled or no data');
+            return;
+        }
         
-        // Wait for DOM to be ready
+        console.log('Loading pool charts:', {
+            dgb: data.charts.dgb?.length || 0,
+            bch: data.charts.bch?.length || 0,
+            btc: data.charts.btc?.length || 0,
+            xmr: data.charts.xmr?.length || 0
+        });
+        
+        // Wait for DOM to be fully rendered
         setTimeout(() => {
             // Draw DGB charts
             if (data.charts.dgb && dgbMiners.length > 0) {
+                console.log(`Drawing ${dgbMiners.length} DGB charts with ${data.charts.dgb.length} data points`);
                 dgbMiners.forEach(m => {
                     const canvasId = `dgb-pool-chart-${m.username}`;
-                    drawPoolHashrateChart(canvasId, data.charts.dgb);
+                    drawPoolHashrateChart(canvasId, data.charts.dgb, 'dgb');
                 });
             }
             
             // Draw BCH charts
             if (data.charts.bch && bchMiners.length > 0) {
+                console.log(`Drawing ${bchMiners.length} BCH charts with ${data.charts.bch.length} data points`);
                 bchMiners.forEach(m => {
                     const canvasId = `bch-pool-chart-${m.username}`;
-                    drawPoolHashrateChart(canvasId, data.charts.bch);
+                    drawPoolHashrateChart(canvasId, data.charts.bch, 'bch');
                 });
             }
             
             // Draw BTC charts
             if (data.charts.btc && btcMiners.length > 0) {
+                console.log(`Drawing ${btcMiners.length} BTC charts with ${data.charts.btc.length} data points`);
                 btcMiners.forEach(m => {
                     const canvasId = `btc-pool-chart-${m.username}`;
-                    drawPoolHashrateChart(canvasId, data.charts.btc);
+                    drawPoolHashrateChart(canvasId, data.charts.btc, 'btc');
                 });
             }
             
             // Draw XMR charts
             if (data.charts.xmr && xmrMiners.length > 0) {
+                console.log(`Drawing ${xmrMiners.length} XMR charts with ${data.charts.xmr.length} data points`);
                 xmrMiners.forEach(m => {
                     const canvasId = `xmr-pool-chart-${m.username}`;
-                    drawPoolHashrateChart(canvasId, data.charts.xmr);
+                    drawPoolHashrateChart(canvasId, data.charts.xmr, 'xmr');
                 });
             }
-        }, 100);
+        }, 300);
     } catch (error) {
         console.error('Failed to load pool hashrate charts:', error);
     }
@@ -808,36 +836,109 @@ function updatePoolEfficiency(minerHashrateGhs) {
 }
 
 // Draw sparkline chart for pool hashrate
-function drawPoolHashrateChart(canvasId, chartData) {
+function drawPoolHashrateChart(canvasId, chartData, coin = 'dgb') {
     const canvas = document.getElementById(canvasId);
-    if (!canvas || !chartData || chartData.length === 0) return;
+    if (!canvas) {
+        console.warn(`Canvas not found: ${canvasId}`);
+        return;
+    }
+    
+    if (!chartData || chartData.length === 0) {
+        console.warn(`No chart data for ${canvasId}`);
+        return;
+    }
+    
+    // Keep all data including zeros to show full timeline (offline periods)
+    const validData = chartData.filter(d => d && d.y !== null && d.y !== undefined);
+    if (validData.length === 0) {
+        console.warn(`No valid data points for ${canvasId}`);
+        return;
+    }
+    
+    // Sort by timestamp to ensure chronological order (oldest to newest, left to right)
+    validData.sort((a, b) => (a.x || 0) - (b.x || 0));
+    
+    // Coin-specific colors
+    const coinColors = {
+        'dgb': { fill: 'rgba(59, 130, 246, 0.15)', stroke: 'rgba(59, 130, 246, 0.8)' },  // Blue
+        'bch': { fill: 'rgba(34, 197, 94, 0.15)', stroke: 'rgba(34, 197, 94, 0.8)' },    // Green
+        'btc': { fill: 'rgba(234, 179, 8, 0.15)', stroke: 'rgba(234, 179, 8, 0.8)' },    // Gold
+        'xmr': { fill: 'rgba(249, 115, 22, 0.15)', stroke: 'rgba(249, 115, 22, 0.8)' }   // Orange
+    };
+    
+    const colors = coinColors[coin.toLowerCase()] || coinColors['dgb'];
     
     const ctx = canvas.getContext('2d');
-    const rect = canvas.parentElement.getBoundingClientRect();
+    const parent = canvas.parentElement;
     
-    // Set canvas size to match container
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+    // Force reflow to get accurate dimensions
+    parent.offsetHeight;
     
-    // Extract data points
-    const values = chartData.map(d => d.y);
-    const maxValue = Math.max(...values);
-    const minValue = Math.min(...values);
+    const rect = parent.getBoundingClientRect();
+    
+    // Ensure minimum dimensions
+    const width = Math.max(rect.width, 100);
+    const height = Math.max(rect.height, 50);
+    
+    // Set canvas size with device pixel ratio for crisp rendering
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+    
+    // Extract data points and calculate range
+    const values = validData.map(d => d.y);
+    const nonZeroValues = values.filter(v => v > 0);
+    
+    // Calculate max/min from non-zero values for better scaling
+    // But keep zeros in the data to show offline periods
+    const maxValue = nonZeroValues.length > 0 ? Math.max(...nonZeroValues) : Math.max(...values);
+    const minValue = 0; // Always start from 0 to show offline periods at bottom
     const range = maxValue - minValue;
     
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Use a percentage-based range for better visualization
+    const baseValue = minValue;
+    const effectiveRange = range > 0 ? range : maxValue * 0.1;
     
-    // Draw line
+    console.log(`Drawing chart ${canvasId}: ${validData.length} points, range: ${minValue.toFixed(0)}-${maxValue.toFixed(0)}`);
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Fill area under the line (more visible)
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)'; // Blue
+    ctx.fillStyle = colors.fill;
+    
+    validData.forEach((point, i) => {
+        const x = (i / (validData.length - 1)) * width;
+        const normalizedY = effectiveRange > 0 ? (point.y - baseValue) / effectiveRange : 0.5;
+        const y = height - (normalizedY * height * 0.9) - (height * 0.05);
+        
+        if (i === 0) {
+            ctx.moveTo(x, height);
+            ctx.lineTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    });
+    
+    ctx.lineTo(width, height);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Draw line (more visible)
+    ctx.beginPath();
+    ctx.strokeStyle = colors.stroke;
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
     
-    chartData.forEach((point, i) => {
-        const x = (i / (chartData.length - 1)) * canvas.width;
-        const normalizedY = range > 0 ? (point.y - minValue) / range : 0.5;
-        const y = canvas.height - (normalizedY * canvas.height * 0.8) - (canvas.height * 0.1); // 10% padding top/bottom
+    validData.forEach((point, i) => {
+        const x = (i / (validData.length - 1)) * width;
+        const normalizedY = effectiveRange > 0 ? (point.y - baseValue) / effectiveRange : 0.5;
+        const y = height - (normalizedY * height * 0.9) - (height * 0.05);
         
         if (i === 0) {
             ctx.moveTo(x, y);
