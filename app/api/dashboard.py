@@ -41,22 +41,22 @@ def parse_coin_from_pool(pool_url: str) -> str:
 async def get_best_share_24h(db: AsyncSession) -> dict:
     """
     Get best difficulty share in last 24 hours for ASIC dashboard
-    Queries actual telemetry data to find the true best share, not just leaderboard entries
+    Uses HighDiffShare table which tracks when shares were actually found
     """
     from core.high_diff_tracker import get_network_difficulty
     
-    # Query telemetry for ASIC miners in last 24h
+    # Query HighDiffShare table for actual share finds in last 24h
     cutoff_24h = datetime.utcnow() - timedelta(hours=24)
     
-    # Get all ASIC miners
     result = await db.execute(
-        select(Miner)
-        .where(Miner.miner_type.in_(['bitaxe', 'avalon_nano', 'nerdqaxe']))
-        .where(Miner.enabled == True)
+        select(HighDiffShare)
+        .where(HighDiffShare.timestamp > cutoff_24h)
+        .order_by(HighDiffShare.difficulty.desc())
+        .limit(1)
     )
-    asic_miners = result.scalars().all()
+    best_share = result.scalar_one_or_none()
     
-    if not asic_miners:
+    if not best_share:
         return {
             "difficulty": 0,
             "coin": None,
@@ -66,76 +66,25 @@ async def get_best_share_24h(db: AsyncSession) -> dict:
             "time_ago_seconds": None
         }
     
-    # Find best share from telemetry data within last 24h
-    # Strategy: Query ALL telemetry within 24h window and find maximum best_session_diff/best_share
-    best_diff = 0
-    best_timestamp = None
-    best_miner_id = None
-    best_coin = None
-    
-    for miner in asic_miners:
-        # Get ALL telemetry for this miner within last 24h
-        result = await db.execute(
-            select(Telemetry)
-            .where(Telemetry.miner_id == miner.id)
-            .where(Telemetry.timestamp > cutoff_24h)
-            .where(Telemetry.data.isnot(None))
-            .order_by(Telemetry.timestamp.desc())
-        )
-        telemetry_records = result.scalars().all()
-        
-        if not telemetry_records:
-            continue
-        
-        # Find the maximum best share value within this 24h window
-        for telem in telemetry_records:
-            if not telem.data:
-                continue
-            
-            # Extract best share based on miner type
-            current_best = None
-            if miner.miner_type in ['bitaxe', 'nerdqaxe']:
-                current_best = telem.data.get('best_session_diff')
-            elif miner.miner_type == 'avalon_nano':
-                current_best = telem.data.get('best_share')
-            
-            # Track the highest share difficulty found
-            if current_best and current_best > best_diff:
-                best_diff = current_best
-                best_coin = parse_coin_from_pool(telem.pool_in_use)
-                best_timestamp = telem.timestamp
-                best_miner_id = miner.id
-    
-    # If no shares found
-    if best_diff == 0:
-        return {
-            "difficulty": 0,
-            "coin": None,
-            "network_difficulty": None,
-            "percentage": 0.0,
-            "timestamp": None,
-            "time_ago_seconds": None
-        }
-    
-    # Get current network difficulty for the active coin
-    network_diff = None
-    if best_coin:
-        network_diff = await get_network_difficulty(best_coin)
+    # Get current network difficulty for the coin (use cached value if recent)
+    network_diff = best_share.network_difficulty
+    if not network_diff or network_diff == 0:
+        network_diff = await get_network_difficulty(best_share.coin)
     
     # Calculate percentage
     percentage = 0.0
     if network_diff and network_diff > 0:
-        percentage = (best_diff / network_diff) * 100
+        percentage = (best_share.difficulty / network_diff) * 100
     
     # Calculate time ago
-    time_ago_seconds = int((datetime.utcnow() - best_timestamp).total_seconds())
+    time_ago_seconds = int((datetime.utcnow() - best_share.timestamp).total_seconds())
     
     return {
-        "difficulty": best_diff,
-        "coin": best_coin,
+        "difficulty": best_share.difficulty,
+        "coin": best_share.coin,
         "network_difficulty": network_diff,
         "percentage": round(percentage, 2),
-        "timestamp": best_timestamp.isoformat(),
+        "timestamp": best_share.timestamp.isoformat(),
         "time_ago_seconds": time_ago_seconds
     }
 
