@@ -117,10 +117,10 @@ def check_block_in_database(
         Tuple of (share_id, was_block_solve) if found, None if not found
     """
     # Direct SQLite connection for sync operation
-    # Handle both Docker and local paths
-    db_path = os.getenv("DB_PATH", "/app/config/logs/high_diff_shares.db")
+    # Use the main database path
+    db_path = os.getenv("DB_PATH", "/config/data.db")
     if not os.path.exists(db_path):
-        db_path = "config/logs/high_diff_shares.db"
+        db_path = "config/data.db"
     
     conn = sqlite3.connect(db_path)
     try:
@@ -232,9 +232,9 @@ def validate_and_fix_blocks(coin: str, hours: int = 24, dry_run: bool = False) -
                 if not dry_run:
                     try:
                         # Direct database update
-                        db_path = os.getenv("DB_PATH", "/app/config/logs/high_diff_shares.db")
+                        db_path = os.getenv("DB_PATH", "/config/data.db")
                         if not os.path.exists(db_path):
-                            db_path = "config/logs/high_diff_shares.db"
+                            db_path = "config/data.db"
                         
                         conn = sqlite3.connect(db_path)
                         try:
