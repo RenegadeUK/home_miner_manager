@@ -879,6 +879,16 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         # Determine if miner is offline (no telemetry in last 5 minutes)
         is_offline = latest_telemetry is None
         
+        # Get best session diff/share for tile display
+        best_diff = None
+        if latest_telemetry and latest_telemetry.data:
+            if miner.miner_type in ["bitaxe", "nerdqaxe"]:
+                best_diff = latest_telemetry.data.get("best_session_diff")
+            elif miner.miner_type in ["avalon_nano"]:
+                best_diff = latest_telemetry.data.get("best_share")
+            elif miner.miner_type == "nmminer":
+                best_diff = latest_telemetry.data.get("best_share_diff")
+        
         miners_data.append({
             "id": miner.id,
             "name": miner.name,
@@ -886,6 +896,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
             "enabled": miner.enabled,
             "current_mode": miner.current_mode,
             "firmware_version": miner.firmware_version,
+            "best_diff": best_diff,
             "hashrate": hashrate,
             "hashrate_unit": hashrate_unit,
             "power": power,

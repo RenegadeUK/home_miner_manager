@@ -257,6 +257,45 @@ function getMinerIcon(type) {
     return icons[type] || '⛏️';
 }
 
+function getBestDiffLabel(minerType) {
+    const type = minerType.toLowerCase();
+    if (type.includes('xmrig')) {
+        return 'Firmware';
+    } else if (type === 'avalon_nano') {
+        return 'Best Share';
+    } else if (type === 'nmminer') {
+        return 'Best Diff';
+    } else {
+        // bitaxe, nerdqaxe
+        return 'Best Session';
+    }
+}
+
+function formatBestDiff(bestDiff, minerType, firmwareVersion) {
+    const type = minerType.toLowerCase();
+    
+    // XMRig shows firmware
+    if (type.includes('xmrig')) {
+        return firmwareVersion || '—';
+    }
+    
+    // No best diff available
+    if (!bestDiff) {
+        return '—';
+    }
+    
+    // Format large numbers with appropriate suffixes
+    if (bestDiff >= 1000000000) {
+        return (bestDiff / 1000000000).toFixed(2) + 'B';
+    } else if (bestDiff >= 1000000) {
+        return (bestDiff / 1000000).toFixed(2) + 'M';
+    } else if (bestDiff >= 1000) {
+        return (bestDiff / 1000).toFixed(2) + 'K';
+    } else {
+        return bestDiff.toFixed(0);
+    }
+}
+
 async function loadMiners() {
     try {
         const response = await fetch('/api/dashboard/all');
@@ -338,8 +377,8 @@ async function loadMiners() {
                         <div class="miner-tile-value" style="font-size: 0.875rem;">${m.current_mode || '—'}</div>
                     </div>
                     <div class="miner-tile-stat">
-                        <div class="miner-tile-label">Firmware</div>
-                        <div class="miner-tile-value" style="font-size: 0.75rem;">${m.firmware_version || '—'}</div>
+                        <div class="miner-tile-label">${getBestDiffLabel(m.miner_type)}</div>
+                        <div class="miner-tile-value" style="font-size: 0.75rem;">${formatBestDiff(m.best_diff, m.miner_type, m.firmware_version)}</div>
                     </div>
                 </div>
                 <div class="miner-tile-actions">
