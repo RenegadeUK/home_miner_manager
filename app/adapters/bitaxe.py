@@ -2,8 +2,11 @@
 Bitaxe 601 adapter using REST API
 """
 import aiohttp
+import logging
 from typing import Dict, List, Optional
 from adapters.base import MinerAdapter, MinerTelemetry
+
+logger = logging.getLogger(__name__)
 
 
 class BitaxeAdapter(MinerAdapter):
@@ -89,7 +92,7 @@ class BitaxeAdapter(MinerAdapter):
     async def set_mode(self, mode: str) -> bool:
         """Set operating mode"""
         if mode not in self.MODES:
-            print(f"❌ Invalid mode: {mode}. Valid modes: {self.MODES}")
+            logger.error(f"Invalid mode for {self.miner_name}: {mode}. Valid modes: {self.MODES}")
             return False
         
         try:
@@ -109,9 +112,15 @@ class BitaxeAdapter(MinerAdapter):
                     json=config,
                     timeout=5
                 ) as response:
-                    return response.status in [200, 204]
+                    if response.status in [200, 204]:
+                        logger.info(f"Successfully set {self.miner_name} to mode {mode}")
+                        return True
+                    else:
+                        response_text = await response.text()
+                        logger.error(f"Failed to set mode on {self.miner_name}: HTTP {response.status} - {response_text}")
+                        return False
         except Exception as e:
-            print(f"❌ Failed to set mode on Bitaxe: {e}")
+            logger.error(f"Exception setting mode on {self.miner_name}: {e}")
             return False
     
     async def get_available_modes(self) -> List[str]:

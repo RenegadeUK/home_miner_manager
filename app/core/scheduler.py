@@ -399,7 +399,7 @@ class SchedulerService:
     
     async def _collect_telemetry(self):
         """Collect telemetry from all miners"""
-        from core.database import AsyncSessionLocal, Miner, Telemetry, Event, Pool
+        from core.database import AsyncSessionLocal, Miner, Telemetry, Event, Pool, MinerStrategy
         from adapters import create_adapter
         from sqlalchemy import select, String
         
@@ -512,11 +512,23 @@ class SchedulerService:
                                         )
                             
                             # Update miner's current_mode if detected in telemetry
+                            # BUT: Skip if miner is enrolled in Agile Solo Strategy (strategy owns mode)
                             if telemetry.extra_data and "current_mode" in telemetry.extra_data:
                                 detected_mode = telemetry.extra_data["current_mode"]
                                 if detected_mode and miner.current_mode != detected_mode:
-                                    miner.current_mode = detected_mode
-                                    print(f"📝 Updated {miner.name} mode to: {detected_mode}")
+                                    # Check if miner is enrolled in strategy
+                                    strategy_result = await db.execute(
+                                        select(MinerStrategy)
+                                        .where(MinerStrategy.miner_id == miner.id)
+                                        .where(MinerStrategy.strategy_enabled == True)
+                                    )
+                                    enrolled_in_strategy = strategy_result.scalar_one_or_none()
+                                    
+                                    if enrolled_in_strategy:
+                                        print(f"⚠️ {miner.name} enrolled in strategy - ignoring telemetry mode {detected_mode} (keeping {miner.current_mode})")
+                                    else:
+                                        miner.current_mode = detected_mode
+                                        print(f"📝 Updated {miner.name} mode to: {detected_mode}")
                             
                             # Update firmware version if detected
                             if telemetry.extra_data:
