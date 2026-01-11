@@ -174,6 +174,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._validate_solopool_blocks,
+            IntervalTrigger(hours=1),
+            id="validate_solopool_blocks",
+            name="Validate blocks against Solopool API"
+        )
+        
+        self.scheduler.add_job(
             self._reconcile_strategy_miners,
             IntervalTrigger(minutes=5),
             id="reconcile_strategy_miners",
@@ -2072,6 +2079,37 @@ class SchedulerService:
                 await cleanup_old_shares(db, days=180)
         except Exception as e:
             logger.error(f"Failed to purge old high diff shares: {e}", exc_info=True)
+    
+    async def _validate_solopool_blocks(self):
+        """Validate our block records against Solopool's confirmed blocks (hourly)"""
+        from core.solopool_validator import run_validation_for_all_coins
+        
+        try:
+            logger.info("🔍 Starting hourly Solopool block validation...")
+            results = run_validation_for_all_coins(hours=24, dry_run=False)
+            
+            # Log summary
+            for coin, result in results.items():
+                if result['checked'] > 0:
+                    logger.info(
+                        f"✓ {coin}: {result['checked']} blocks checked, "
+                        f"{result['matched']} matched, "
+                        f"{len(result['missing'])} discrepancies, "
+                        f"{len(result['fixed'])} fixed"
+                    )
+                    
+                    if result['fixed']:
+                        for fix in result['fixed']:
+                            logger.info(f"  ✓ Fixed share {fix['share_id']}: {fix['miner']} block {fix['height']}")
+                    
+                    if result['errors']:
+                        for error in result['errors']:
+                            logger.error(f"  ✗ {error}")
+            
+            logger.info("✓ Solopool validation complete")
+            
+        except Exception as e:
+            logger.error(f"Failed to validate Solopool blocks: {e}", exc_info=True)
 
 
 scheduler = SchedulerService()
