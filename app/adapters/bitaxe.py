@@ -91,6 +91,10 @@ class BitaxeAdapter(MinerAdapter):
     
     async def set_mode(self, mode: str) -> bool:
         """Set operating mode"""
+        # Accept 'std' as alias for 'standard' (backward compatibility)
+        if mode == "std":
+            mode = "standard"
+        
         if mode not in self.MODES:
             logger.error(f"Invalid mode for {self.miner_name}: {mode}. Valid modes: {self.MODES}")
             return False

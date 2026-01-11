@@ -17,8 +17,8 @@ VALID_COINS = ["OFF", "DGB", "BCH", "BTC"]
 
 # Valid modes per miner type
 VALID_MODES = {
-    "bitaxe": ["managed_externally", "eco", "std", "turbo", "oc"],
-    "nerdqaxe": ["managed_externally", "eco", "std", "turbo", "oc"],
+    "bitaxe": ["managed_externally", "eco", "standard", "turbo", "oc"],
+    "nerdqaxe": ["managed_externally", "eco", "standard", "turbo", "oc"],
     "avalon_nano": ["managed_externally", "low", "med", "high"],
     "nmminer": ["fixed"]  # NMMiner has no configurable modes
 }
@@ -50,8 +50,8 @@ DEFAULT_BANDS = [
         "min_price": 7.0,
         "max_price": 12.0,
         "target_coin": "DGB",
-        "bitaxe_mode": "std",
-        "nerdqaxe_mode": "std",
+        "bitaxe_mode": "standard",
+        "nerdqaxe_mode": "standard",
         "avalon_nano_mode": "med",
         "description": "7-12p - Baseline probability"
     },
@@ -61,7 +61,7 @@ DEFAULT_BANDS = [
         "max_price": 7.0,
         "target_coin": "BCH",
         "bitaxe_mode": "oc",
-        "nerdqaxe_mode": "std",
+        "nerdqaxe_mode": "standard",
         "avalon_nano_mode": "high",
         "description": "4-7p - Meaningful upside"
     },
@@ -78,6 +78,31 @@ DEFAULT_BANDS = [
 ]
 
 
+async def migrate_std_to_standard(db: AsyncSession) -> None:
+    """
+    Migration: Update 'std' mode to 'standard' for consistency with adapter
+    """
+    try:
+        result = await db.execute(select(AgileStrategyBand))
+        bands = result.scalars().all()
+        
+        updated_count = 0
+        for band in bands:
+            if band.bitaxe_mode == "std":
+                band.bitaxe_mode = "standard"
+                updated_count += 1
+            if band.nerdqaxe_mode == "std":
+                band.nerdqaxe_mode = "standard"
+                updated_count += 1
+        
+        if updated_count > 0:
+            await db.commit()
+            logger.info(f"Migrated {updated_count} band mode(s) from 'std' to 'standard'")
+    except Exception as e:
+        logger.error(f"Failed to migrate std to standard: {e}")
+        await db.rollback()
+
+
 async def ensure_strategy_bands(db: AsyncSession, strategy_id: int) -> bool:
     """
     Ensure strategy has bands configured. Creates default bands if none exist.
@@ -91,6 +116,9 @@ async def ensure_strategy_bands(db: AsyncSession, strategy_id: int) -> bool:
         True if bands exist or were created, False on error
     """
     try:
+        # Run migration for existing bands
+        await migrate_std_to_standard(db)
+        
         # Check if bands already exist
         result = await db.execute(
             select(AgileStrategyBand)
