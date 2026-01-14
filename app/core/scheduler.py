@@ -2248,6 +2248,57 @@ class SchedulerService:
             
         except Exception as e:
             logger.error(f"Failed to validate Solopool blocks: {e}", exc_info=True)
+    
+    async def _push_to_cloud(self):
+        """Push telemetry to HMM Cloud"""
+        from core.database import AsyncSessionLocal, Miner
+        from sqlalchemy import select
+        
+        cloud_service = get_cloud_service()
+        if not cloud_service or not cloud_service.enabled:
+            logger.debug("Cloud push skipped (not enabled)")
+            return
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                # Get all miners with their latest telemetry
+                result = await db.execute(select(Miner))
+                miners = result.scalars().all()
+                
+                if not miners:
+                    logger.debug("No miners to push to cloud")
+                    return
+                
+                # Build telemetry payload
+                miners_data = []
+                for miner in miners:
+                    if miner.telemetry:
+                        miners_data.append({
+                            "name": miner.name,
+                            "type": miner.miner_type,
+                            "ip_address": miner.ip_address,
+                            "telemetry": {
+                                "timestamp": int(miner.telemetry.get("timestamp", 0)),
+                                "hashrate": miner.telemetry.get("hashrate"),
+                                "temperature": miner.telemetry.get("temperature"),
+                                "power": miner.telemetry.get("power"),
+                                "shares_accepted": miner.telemetry.get("shares_accepted"),
+                                "shares_rejected": miner.telemetry.get("shares_rejected"),
+                                "uptime": miner.telemetry.get("uptime")
+                            }
+                        })
+                
+                if miners_data:
+                    success = await cloud_service.push_telemetry(miners_data)
+                    if success:
+                        logger.info(f"✓ Pushed {len(miners_data)} miners to cloud")
+                    else:
+                        logger.warning(f"✗ Failed to push {len(miners_data)} miners to cloud")
+                else:
+                    logger.debug("No telemetry data to push to cloud")
+                    
+        except Exception as e:
+            logger.error(f"Failed to push to cloud: {e}", exc_info=True)
 
 
 scheduler = SchedulerService()
