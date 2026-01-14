@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
-# Build argument for git commit hash
+# Build arguments for version info
 ARG GIT_COMMIT=unknown
+ARG GIT_BRANCH=main
 
 # Set working directory
 WORKDIR /app
@@ -22,8 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ /app/
 
-# Write git commit to file (use first 7 chars for short hash)
-RUN echo "${GIT_COMMIT}" | cut -c1-7 > /app/.git_commit
+# Write version info to file (branch-commit format)
+RUN echo "${GIT_BRANCH}-$(echo ${GIT_COMMIT} | cut -c1-7)" > /app/.git_commit
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
