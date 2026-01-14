@@ -11,6 +11,7 @@ from sqlalchemy import select
 from typing import Optional
 from core.config import app_config
 from core.cloud_push import init_cloud_service, get_cloud_service
+from core.database import EnergyPrice, Telemetry, Miner
 
 logger = logging.getLogger(__name__)
 
