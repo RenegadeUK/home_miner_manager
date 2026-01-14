@@ -264,7 +264,7 @@ class HealthScore(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     overall_score: Mapped[float] = mapped_column(Float)  # 0-100
     uptime_score: Mapped[float] = mapped_column(Float)  # 0-100
-    temperature_score: Mapped[float] = mapped_column(Float)  # 0-100
+    temperature_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0-100, nullable for miners without temp sensors
     hashrate_score: Mapped[float] = mapped_column(Float)  # 0-100
     reject_rate_score: Mapped[float] = mapped_column(Float)  # 0-100
     details: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
