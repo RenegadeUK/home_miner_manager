@@ -67,18 +67,18 @@ async def update_cloud_config(config: CloudConfig):
         init_cloud_service(cloud_config)
         
         # Restart cloud push scheduler job if enabled
-        from core.scheduler import scheduler_service
-        if scheduler_service and scheduler_service.scheduler:
+        from core.scheduler import scheduler
+        if scheduler and scheduler.scheduler:
             # Remove existing job if present
-            existing_job = scheduler_service.scheduler.get_job("push_to_cloud")
+            existing_job = scheduler.scheduler.get_job("push_to_cloud")
             if existing_job:
-                scheduler_service.scheduler.remove_job("push_to_cloud")
+                scheduler.scheduler.remove_job("push_to_cloud")
             
             # Add new job if enabled
             if config.enabled:
                 from apscheduler.triggers.interval import IntervalTrigger
-                scheduler_service.scheduler.add_job(
-                    scheduler_service._push_to_cloud,
+                scheduler.scheduler.add_job(
+                    scheduler._push_to_cloud,
                     IntervalTrigger(minutes=config.push_interval_minutes),
                     id="push_to_cloud",
                     name="Push telemetry to HMM Cloud"
@@ -114,9 +114,9 @@ async def test_cloud_connection():
 @router.post("/cloud/push/manual")
 async def manual_cloud_push():
     """Manually trigger a cloud push"""
-    from core.scheduler import scheduler_service
+    from core.scheduler import scheduler
     
-    if not scheduler_service:
+    if not scheduler:
         raise HTTPException(status_code=500, detail="Scheduler not initialized")
     
     cloud_service = get_cloud_service()
@@ -125,7 +125,7 @@ async def manual_cloud_push():
     
     try:
         # Trigger cloud push
-        await scheduler_service._push_to_cloud()
+        await scheduler._push_to_cloud()
         return {"status": "success", "message": "Cloud push triggered"}
     except Exception as e:
         logger.error(f"Manual cloud push failed: {e}")
