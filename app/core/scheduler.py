@@ -2286,10 +2286,9 @@ class SchedulerService:
                                 "timestamp": int(latest_telemetry.timestamp.timestamp()),
                                 "hashrate": float(latest_telemetry.hashrate) if latest_telemetry.hashrate else None,
                                 "temperature": float(latest_telemetry.temperature) if latest_telemetry.temperature else None,
-                                "power": float(latest_telemetry.power) if latest_telemetry.power else None,
+                                "power": float(latest_telemetry.power_watts) if latest_telemetry.power_watts else None,
                                 "shares_accepted": latest_telemetry.shares_accepted,
-                                "shares_rejected": latest_telemetry.shares_rejected,
-                                "uptime": latest_telemetry.uptime
+                                "shares_rejected": latest_telemetry.shares_rejected
                             }
                         })
                 
