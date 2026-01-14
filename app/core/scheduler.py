@@ -2340,14 +2340,17 @@ class SchedulerService:
                 total_power_watts = sum(m["telemetry"]["power"] for m in miners_data)
                 miners_online = sum(1 for m in miners_data if m["telemetry"]["hashrate"] > 0.000001)
                 
-                # Get 24h cost from dashboard stats (single source of truth)
+                # Get 24h cost from dashboard API call (single source of truth)
                 cost_24h_gbp = 0.0
                 try:
-                    from api.dashboard import get_dashboard_stats
-                    dashboard_stats = await get_dashboard_stats(db)
-                    cost_24h_gbp = dashboard_stats.get("total_cost_24h_pounds", 0.0)
+                    import httpx
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        response = await client.get("http://localhost:8080/api/dashboard/all?dashboard_type=asic")
+                        if response.status_code == 200:
+                            dashboard_data = response.json()
+                            cost_24h_gbp = dashboard_data.get("total_cost_24h_pounds", 0.0)
                 except Exception as e:
-                    logger.warning(f"Failed to get 24h cost from dashboard: {e}")
+                    logger.warning(f"Failed to get 24h cost from dashboard API: {e}")
                 
                 # Always push (even if empty) to maintain keepalive/heartbeat
                 success = await cloud_service.push_telemetry(
