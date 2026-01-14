@@ -2277,26 +2277,43 @@ class SchedulerService:
                     )
                     latest_telemetry = telemetry_result.scalar_one_or_none()
                     
-                    # Only include telemetry if it's recent (within last 10 minutes)
-                    # This prevents pushing stale data for offline/disabled miners
+                    # Check if telemetry is recent (within last 10 minutes)
+                    has_recent_data = False
                     if latest_telemetry:
                         telemetry_age_seconds = (datetime.utcnow() - latest_telemetry.timestamp).total_seconds()
-                        if telemetry_age_seconds <= 600:  # 10 minutes
-                            miners_data.append({
-                                "name": miner.name,
-                                "type": miner.miner_type,
-                                "ip_address": miner.ip_address,
-                                "telemetry": {
-                                    "timestamp": int(latest_telemetry.timestamp.timestamp()),
-                                    "hashrate": float(latest_telemetry.hashrate) if latest_telemetry.hashrate else None,
-                                    "temperature": float(latest_telemetry.temperature) if latest_telemetry.temperature else None,
-                                    "power": float(latest_telemetry.power_watts) if latest_telemetry.power_watts else None,
-                                    "shares_accepted": latest_telemetry.shares_accepted,
-                                    "shares_rejected": latest_telemetry.shares_rejected
-                                }
-                            })
-                        else:
-                            logger.debug(f"Skipping {miner.name} - telemetry too old ({telemetry_age_seconds:.0f}s)")
+                        has_recent_data = telemetry_age_seconds <= 600  # 10 minutes
+                    
+                    # Always include the miner, but use zeros if data is stale/missing
+                    if has_recent_data:
+                        miners_data.append({
+                            "name": miner.name,
+                            "type": miner.miner_type,
+                            "ip_address": miner.ip_address,
+                            "telemetry": {
+                                "timestamp": int(latest_telemetry.timestamp.timestamp()),
+                                "hashrate": float(latest_telemetry.hashrate) if latest_telemetry.hashrate else 0.0,
+                                "temperature": float(latest_telemetry.temperature) if latest_telemetry.temperature else None,
+                                "power": float(latest_telemetry.power_watts) if latest_telemetry.power_watts else 0.0,
+                                "shares_accepted": latest_telemetry.shares_accepted or 0,
+                                "shares_rejected": latest_telemetry.shares_rejected or 0
+                            }
+                        })
+                    else:
+                        # Send miner with zero values (offline/stale data)
+                        miners_data.append({
+                            "name": miner.name,
+                            "type": miner.miner_type,
+                            "ip_address": miner.ip_address,
+                            "telemetry": {
+                                "timestamp": int(datetime.utcnow().timestamp()),
+                                "hashrate": 0.0,
+                                "temperature": None,
+                                "power": 0.0,
+                                "shares_accepted": 0,
+                                "shares_rejected": 0
+                            }
+                        })
+                        logger.debug(f"Pushing {miner.name} with zeros (offline/stale)")
                 
                 # Always push (even if empty) to maintain keepalive/heartbeat
                 success = await cloud_service.push_telemetry(miners_data)
