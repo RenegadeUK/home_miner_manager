@@ -564,6 +564,9 @@ class AgileSoloStrategy:
         from adapters import get_adapter
         corrections = []
         
+        # Build target pool URL for comparison
+        target_pool_url = f"{target_pool.url}:{target_pool.port}"
+        
         for miner in enrolled_miners:
             # Determine target mode based on miner type
             if miner.miner_type in ["bitaxe", "nerdqaxe"]:
@@ -577,20 +580,52 @@ class AgileSoloStrategy:
             if target_mode == "managed_externally":
                 continue
             
-            # Check if miner's current mode matches target
-            if miner.current_mode != target_mode:
-                logger.info(f"Reconciliation: {miner.name} mode drift detected: {miner.current_mode} → {target_mode}")
+            # Check both pool AND mode in single pass
+            pool_correct = False
+            mode_correct = miner.current_mode == target_mode
+            
+            adapter = get_adapter(miner)
+            if adapter:
+                try:
+                    # Get current pool from telemetry
+                    telemetry = await adapter.get_telemetry()
+                    if telemetry and telemetry.pool_in_use:
+                        pool_correct = target_pool_url in telemetry.pool_in_use
+                except Exception as e:
+                    logger.warning(f"Reconciliation: Could not check pool for {miner.name}: {e}")
+            
+            # If either pool or mode is wrong, correct both
+            if not pool_correct or not mode_correct:
+                issues = []
+                if not pool_correct:
+                    issues.append("pool")
+                if not mode_correct:
+                    issues.append(f"mode ({miner.current_mode} → {target_mode})")
                 
-                adapter = get_adapter(miner)
+                logger.info(f"Reconciliation: {miner.name} drift detected: {', '.join(issues)}")
+                
                 if adapter:
                     try:
-                        # Re-apply correct mode
+                        # Switch pool if needed
+                        if not pool_correct:
+                            await adapter.switch_pool(
+                                pool_url=target_pool.url,
+                                pool_port=target_pool.port,
+                                pool_user=target_pool.user,
+                                pool_password=target_pool.password
+                            )
+                            logger.info(f"Reconciliation: Corrected {miner.name} to pool {target_pool.name}")
+                            # Wait for miner to reboot after pool switch
+                            await asyncio.sleep(8)
+                        
+                        # Apply correct mode
                         if target_mode:
                             await adapter.set_mode(target_mode)
                             miner.current_mode = target_mode
                             miner.last_mode_change = datetime.utcnow()
-                            corrections.append(f"{miner.name}: mode corrected to {target_mode}")
-                            logger.info(f"Reconciliation: Corrected {miner.name} to mode {target_mode}")
+                        
+                        corrections.append(f"{miner.name}: corrected {', '.join(issues)}")
+                        logger.info(f"Reconciliation: {miner.name} fully corrected")
                     except Exception as e:
                         logger.error(f"Reconciliation failed for {miner.name}: {e}")
                         corrections.append(f"{miner.name}: correction FAILED - {e}")
