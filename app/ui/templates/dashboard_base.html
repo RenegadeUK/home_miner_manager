@@ -93,6 +93,13 @@
     margin-bottom: 0.5rem !important;
 }
 
+.strategy-pool-active-bc2 {
+    border: 3px solid rgba(249, 115, 22, 0.9) !important; /* Orange */
+    border-radius: 8px;
+    padding: 4px !important;
+    margin-bottom: 0.5rem !important;
+}
+
 .strategy-pool-active-btc {
     border: 3px solid rgba(234, 179, 8, 0.9) !important; /* Gold */
     border-radius: 8px;
@@ -337,6 +344,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
         
         // Safely check arrays with fallbacks
         const bchMiners = data.bch_miners || [];
+        const bc2Miners = data.bc2_miners || [];
         const dgbMiners = data.dgb_miners || [];
         const btcMiners = data.btc_miners || [];
         const xmrMiners = data.xmr_miners || [];
@@ -363,6 +371,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
             
             // Override is_active_target for all pools based on calculated active target
             dgbMiners.forEach(m => { if (m.is_strategy_pool) m.is_active_target = activeTarget === "DGB"; });
+            bc2Miners.forEach(m => { if (m.is_strategy_pool) m.is_active_target = activeTarget === "BC2"; });
             bchMiners.forEach(m => { if (m.is_strategy_pool) m.is_active_target = activeTarget === "BCH"; });
             btcMiners.forEach(m => { if (m.is_strategy_pool) m.is_active_target = activeTarget === "BTC"; });
         }
@@ -370,12 +379,12 @@ async function loadSolopoolStats(dashboardType = 'all') {
         // Filter pools based on dashboard type
         let hasRelevantPools = false;
         if (dashboardType === 'asic') {
-            hasRelevantPools = bchMiners.length > 0 || dgbMiners.length > 0 || btcMiners.length > 0;
+            hasRelevantPools = bchMiners.length > 0 || bc2Miners.length > 0 || dgbMiners.length > 0 || btcMiners.length > 0;
         } else if (dashboardType === 'cpu') {
             hasRelevantPools = xmrMiners.length > 0 || xmrPools.length > 0;
         } else {
             // 'all' - show if any pools have miners
-            hasRelevantPools = bchMiners.length > 0 || dgbMiners.length > 0 || btcMiners.length > 0 || xmrMiners.length > 0 || xmrPools.length > 0;
+            hasRelevantPools = bchMiners.length > 0 || bc2Miners.length > 0 || dgbMiners.length > 0 || btcMiners.length > 0 || xmrMiners.length > 0 || xmrPools.length > 0;
         }
         
         // Always show if enabled and pools are configured (even if 0 workers)
@@ -388,6 +397,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
         
         // Fetch crypto prices in GBP from our backend (which logs errors properly)
         let bchPriceGBP = 0;
+        let bc2PriceGBP = 0;
         let dgbPriceGBP = 0;
         let btcPriceGBP = 0;
         let xmrPriceGBP = 0;
@@ -407,6 +417,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
             const priceData = await priceResponse.json();
             if (priceData.success) {
                 bchPriceGBP = priceData['bitcoin-cash'] || 0;
+                bc2PriceGBP = priceData.bellscoin || 0;
                 dgbPriceGBP = priceData.digibyte || 0;
                 btcPriceGBP = priceData.bitcoin || 0;
                 xmrPriceGBP = priceData.monero || 0;
@@ -429,6 +440,9 @@ async function loadSolopoolStats(dashboardType = 'all') {
         
         // BTC logo SVG
         const btcLogo = `<svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;"><circle cx="16" cy="16" r="16" fill="#f7931a"/><path fill="#fff" d="M23.189 14.02c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.92-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.533 2.147-4.148.986-5.32.695l.95-3.805c1.172.293 4.929.872 4.37 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.696 3.61 2.733z"/></svg>`;
+        
+        // BC2 logo SVG (Bitcoin II - orange coin)
+        const bc2Logo = `<svg width="20" height="20" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;"><circle cx="16" cy="16" r="16" fill="#f97316"/><path fill="#fff" d="M16 7c-3 0-5 2-5 5v1c-1.1 0-2 .9-2 2v6c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-6c0-1.1-.9-2-2-2v-1c0-3-2-5-5-5zm0 2c1.7 0 3 1.3 3 3v1h-6v-1c0-1.7 1.3-3 3-3zm0 10c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/><path fill="#fff" d="M16 23.5c.5 0 1 .2 1.4.6l1.4 1.4c.4.4.4 1 0 1.4-.2.2-.5.3-.7.3s-.5-.1-.7-.3l-1.4-1.4c-.4-.4-.4-1 0-1.4.4-.4.9-.6 1.4-.6z"/></svg>`;
         
         const luckFormat = (luck) => Math.round(luck || 0) + '%';
         
@@ -567,6 +581,59 @@ async function loadSolopoolStats(dashboardType = 'all') {
             `;
         }).join('');
         
+        // Create stats tiles for BC2 miners
+        const bc2TilesHTML = bc2Miners.filter(m => {
+            if (m.is_strategy_pool) return true;
+            const workers = m.stats?.workers || 0;
+            return workers > 0;
+        }).map(m => {
+            // Sum pool hashrate
+            solopoolHashrate += m.stats?.hashrate_raw || 0;
+            
+            const stats = m.stats;
+            const paidBC2 = stats.paid ? (stats.paid / 100000000) : 0;  // BC2 uses 8 decimals like BTC
+            const paidGBP = bc2PriceGBP > 0 ? (paidBC2 * bc2PriceGBP).toFixed(2) : '0.00';
+            const currentShares = stats.shares || 0;
+            
+            // Strategy pool styling
+            const tileClass = m.is_strategy_pool ? 
+                (m.is_active_target ? 'strategy-pool-active-bc2' : 'strategy-pool-inactive') : '';
+            const gridClass = tileClass ? `stats-grid ${tileClass}` : 'stats-grid';
+            
+            return `
+                <div class="${gridClass}">
+                    <div class="stat-card" style="position: relative; overflow: hidden;">
+                        <canvas id="bc2-pool-chart-${m.username}" class="pool-hashrate-chart" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; opacity: 0.25;"></canvas>
+                        <div style="position: relative; z-index: 1;">
+                            <div class="stat-label">${bc2Logo}Workers Online</div>
+                            <div class="stat-value" style="font-size: 1.5rem;">
+                                ${stats.workers || 0}
+                                ${stats.hashrate ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">${stats.hashrate}</small>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="window.open('https://bc2.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                        <div class="stat-label">${bc2Logo}Current Round Luck</div>
+                        <div class="stat-value" style="font-size: 1.5rem;">
+                            ${luckFormat(stats.current_luck)}
+                            ${stats.ettb ? `<br><small style="color: var(--text-secondary); font-size: 0.75rem;">ETTB: ${stats.ettb.formatted}<br>${stats.lastBlockTimestamp ? `<span style="font-size: 0.65rem; color: ${getBlockTimeColor((Math.floor(Date.now() / 1000) - stats.lastBlockTimestamp), stats.ettb.seconds)};">${formatTimeSince(stats.lastBlockTimestamp)}</span>` : `<span style="color: var(--text-secondary);">∞</span>`}</small>` : ''}
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="window.open('https://bc2.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                        <div class="stat-label">${bc2Logo}Blocks (24h/7d/30d)</div>
+                        <div class="stat-value" style="font-size: 1.5rem;">
+                            ${stats.blocks_24h || 0} / ${stats.blocks_7d || 0} / ${stats.blocks_30d || 0}
+                            <br><small style="color: var(--text-secondary); font-size: 0.75rem;">Shares: ${currentShares.toLocaleString()}${stats.lastShare ? `<br><span style="font-size: 0.65rem; color: ${getTimeSinceColor(stats.lastShare)};">${formatTimeSince(stats.lastShare)}</span>` : ''}</small>
+                        </div>
+                    </div>
+                    <div class="stat-card" onclick="window.open('https://bc2.solopool.org/account/${m.username}', '_blank')" style="cursor: pointer;">
+                        <div class="stat-label">${bc2Logo}Total Paid</div>
+                        <div class="stat-value" style="font-size: 1.25rem;">${paidBC2.toFixed(8)} BC2<br><span style="font-size: 0.75rem; color: var(--text-secondary);">£${paidGBP}${cacheAgeIndicator}</span></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
         // Create stats tiles for BTC miners
         const btcTilesHTML = btcMiners.filter(m => {
             if (m.is_strategy_pool) return true;
@@ -695,11 +762,11 @@ async function loadSolopoolStats(dashboardType = 'all') {
         // Filter tiles based on dashboard type
         let tilesHTML = '';
         if (dashboardType === 'asic') {
-            tilesHTML = dgbTilesHTML + bchTilesHTML + btcTilesHTML;
+            tilesHTML = dgbTilesHTML + bc2TilesHTML + bchTilesHTML + btcTilesHTML;
         } else if (dashboardType === 'cpu') {
             tilesHTML = xmrTilesHTML;
         } else {
-            tilesHTML = dgbTilesHTML + bchTilesHTML + btcTilesHTML + xmrTilesHTML;
+            tilesHTML = dgbTilesHTML + bc2TilesHTML + bchTilesHTML + btcTilesHTML + xmrTilesHTML;
         }
         
         statsDiv.innerHTML = tilesHTML;
@@ -710,7 +777,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
         updatePoolEfficiency(minerHashrate);
         
         // Load chart data for all pool tiles after DOM is updated
-        loadPoolHashrateChartsForAllPools(dgbMiners, bchMiners, btcMiners, xmrMiners);
+        loadPoolHashrateChartsForAllPools(dgbMiners, bc2Miners, bchMiners, btcMiners, xmrMiners);
     } catch (error) {
         console.error('Failed to load Solopool stats:', error);
         document.getElementById('solopool-stats').style.display = 'none';
@@ -718,7 +785,7 @@ async function loadSolopoolStats(dashboardType = 'all') {
 }
 
 // Load and draw charts for all Solopool pools
-async function loadPoolHashrateChartsForAllPools(dgbMiners, bchMiners, btcMiners, xmrMiners) {
+async function loadPoolHashrateChartsForAllPools(dgbMiners, bc2Miners, bchMiners, btcMiners, xmrMiners) {
     try {
         const response = await fetch('/api/settings/solopool/charts');
         const data = await response.json();
@@ -730,6 +797,7 @@ async function loadPoolHashrateChartsForAllPools(dgbMiners, bchMiners, btcMiners
         
         console.log('Loading pool charts:', {
             dgb: data.charts.dgb?.length || 0,
+            bc2: data.charts.bc2?.length || 0,
             bch: data.charts.bch?.length || 0,
             btc: data.charts.btc?.length || 0,
             xmr: data.charts.xmr?.length || 0
@@ -743,6 +811,15 @@ async function loadPoolHashrateChartsForAllPools(dgbMiners, bchMiners, btcMiners
                 dgbMiners.forEach(m => {
                     const canvasId = `dgb-pool-chart-${m.username}`;
                     drawPoolHashrateChart(canvasId, data.charts.dgb, 'dgb');
+                });
+            }
+            
+            // Draw BC2 charts
+            if (data.charts.bc2 && bc2Miners.length > 0) {
+                console.log(`Drawing ${bc2Miners.length} BC2 charts with ${data.charts.bc2.length} data points`);
+                bc2Miners.forEach(m => {
+                    const canvasId = `bc2-pool-chart-${m.username}`;
+                    drawPoolHashrateChart(canvasId, data.charts.bc2, 'bc2');
                 });
             }
             

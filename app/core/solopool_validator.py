@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 SOLOPOOL_BLOCKS_ENDPOINTS = {
     'DGB': 'https://dgb-sha.solopool.org/api/blocks',
     'BCH': 'https://bch.solopool.org/api/blocks',
-    'BTC': 'https://btc.solopool.org/api/blocks'
+    'BTC': 'https://btc.solopool.org/api/blocks',
+    'BC2': 'https://bc2.solopool.org/api/blocks'
 }
 
 

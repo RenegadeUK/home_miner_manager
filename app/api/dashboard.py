@@ -29,6 +29,8 @@ def parse_coin_from_pool(pool_url: str) -> str:
         return "DGB"
     elif "bch" in pool_url or "eu2.solopool.org" in pool_url:
         return "BCH"
+    elif "bc2" in pool_url:
+        return "BC2"
     elif "btc" in pool_url:
         return "BTC"
     elif "eu1.solopool.org" in pool_url or "us1.solopool.org" in pool_url:
@@ -232,6 +234,7 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         # Get crypto prices for earnings calculation from database
         btc_price_gbp = 0
         bch_price_gbp = 0
+        bc2_price_gbp = 0
         dgb_price_gbp = 0
         xmr_price_gbp = 0
         
@@ -245,6 +248,11 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         bch_cached = result.scalar_one_or_none()
         if bch_cached:
             bch_price_gbp = bch_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "bellscoin"))
+        bc2_cached = result.scalar_one_or_none()
+        if bc2_cached:
+            bc2_price_gbp = bc2_cached.price_gbp
         
         result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "digibyte"))
         dgb_cached = result.scalar_one_or_none()
@@ -284,9 +292,10 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
             is_bch = SolopoolService.is_solopool_bch_pool(pool.url, pool.port)
             is_dgb = SolopoolService.is_solopool_dgb_pool(pool.url, pool.port)
             is_btc = SolopoolService.is_solopool_btc_pool(pool.url, pool.port)
+            is_bc2 = SolopoolService.is_solopool_bc2_pool(pool.url, pool.port)
             is_xmr = SolopoolService.is_solopool_xmr_pool(pool.url, pool.port)
             
-            if not (is_bch or is_dgb or is_btc or is_xmr):
+            if not (is_bch or is_dgb or is_btc or is_bc2 or is_xmr):
                 continue
             
             # Extract username from pool.user
@@ -321,6 +330,15 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                     # BTC block reward: 3.125 BTC (post-2024 halving)
                     earned_24h_btc = blocks_24h * 3.125
                     earnings_pounds_24h += earned_24h_btc * btc_price_gbp
+            elif is_bc2 and bc2_price_gbp > 0:
+                # BC2 (BellsCoin) earnings
+                raw_stats = await SolopoolService.get_bc2_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    blocks_24h = stats.get("blocks_24h", 0)
+                    # BC2 block reward: 50 BC2 (BellsCoin uses 50 BC2 per block)
+                    earned_24h_bc2 = blocks_24h * 50.0
+                    earnings_pounds_24h += earned_24h_bc2 * bc2_price_gbp
             elif is_xmr and xmr_price_gbp > 0:
                 raw_stats = await SolopoolService.get_xmr_account_stats(username)
                 if raw_stats:
@@ -874,6 +892,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         # Get crypto prices for earnings calculation from database
         btc_price_gbp = 0
         bch_price_gbp = 0
+        bc2_price_gbp = 0
         dgb_price_gbp = 0
         xmr_price_gbp = 0
         
@@ -887,6 +906,11 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         bch_cached = result.scalar_one_or_none()
         if bch_cached:
             bch_price_gbp = bch_cached.price_gbp
+        
+        result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "bellscoin"))
+        bc2_cached = result.scalar_one_or_none()
+        if bc2_cached:
+            bc2_price_gbp = bc2_cached.price_gbp
         
         result = await db.execute(select(CryptoPrice).where(CryptoPrice.coin_id == "digibyte"))
         dgb_cached = result.scalar_one_or_none()
@@ -978,9 +1002,10 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
             is_bch = SolopoolService.is_solopool_bch_pool(pool.url, pool.port)
             is_dgb = SolopoolService.is_solopool_dgb_pool(pool.url, pool.port)
             is_btc = SolopoolService.is_solopool_btc_pool(pool.url, pool.port)
+            is_bc2 = SolopoolService.is_solopool_bc2_pool(pool.url, pool.port)
             is_xmr = SolopoolService.is_solopool_xmr_pool(pool.url, pool.port)
             
-            if not (is_bch or is_dgb or is_btc or is_xmr):
+            if not (is_bch or is_dgb or is_btc or is_bc2 or is_xmr):
                 continue
             
             # Extract username from pool.user
@@ -1015,6 +1040,15 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
                     # BTC block reward: 3.125 BTC (post-2024 halving)
                     earned_24h_btc = blocks_24h * 3.125
                     earnings_pounds_24h += earned_24h_btc * btc_price_gbp
+            elif is_bc2 and bc2_price_gbp > 0:
+                # BC2 (BellsCoin) earnings
+                raw_stats = await SolopoolService.get_bc2_account_stats(username)
+                if raw_stats:
+                    stats = SolopoolService.format_stats_summary(raw_stats)
+                    blocks_24h = stats.get("blocks_24h", 0)
+                    # BC2 block reward: 50 BC2 (BellsCoin uses 50 BC2 per block)
+                    earned_24h_bc2 = blocks_24h * 50.0
+                    earnings_pounds_24h += earned_24h_bc2 * bc2_price_gbp
             elif is_xmr and xmr_price_gbp > 0:
                 raw_stats = await SolopoolService.get_xmr_account_stats(username)
                 if raw_stats:

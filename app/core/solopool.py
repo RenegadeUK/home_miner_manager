@@ -22,16 +22,21 @@ class SolopoolService:
     BTC_POOLS = ["eu3.solopool.org"]
     BTC_PORT = 8005
     
+    BC2_API_BASE = "https://bc2.solopool.org/api"
+    BC2_POOLS = ["eu3.solopool.org"]
+    BC2_PORT = 8001
+    
     XMR_API_BASE = "https://xmr.solopool.org/api"
     XMR_POOLS = ["eu1.solopool.org"]
     XMR_PORT = 8010
     
     @staticmethod
     def is_solopool(pool_url: str, pool_port: int) -> bool:
-        """Check if pool is any Solopool.org pool (BTC, BCH, DGB, or XMR)"""
+        """Check if pool is any Solopool.org pool (BTC, BCH, BC2, DGB, or XMR)"""
         return (
             SolopoolService.is_solopool_btc_pool(pool_url, pool_port) or
             SolopoolService.is_solopool_bch_pool(pool_url, pool_port) or
+            SolopoolService.is_solopool_bc2_pool(pool_url, pool_port) or
             SolopoolService.is_solopool_dgb_pool(pool_url, pool_port) or
             SolopoolService.is_solopool_xmr_pool(pool_url, pool_port)
         )
@@ -50,6 +55,11 @@ class SolopoolService:
     def is_solopool_btc_pool(pool_url: str, pool_port: int) -> bool:
         """Check if pool is a Solopool BTC pool"""
         return pool_url in SolopoolService.BTC_POOLS and pool_port == SolopoolService.BTC_PORT
+    
+    @staticmethod
+    def is_solopool_bc2_pool(pool_url: str, pool_port: int) -> bool:
+        """Check if pool is a Solopool BC2 pool"""
+        return pool_url in SolopoolService.BC2_POOLS and pool_port == SolopoolService.BC2_PORT
     
     @staticmethod
     def is_solopool_xmr_pool(pool_url: str, pool_port: int) -> bool:
@@ -142,6 +152,35 @@ class SolopoolService:
                             return None
             except Exception as e:
                 print(f"❌ Failed to fetch Solopool BTC stats for {username}: {e}")
+                return None
+        
+        if use_cache:
+            return await api_cache.get_or_fetch(cache_key, fetch, ttl_seconds=120)
+        else:
+            return await fetch()
+    
+    @staticmethod
+    async def get_bc2_account_stats(username: str, use_cache: bool = True) -> Optional[Dict[str, Any]]:
+        """Fetch BC2 account stats from Solopool API (with optional caching)"""
+        if not username:
+            return None
+        
+        from core.cache import api_cache
+        cache_key = f"solopool_bc2_{username}"
+        
+        async def fetch():
+            try:
+                url = f"{SolopoolService.BC2_API_BASE}/accounts/{username}"
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(url, timeout=10) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            return data
+                        else:
+                            print(f"⚠️ Solopool BC2 API returned status {response.status} for user {username}")
+                            return None
+            except Exception as e:
+                print(f"❌ Failed to fetch Solopool BC2 stats for {username}: {e}")
                 return None
         
         if use_cache:
@@ -334,6 +373,23 @@ class SolopoolService:
             return None
     
     @staticmethod
+    async def get_bc2_pool_stats() -> Optional[Dict[str, Any]]:
+        """Fetch BC2 pool/network stats from Solopool API"""
+        try:
+            url = f"{SolopoolService.BC2_API_BASE}/stats"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        return data
+                    else:
+                        print(f"⚠️ Solopool BC2 pool stats API returned status {response.status}")
+                        return None
+        except Exception as e:
+            print(f"❌ Failed to fetch Solopool BC2 pool stats: {e}")
+            return None
+    
+    @staticmethod
     async def get_xmr_pool_stats() -> Optional[Dict[str, Any]]:
         """Fetch XMR pool/network stats from Solopool API"""
         try:
@@ -438,6 +494,7 @@ class SolopoolService:
         decimals = {
             "BTC": 8,   # Bitcoin uses 8 decimals (satoshis)
             "BCH": 8,   # Bitcoin Cash uses 8 decimals (satoshis)
+            "BC2": 8,   # BC2 uses 8 decimals (satoshis)
             "DGB": 9,   # DigiByte uses 9 decimals
             "XMR": 12   # Monero uses 12 decimals (atomic units)
         }

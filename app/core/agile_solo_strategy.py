@@ -67,12 +67,15 @@ class AgileSoloStrategy:
         # Check for required solopool.org pools
         has_btc = any(SolopoolService.is_solopool_btc_pool(p.url, p.port) for p in all_pools)
         has_bch = any(SolopoolService.is_solopool_bch_pool(p.url, p.port) for p in all_pools)
+        has_bc2 = any(SolopoolService.is_solopool_bc2_pool(p.url, p.port) for p in all_pools)
         has_dgb = any(SolopoolService.is_solopool_dgb_pool(p.url, p.port) for p in all_pools)
         
         if not has_btc:
             violations.append("Missing required pool: solopool.org BTC (eu3.solopool.org:8005)")
         if not has_bch:
             violations.append("Missing required pool: solopool.org BCH (eu2.solopool.org:8002)")
+        if not has_bc2:
+            violations.append("Missing required pool: solopool.org BC2 (eu3.solopool.org:8001)")
         if not has_dgb:
             violations.append("Missing required pool: solopool.org DGB (eu1.solopool.org:8004)")
         
@@ -219,6 +222,8 @@ class AgileSoloStrategy:
             if coin == "DGB" and SolopoolService.is_solopool_dgb_pool(pool.url, pool.port):
                 return pool
             elif coin == "BCH" and SolopoolService.is_solopool_bch_pool(pool.url, pool.port):
+                return pool
+            elif coin == "BC2" and SolopoolService.is_solopool_bc2_pool(pool.url, pool.port):
                 return pool
             elif coin == "BTC" and SolopoolService.is_solopool_btc_pool(pool.url, pool.port):
                 return pool

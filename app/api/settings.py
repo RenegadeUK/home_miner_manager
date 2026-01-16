@@ -419,6 +419,7 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     bch_pools = {}
     dgb_pools = {}
     btc_pools = {}
+    bc2_pools = {}
     xmr_pools = {}
     for pool in all_pools:
         if SolopoolService.is_solopool_bch_pool(pool.url, pool.port):
@@ -427,16 +428,19 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
             dgb_pools[pool.url] = pool
         elif SolopoolService.is_solopool_btc_pool(pool.url, pool.port):
             btc_pools[pool.url] = pool
+        elif SolopoolService.is_solopool_bc2_pool(pool.url, pool.port):
+            bc2_pools[pool.url] = pool
         elif SolopoolService.is_solopool_xmr_pool(pool.url, pool.port):
             xmr_pools[pool.url] = pool
     
-    if not bch_pools and not dgb_pools and not btc_pools and not xmr_pools:
-        return {"enabled": True, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "xmr_pools": [], "xmr_miners": []}
+    if not bch_pools and not dgb_pools and not btc_pools and not bc2_pools and not xmr_pools:
+        return {"enabled": True, "bch_miners": [], "dgb_miners": [], "btc_miners": [], "bc2_miners": [], "xmr_pools": [], "xmr_miners": []}
     
     # Fetch network/pool stats for ETTB calculation
     bch_network_stats = await SolopoolService.get_bch_pool_stats() if bch_pools else None
     dgb_network_stats = await SolopoolService.get_dgb_pool_stats() if dgb_pools else None
     btc_network_stats = await SolopoolService.get_btc_pool_stats() if btc_pools else None
+    bc2_network_stats = await SolopoolService.get_bc2_pool_stats() if bc2_pools else None
     xmr_network_stats = await SolopoolService.get_xmr_pool_stats() if xmr_pools else None
     
     # Get all enabled miners
@@ -446,10 +450,12 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     bch_stats_list = []
     dgb_stats_list = []
     btc_stats_list = []
+    bc2_stats_list = []
     xmr_stats_list = []
     bch_processed_usernames = set()
     dgb_processed_usernames = set()
     btc_processed_usernames = set()
+    bc2_processed_usernames = set()
     xmr_processed_usernames = set()
     
     for miner in miners:
@@ -562,6 +568,39 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
                         "pool_port": matching_pool.port,
                         "username": username,
                         "coin": "BTC",
+                        "stats": formatted_stats
+                    })
+            continue
+        
+        # Check BC2 pools
+        matching_pool = None
+        for pool_url, pool_obj in bc2_pools.items():
+            if pool_url in pool_in_use:
+                matching_pool = pool_obj
+                break
+        
+        if matching_pool:
+            username = SolopoolService.extract_username(matching_pool.user)
+            if username not in bc2_processed_usernames:
+                bc2_processed_usernames.add(username)
+                bc2_stats = await SolopoolService.get_bc2_account_stats(username)
+                if bc2_stats:
+                    formatted_stats = SolopoolService.format_stats_summary(bc2_stats)
+                    # Calculate ETTB (BC2 block time: 600 seconds - assuming same as BTC)
+                    if bc2_network_stats:
+                        network_hashrate = bc2_network_stats.get("stats", {}).get("hashrate", 0)
+                        user_hashrate = formatted_stats.get("hashrate_raw", 0)
+                        ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 600)
+                        formatted_stats["ettb"] = ettb
+                        formatted_stats["network_hashrate"] = network_hashrate
+                    
+                    bc2_stats_list.append({
+                        "miner_id": miner.id,
+                        "miner_name": miner.name,
+                        "pool_url": matching_pool.url,
+                        "pool_port": matching_pool.port,
+                        "username": username,
+                        "coin": "BC2",
                         "stats": formatted_stats
                     })
             continue
@@ -708,6 +747,32 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
                     "is_active_target": active_target == "BCH"
                 })
         
+        # Create stub for BC2 if no active miners
+        if not bc2_stats_list and bc2_pools:
+            first_bc2_pool = next(iter(bc2_pools.values()))
+            username = SolopoolService.extract_username(first_bc2_pool.user)
+            bc2_stats = await SolopoolService.get_bc2_account_stats(username)
+            if bc2_stats:
+                formatted_stats = SolopoolService.format_stats_summary(bc2_stats)
+                if bc2_network_stats:
+                    network_hashrate = bc2_network_stats.get("stats", {}).get("hashrate", 0)
+                    user_hashrate = formatted_stats.get("hashrate_raw", 0)
+                    ettb = SolopoolService.calculate_ettb(network_hashrate, user_hashrate, 600)
+                    formatted_stats["ettb"] = ettb
+                    formatted_stats["network_hashrate"] = network_hashrate
+                
+                bc2_stats_list.append({
+                    "miner_id": None,
+                    "miner_name": "No miners assigned",
+                    "pool_url": first_bc2_pool.url,
+                    "pool_port": first_bc2_pool.port,
+                    "username": username,
+                    "coin": "BC2",
+                    "stats": formatted_stats,
+                    "is_strategy_pool": True,
+                    "is_active_target": active_target == "BC2"
+                })
+        
         # Mark existing entries as strategy pools and set active status
         for entry in dgb_stats_list:
             if "is_strategy_pool" not in entry:
@@ -721,22 +786,29 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
             if "is_strategy_pool" not in entry:
                 entry["is_strategy_pool"] = True
                 entry["is_active_target"] = active_target == "BCH"
+        for entry in bc2_stats_list:
+            if "is_strategy_pool" not in entry:
+                entry["is_strategy_pool"] = True
+                entry["is_active_target"] = active_target == "BC2"
     
-    # Sort: strategy pools first (DGB → BCH → BTC order matching LOW → MED → HIGH)
+    # Sort: strategy pools first (DGB → BC2 → BCH → BTC order)
     def sort_key(entry):
         if entry.get("is_strategy_pool"):
             coin = entry.get("coin", "")
             if coin == "DGB":
                 return (0, 0)  # First (LOW)
+            elif coin == "BC2":
+                return (0, 1)  # Second
             elif coin == "BCH":
-                return (0, 1)  # Second (MED)
+                return (0, 2)  # Third (MED)
             elif coin == "BTC":
-                return (0, 2)  # Third (HIGH)
+                return (0, 3)  # Fourth (HIGH)
         return (1, entry.get("coin", ""))  # Other pools after
     
     dgb_stats_list.sort(key=sort_key)
     btc_stats_list.sort(key=sort_key)
     bch_stats_list.sort(key=sort_key)
+    bc2_stats_list.sort(key=sort_key)
     
     return {
         "enabled": True,
@@ -745,6 +817,7 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
         "bch_miners": bch_stats_list,
         "dgb_miners": dgb_stats_list,
         "btc_miners": btc_stats_list,
+        "bc2_miners": bc2_stats_list,
         "xmr_pools": [],
         "xmr_miners": xmr_stats_list
     }
@@ -766,6 +839,7 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
     dgb_pools = {}
     bch_pools = {}
     btc_pools = {}
+    bc2_pools = {}
     xmr_pools = {}
     
     for pool in all_pools:
@@ -775,6 +849,8 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
             bch_pools[pool.url] = pool
         elif SolopoolService.is_solopool_btc_pool(pool.url, pool.port):
             btc_pools[pool.url] = pool
+        elif SolopoolService.is_solopool_bc2_pool(pool.url, pool.port):
+            bc2_pools[pool.url] = pool
         elif SolopoolService.is_solopool_xmr_pool(pool.url, pool.port):
             xmr_pools[pool.url] = pool
     
@@ -816,6 +892,17 @@ async def get_solopool_charts(db: AsyncSession = Depends(get_db)):
                 # Filter to only last 24 hours based on timestamp
                 charts_data["btc"] = [c for c in charts if c.get("x", 0) >= cutoff_timestamp]
     
+    # Fetch BC2 charts (24-hour rolling window)
+    if bc2_pools:
+        first_bc2_pool = next(iter(bc2_pools.values()))
+        username = SolopoolService.extract_username(first_bc2_pool.user)
+        if username:
+            bc2_stats = await SolopoolService.get_bc2_account_stats(username, use_cache=False)
+            if bc2_stats and "charts" in bc2_stats:
+                charts = bc2_stats.get("charts", [])
+                # Filter to only last 24 hours based on timestamp
+                charts_data["bc2"] = [c for c in charts if c.get("x", 0) >= cutoff_timestamp]
+    
     # Fetch XMR charts (24-hour rolling window)
     if xmr_pools:
         first_xmr_pool = next(iter(xmr_pools.values()))
@@ -835,6 +922,7 @@ async def get_crypto_prices():
     """Return cached crypto prices (updated every 10 minutes by scheduler)"""
     prices = {
         "bitcoin-cash": 0,
+        "bellscoin": 0,
         "digibyte": 0,
         "bitcoin": 0,
         "monero": 0,
@@ -852,6 +940,7 @@ async def get_crypto_prices():
         if cached_prices:
             prices["bitcoin"] = cached_prices.get("bitcoin").price_gbp if "bitcoin" in cached_prices else 0
             prices["bitcoin-cash"] = cached_prices.get("bitcoin-cash").price_gbp if "bitcoin-cash" in cached_prices else 0
+            prices["bellscoin"] = cached_prices.get("bellscoin").price_gbp if "bellscoin" in cached_prices else 0
             prices["digibyte"] = cached_prices.get("digibyte").price_gbp if "digibyte" in cached_prices else 0
             prices["monero"] = cached_prices.get("monero").price_gbp if "monero" in cached_prices else 0
             prices["success"] = True
@@ -874,6 +963,7 @@ async def fetch_and_cache_crypto_prices():
     """Fetch crypto prices in GBP with fallback across multiple free APIs and cache them"""
     prices = {
         "bitcoin-cash": 0,
+        "bellscoin": 0,
         "digibyte": 0,
         "bitcoin": 0,
         "success": False,
@@ -887,7 +977,7 @@ async def fetch_and_cache_crypto_prices():
             response = await client.get(
                 'https://api.coingecko.com/api/v3/simple/price',
                 params={
-                    'ids': 'bitcoin-cash,digibyte,bitcoin,monero',
+                    'ids': 'bitcoin-cash,bellscoin,digibyte,bitcoin,monero',
                     'vs_currencies': 'gbp'
                 }
             )
@@ -895,13 +985,14 @@ async def fetch_and_cache_crypto_prices():
             if response.status_code == 200:
                 data = response.json()
                 prices["bitcoin-cash"] = data.get("bitcoin-cash", {}).get("gbp", 0)
+                prices["bellscoin"] = data.get("bellscoin", {}).get("gbp", 0)
                 prices["digibyte"] = data.get("digibyte", {}).get("gbp", 0)
                 prices["bitcoin"] = data.get("bitcoin", {}).get("gbp", 0)
                 prices["monero"] = data.get("monero", {}).get("gbp", 0)
                 prices["success"] = True
                 prices["source"] = "coingecko"
                 
-                logger.info(f"Fetched crypto prices from CoinGecko: BCH=£{prices['bitcoin-cash']}, DGB=£{prices['digibyte']}, BTC=£{prices['bitcoin']}, XMR=£{prices['monero']}")
+                logger.info(f"Fetched crypto prices from CoinGecko: BCH=£{prices['bitcoin-cash']}, BC2=£{prices['bellscoin']}, DGB=£{prices['digibyte']}, BTC=£{prices['bitcoin']}, XMR=£{prices['monero']}")
                 return prices
             else:
                 error_msg = f"CoinGecko API returned status {response.status_code}: {response.text[:200]}"
@@ -922,8 +1013,9 @@ async def fetch_and_cache_crypto_prices():
     # Fallback to CoinCap API
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # CoinCap uses different IDs: bitcoin-cash, digibyte, bitcoin, monero
+            # CoinCap uses different IDs: bitcoin-cash, bellscoin, digibyte, bitcoin, monero
             bch_response = await client.get('https://api.coincap.io/v2/assets/bitcoin-cash')
+            bc2_response = await client.get('https://api.coincap.io/v2/assets/bellscoin')
             dgb_response = await client.get('https://api.coincap.io/v2/assets/digibyte')
             btc_response = await client.get('https://api.coincap.io/v2/assets/bitcoin')
             xmr_response = await client.get('https://api.coincap.io/v2/assets/monero')
@@ -931,22 +1023,24 @@ async def fetch_and_cache_crypto_prices():
             # Get GBP exchange rate
             gbp_response = await client.get('https://api.coincap.io/v2/rates/british-pound-sterling')
             
-            if all(r.status_code == 200 for r in [bch_response, dgb_response, btc_response, xmr_response, gbp_response]):
+            if all(r.status_code == 200 for r in [bch_response, bc2_response, dgb_response, btc_response, xmr_response, gbp_response]):
                 gbp_rate = float(gbp_response.json()["data"]["rateUsd"])
                 
                 bch_usd = float(bch_response.json()["data"]["priceUsd"])
+                bc2_usd = float(bc2_response.json()["data"]["priceUsd"])
                 dgb_usd = float(dgb_response.json()["data"]["priceUsd"])
                 btc_usd = float(btc_response.json()["data"]["priceUsd"])
                 xmr_usd = float(xmr_response.json()["data"]["priceUsd"])
                 
                 prices["bitcoin-cash"] = bch_usd / gbp_rate
+                prices["bellscoin"] = bc2_usd / gbp_rate
                 prices["digibyte"] = dgb_usd / gbp_rate
                 prices["bitcoin"] = btc_usd / gbp_rate
                 prices["monero"] = xmr_usd / gbp_rate
                 prices["success"] = True
                 prices["source"] = "coincap"
                 
-                logger.info(f"Fetched crypto prices from CoinCap: BCH=£{prices['bitcoin-cash']:.2f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}, XMR=£{prices['monero']:.2f}")
+                logger.info(f"Fetched crypto prices from CoinCap: BCH=£{prices['bitcoin-cash']:.2f}, BC2=£{prices['bellscoin']:.6f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}, XMR=£{prices['monero']:.2f}")
                 return prices
             else:
                 logger.warning("CoinCap API returned non-200 status")
@@ -962,8 +1056,13 @@ async def fetch_and_cache_crypto_prices():
             bch_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=BCHGBP')
             xmr_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=XMRGBP')
             
-            # DGB not on Binance with GBP, get USDT price and convert
+            # DGB and BC2 not on Binance with GBP, get USDT price and convert
             dgb_usdt_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=DGBUSDT')
+            # BC2 likely not on Binance, try but don't fail if not available
+            try:
+                bc2_usdt_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=BLS2USDT')
+            except:
+                bc2_usdt_response = None
             usdt_gbp_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=GBPUSDT')
             
             if all(r.status_code == 200 for r in [btc_response, bch_response, xmr_response, dgb_usdt_response, usdt_gbp_response]):
@@ -975,10 +1074,15 @@ async def fetch_and_cache_crypto_prices():
                 gbp_usdt = float(usdt_gbp_response.json()["price"])
                 prices["digibyte"] = dgb_usdt / gbp_usdt
                 
+                # Try to get BC2 price if available
+                if bc2_usdt_response and bc2_usdt_response.status_code == 200:
+                    bc2_usdt = float(bc2_usdt_response.json()["price"])
+                    prices["bellscoin"] = bc2_usdt / gbp_usdt
+                
                 prices["success"] = True
                 prices["source"] = "binance"
                 
-                logger.info(f"Fetched crypto prices from Binance: BCH=£{prices['bitcoin-cash']:.2f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}, XMR=£{prices['monero']:.2f}")
+                logger.info(f"Fetched crypto prices from Binance: BCH=£{prices['bitcoin-cash']:.2f}, BC2=£{prices['bellscoin']:.6f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}, XMR=£{prices['monero']:.2f}")
                 return prices
             else:
                 logger.warning("Binance API returned non-200 status")
@@ -1013,7 +1117,7 @@ async def update_crypto_prices_cache():
     if prices["success"]:
         # Store in database
         async with AsyncSessionLocal() as session:
-            for coin_id in ["bitcoin", "bitcoin-cash", "digibyte", "monero"]:
+            for coin_id in ["bitcoin", "bitcoin-cash", "bellscoin", "digibyte", "monero"]:
                 price_value = prices.get(coin_id, 0)
                 if price_value > 0:
                     # Check if exists

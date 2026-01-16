@@ -137,6 +137,9 @@ small {
                     <option value="bch-eu2">Solopool.org BCH (EU2)</option>
                     <option value="bch-us1">Solopool.org BCH (US1)</option>
                 </optgroup>
+                <optgroup label="Solopool.org - Bitcoin II (BC2)">
+                    <option value="bc2-eu3">Solopool.org BC2 (EU3)</option>
+                </optgroup>
                 <optgroup label="Solopool.org - DigiByte (DGB)">
                     <option value="dgb-eu1">Solopool.org DGB (EU1)</option>
                     <option value="dgb-us1">Solopool.org DGB (US1)</option>
@@ -203,7 +206,7 @@ small {
         <div style="margin-bottom: 1.5rem;">
             <h4 style="color: #10b981; margin-bottom: 0.5rem;">Approved Pool Providers</h4>
             <ul style="line-height: 1.8; color: var(--text-primary);">
-                <li><strong>Solopool.org:</strong> Solo mining for BTC, BCH, and DGB</li>
+                <li><strong>Solopool.org:</strong> Solo mining for BTC, BCH, BC2, and DGB</li>
                 <li><strong>Braiins Pool:</strong> Bitcoin pool mining with FPPS rewards</li>
                 <li><strong>SupportXMR:</strong> Monero pool mining (CPU miners only)</li>
             </ul>
@@ -240,6 +243,11 @@ const POOL_PRESETS = {
         name: 'Solopool.org BCH (US1)',
         url: 'us1.solopool.org',
         port: 8002
+    },
+    'bc2-eu3': {
+        name: 'Solopool.org BC2 (EU3)',
+        url: 'eu3.solopool.org',
+        port: 8001
     },
     'dgb-eu1': {
         name: 'Solopool.org DGB (EU1)',
