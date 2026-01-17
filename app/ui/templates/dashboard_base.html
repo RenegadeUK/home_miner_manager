@@ -352,6 +352,8 @@ async function loadSolopoolStats(dashboardType = 'all') {
         
         // CLIENT-SIDE FIX: Calculate active_target from current energy price (already loaded in dashboard)
         // This avoids stale data when strategy hasn't executed yet after price change
+        let strategyCoins = null;  // Track which coins are used in strategy
+        
         if (data.strategy_enabled && window.currentEnergyPrice !== undefined) {
             const price = window.currentEnergyPrice;
             let activeTarget = null;
@@ -362,6 +364,14 @@ async function loadSolopoolStats(dashboardType = 'all') {
                 const bandsData = await bandsResponse.json();
                 
                 if (bandsData && bandsData.bands) {
+                    // Extract unique coins from all bands (for tile filtering)
+                    strategyCoins = new Set();
+                    bandsData.bands.forEach(band => {
+                        if (band.target_coin && band.target_coin !== 'OFF') {
+                            strategyCoins.add(band.target_coin);
+                        }
+                    });
+                    
                     // Find matching band for current price
                     for (const band of bandsData.bands) {
                         const minOk = band.min_price === null || price >= band.min_price;
@@ -779,14 +789,32 @@ async function loadSolopoolStats(dashboardType = 'all') {
         // Store XMR pool hashrate globally for CPU dashboard Workers Online tile
         window.solopoolXMRHashrate = xmrPoolHashrate;
         
-        // Filter tiles based on dashboard type
+        // Filter tiles based on dashboard type AND strategy coins (if strategy enabled)
         let tilesHTML = '';
         if (dashboardType === 'asic') {
-            tilesHTML = dgbTilesHTML + bc2TilesHTML + bchTilesHTML + btcTilesHTML;
+            // If strategy is enabled, only show tiles for coins in the strategy
+            if (strategyCoins && strategyCoins.size > 0) {
+                if (strategyCoins.has('DGB')) tilesHTML += dgbTilesHTML;
+                if (strategyCoins.has('BC2')) tilesHTML += bc2TilesHTML;
+                if (strategyCoins.has('BCH')) tilesHTML += bchTilesHTML;
+                if (strategyCoins.has('BTC')) tilesHTML += btcTilesHTML;
+            } else {
+                // Strategy not enabled - show all ASIC pools
+                tilesHTML = dgbTilesHTML + bc2TilesHTML + bchTilesHTML + btcTilesHTML;
+            }
         } else if (dashboardType === 'cpu') {
             tilesHTML = xmrTilesHTML;
         } else {
-            tilesHTML = dgbTilesHTML + bc2TilesHTML + bchTilesHTML + btcTilesHTML + xmrTilesHTML;
+            // 'all' dashboard - apply same strategy filter to ASIC pools
+            if (strategyCoins && strategyCoins.size > 0) {
+                if (strategyCoins.has('DGB')) tilesHTML += dgbTilesHTML;
+                if (strategyCoins.has('BC2')) tilesHTML += bc2TilesHTML;
+                if (strategyCoins.has('BCH')) tilesHTML += bchTilesHTML;
+                if (strategyCoins.has('BTC')) tilesHTML += btcTilesHTML;
+                tilesHTML += xmrTilesHTML;  // Always show XMR on 'all' dashboard
+            } else {
+                tilesHTML = dgbTilesHTML + bc2TilesHTML + bchTilesHTML + btcTilesHTML + xmrTilesHTML;
+            }
         }
         
         statsDiv.innerHTML = tilesHTML;
