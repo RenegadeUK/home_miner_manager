@@ -126,6 +126,7 @@
 
 .coin-BTC { background: rgba(247, 147, 26, 0.2); color: #f7931a; }
 .coin-BCH { background: rgba(0, 184, 109, 0.2); color: #00b86d; }
+.coin-BC2 { background: rgba(249, 115, 22, 0.2); color: #f97316; }
 .coin-DGB { background: rgba(0, 102, 255, 0.2); color: #0066ff; }
 
 .pool-name {
@@ -239,10 +240,10 @@
         <div class="info-banner">
             <div class="info-banner-icon">🏅</div>
             <div class="info-banner-content">
-                <h4>Weighted Scoring</h4>
+                <h4>Weighted Scoring (Based on Difficulty)</h4>
                 <p>
-                    BTC blocks = 100 points | BCH blocks = 10 points | DGB blocks = 1 point
-                    <br>Only actual block solves count towards this leaderboard (share difficulty ≥ network difficulty).
+                    BTC blocks = 1,000 points | BCH blocks = 100 points | BC2 blocks = 50 points | DGB blocks = 1 point
+                    <br>Scoring reflects normalized network difficulty ratios. Only actual block solves count (share difficulty ≥ network difficulty).
                 </p>
             </div>
         </div>
@@ -286,6 +287,7 @@
             <button class="filter-btn active" data-coin="all">All</button>
             <button class="filter-btn" data-coin="BTC">BTC</button>
             <button class="filter-btn" data-coin="BCH">BCH</button>
+            <button class="filter-btn" data-coin="BC2">BC2</button>
             <button class="filter-btn" data-coin="DGB">DGB</button>
         </div>
         
@@ -356,7 +358,8 @@ function renderCoinHunter(entries, scoring) {
     html += '<th>Miner</th>';
     html += `<th>🟠 BTC<br><span style="font-size: 0.7rem; font-weight: normal; opacity: 0.7;">${scoring.BTC} pts</span></th>`;
     html += `<th>🟢 BCH<br><span style="font-size: 0.7rem; font-weight: normal; opacity: 0.7;">${scoring.BCH} pts</span></th>`;
-    html += `<th>🔵 DGB<br><span style="font-size: 0.7rem; font-weight: normal; opacity: 0.7;">${scoring.DGB} pt</span></th>`;
+    html += `<th>� BC2<br><span style="font-size: 0.7rem; font-weight: normal; opacity: 0.7;">${scoring.BC2} pts</span></th>`;
+    html += `<th>�🔵 DGB<br><span style="font-size: 0.7rem; font-weight: normal; opacity: 0.7;">${scoring.DGB} pt</span></th>`;
     html += '<th>Total Blocks</th>';
     html += '<th>Score</th>';
     html += '</tr></thead><tbody>';
@@ -379,6 +382,9 @@ function renderCoinHunter(entries, scoring) {
         
         // BCH blocks
         html += `<td style="text-align: center; font-size: 1.25rem; font-weight: 700;">${entry.bch_blocks}</td>`;
+        
+        // BC2 blocks
+        html += `<td style="text-align: center; font-size: 1.25rem; font-weight: 700;">${entry.bc2_blocks}</td>`;
         
         // DGB blocks
         html += `<td style="text-align: center; font-size: 1.25rem; font-weight: 700;">${entry.dgb_blocks}</td>`;

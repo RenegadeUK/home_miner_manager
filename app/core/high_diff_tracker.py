@@ -58,6 +58,16 @@ async def get_network_difficulty(coin: str, force_fresh: bool = False) -> Option
                             _network_diff_cache[coin] = (diff, now)
                             return diff
             
+            elif coin == "BC2":
+                # Use Solopool.org BC2 API
+                async with session.get("https://bc2.solopool.org/api/stats", timeout=5) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        diff = float(data.get("stats", {}).get("difficulty", 0))
+                        if diff > 0:
+                            _network_diff_cache[coin] = (diff, now)
+                            return diff
+            
             elif coin == "DGB":
                 # Use Solopool.org DGB API
                 async with session.get("https://dgb-sha.solopool.org/api/stats", timeout=5) as resp:
@@ -85,6 +95,8 @@ def extract_coin_from_pool_name(pool_name: str) -> str:
         return "BTC"
     elif "BCH" in pool_upper or "BITCOIN CASH" in pool_upper:
         return "BCH"
+    elif "BC2" in pool_upper or "BITCOIN II" in pool_upper:
+        return "BC2"
     elif "DGB" in pool_upper or "DIGIBYTE" in pool_upper:
         return "DGB"
     else:

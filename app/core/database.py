@@ -60,7 +60,7 @@ class HighDiffShare(Base):
     miner_id: Mapped[int] = mapped_column(Integer, index=True)
     miner_name: Mapped[str] = mapped_column(String(100))  # Snapshot in case miner renamed
     miner_type: Mapped[str] = mapped_column(String(50))  # avalon_nano, bitaxe, nerdqaxe
-    coin: Mapped[str] = mapped_column(String(10))  # BTC, BCH, DGB
+    coin: Mapped[str] = mapped_column(String(10))  # BTC, BCH, BC2, DGB
     pool_name: Mapped[str] = mapped_column(String(100))  # Pool name at time of share
     difficulty: Mapped[float] = mapped_column(Float, index=True)  # Share difficulty
     network_difficulty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Network difficulty at time
@@ -83,7 +83,7 @@ class BlockFound(Base):
     miner_id: Mapped[int] = mapped_column(Integer, index=True)
     miner_name: Mapped[str] = mapped_column(String(100))  # Snapshot in case miner renamed
     miner_type: Mapped[str] = mapped_column(String(50))  # avalon_nano, bitaxe, nerdqaxe
-    coin: Mapped[str] = mapped_column(String(10), index=True)  # BTC, BCH, DGB
+    coin: Mapped[str] = mapped_column(String(10), index=True)  # BTC, BCH, BC2, DGB
     pool_name: Mapped[str] = mapped_column(String(100))  # Pool name
     difficulty: Mapped[float] = mapped_column(Float)  # Share difficulty that solved the block
     network_difficulty: Mapped[float] = mapped_column(Float)  # Network difficulty at time

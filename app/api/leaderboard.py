@@ -59,7 +59,7 @@ def format_difficulty(diff: float) -> str:
 @router.get("/leaderboard", response_model=LeaderboardResponse)
 async def get_high_diff_leaderboard(
     days: int = Query(90, ge=1, le=365, description="Number of days to look back"),
-    coin: Optional[str] = Query(None, description="Filter by coin (BTC/BCH/DGB)"),
+    coin: Optional[str] = Query(None, description="Filter by coin (BTC/BCH/BC2/DGB)"),
     limit: int = Query(10, ge=1, le=50, description="Number of entries to return"),
     db: AsyncSession = Depends(get_db)
 ):
@@ -67,7 +67,7 @@ async def get_high_diff_leaderboard(
     Get high difficulty share leaderboard
     
     - **days**: Number of days to look back (default 90)
-    - **coin**: Filter by coin (BTC/BCH/DGB) or None for all
+    - **coin**: Filter by coin (BTC/BCH/BC2/DGB) or None for all
     - **limit**: Number of entries to return (default 10)
     """
     shares = await get_leaderboard(db, days=days, coin=coin, limit=limit)
@@ -129,9 +129,10 @@ class CoinHunterEntry(BaseModel):
     miner_type: str
     btc_blocks: int
     bch_blocks: int
+    bc2_blocks: int
     dgb_blocks: int
     total_blocks: int
-    total_score: int  # Weighted score: BTC=100, BCH=10, DGB=1
+    total_score: int  # Weighted score: BTC=1000, BCH=100, BC2=50, DGB=1
 
 
 class CoinHunterResponse(BaseModel):
@@ -201,10 +202,11 @@ async def get_coin_hunter_leaderboard(
     """
     Get Coin Hunter leaderboard - all-time blocks found with weighted scoring
     
-    Scoring:
-    - BTC block = 100 points
-    - BCH block = 10 points
-    - DGB block = 1 point
+    Scoring (based on normalized difficulty ratios):
+    - BTC block = 1,000 points (208,639x harder than DGB)
+    - BCH block = 100 points (1,343x harder than DGB)
+    - BC2 block = 50 points (54x harder than DGB)
+    - DGB block = 1 point (baseline)
     """
     # Aggregate blocks by miner and coin
     query = select(
@@ -233,20 +235,25 @@ async def get_coin_hunter_leaderboard(
                 'miner_type': row.miner_type,
                 'BTC': 0,
                 'BCH': 0,
+                'BC2': 0,
                 'DGB': 0
             }
         miner_stats[miner_id][row.coin] = row.block_count
     
     # Calculate scores and rankings
-    SCORING = {'BTC': 100, 'BCH': 10, 'DGB': 1}
+    # Hybrid scoring based on normalized difficulty ratios:
+    # BTC: 208,639x harder → 1,000 pts | BCH: 1,343x harder → 100 pts
+    # BC2: 54x harder → 50 pts | DGB: 1x baseline → 1 pt
+    SCORING = {'BTC': 1000, 'BCH': 100, 'BC2': 50, 'DGB': 1}
     
     entries = []
     for miner_id, stats in miner_stats.items():
         btc = stats['BTC']
         bch = stats['BCH']
+        bc2 = stats['BC2']
         dgb = stats['DGB']
-        total_blocks = btc + bch + dgb
-        total_score = (btc * SCORING['BTC']) + (bch * SCORING['BCH']) + (dgb * SCORING['DGB'])
+        total_blocks = btc + bch + bc2 + dgb
+        total_score = (btc * SCORING['BTC']) + (bch * SCORING['BCH']) + (bc2 * SCORING['BC2']) + (dgb * SCORING['DGB'])
         
         entries.append({
             'miner_id': miner_id,
@@ -254,6 +261,7 @@ async def get_coin_hunter_leaderboard(
             'miner_type': stats['miner_type'],
             'btc_blocks': btc,
             'bch_blocks': bch,
+            'bc2_blocks': bc2,
             'dgb_blocks': dgb,
             'total_blocks': total_blocks,
             'total_score': total_score
@@ -273,6 +281,7 @@ async def get_coin_hunter_leaderboard(
                 miner_type=entry['miner_type'],
                 btc_blocks=entry['btc_blocks'],
                 bch_blocks=entry['bch_blocks'],
+                bc2_blocks=entry['bc2_blocks'],
                 dgb_blocks=entry['dgb_blocks'],
                 total_blocks=entry['total_blocks'],
                 total_score=entry['total_score']
