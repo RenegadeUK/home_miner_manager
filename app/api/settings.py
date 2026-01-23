@@ -395,6 +395,7 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     current_band = strategy.current_price_band if strategy else None
     
     # Map price band to active target coin with hysteresis logic
+    # Dashboard always checks next slot to show accurate real-time state
     active_target = None
     if strategy_enabled and strategy:
         # Ensure bands exist
@@ -409,25 +410,18 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
             band = get_band_for_price(bands, current_price_p_kwh)
             
             if band and band.target_coin != "OFF":
-                # Check if we're transitioning from OFF - if so, verify next slot stays active
-                current_band = strategy.current_price_band
+                # Always check next slot for dashboard display (don't rely on stale current_band state)
+                # This ensures dashboard shows what WILL happen, not what already happened
+                next_slot_price = await AgileSoloStrategy.get_next_slot_price(db)
                 
-                if current_band == "OFF" or current_band is None:
-                    # Transitioning from OFF - apply hysteresis check
-                    # Get next slot price to verify we won't immediately go back to OFF
-                    next_slot_price = await AgileSoloStrategy.get_next_slot_price(db)
+                if next_slot_price is not None:
+                    next_band = get_band_for_price(bands, next_slot_price)
                     
-                    if next_slot_price is not None:
-                        next_band = get_band_for_price(bands, next_slot_price)
-                        
-                        # Only set active_target if next slot is also active (not OFF)
-                        if next_band and next_band.target_coin != "OFF":
-                            active_target = band.target_coin
-                        # else: next slot returns to OFF, stay grayed out
-                    # else: no next price data, stay grayed out for safety
-                else:
-                    # Already active, show current target
-                    active_target = band.target_coin
+                    # Only highlight if next slot ALSO stays active (1 hour minimum runtime guarantee)
+                    if next_band and next_band.target_coin != "OFF":
+                        active_target = band.target_coin
+                    # else: next slot returns to OFF, don't highlight (would turn on for <1 hour)
+                # else: no next price data, stay grayed out for safety
         # OFF band means all grayed out (active_target stays None)
     
     # Get all pools
