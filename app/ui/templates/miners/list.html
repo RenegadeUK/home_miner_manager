@@ -59,6 +59,40 @@
     color: var(--text-secondary);
 }
 
+.miner-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-bitaxe { 
+    background: rgba(59, 130, 246, 0.2); 
+    color: var(--info); 
+}
+
+.badge-nerdqaxe { 
+    background: rgba(139, 92, 246, 0.2); 
+    color: #8b5cf6; 
+}
+
+.badge-avalon_nano { 
+    background: rgba(16, 185, 129, 0.2); 
+    color: var(--success); 
+}
+
+.badge-nmminer { 
+    background: rgba(245, 158, 11, 0.2); 
+    color: #f59e0b; 
+}
+
+.badge-xmrig { 
+    background: rgba(239, 68, 68, 0.2); 
+    color: #ef4444; 
+}
+
 .miner-tile-body {
     padding: 0.75rem;
     display: grid;
@@ -383,9 +417,29 @@ function getMinerIcon(type) {
         'Avalon Nano 3S': '⛏️',
         'Bitaxe': '🔷',
         'NerdQaxe': '🤓',
-        'NMMiner': '📡'
+        'NMMiner': '📡',
+        'XMRig': '💻'
     };
     return icons[type] || '⛏️';
+}
+
+function getMinerTypeBadge(minerType) {
+    const type = minerType.toLowerCase().replace(/\s+/g, '_');
+    let badgeClass = 'badge-avalon_nano'; // default
+    
+    if (type.includes('bitaxe')) {
+        badgeClass = 'badge-bitaxe';
+    } else if (type.includes('nerdqaxe') || type.includes('qaxe')) {
+        badgeClass = 'badge-nerdqaxe';
+    } else if (type.includes('avalon')) {
+        badgeClass = 'badge-avalon_nano';
+    } else if (type.includes('nmminer')) {
+        badgeClass = 'badge-nmminer';
+    } else if (type.includes('xmrig')) {
+        badgeClass = 'badge-xmrig';
+    }
+    
+    return `<span class="miner-type-badge ${badgeClass}">${minerType}</span>`;
 }
 
 function getBestDiffLabel(minerType) {
@@ -480,7 +534,7 @@ async function loadMiners() {
                     <div class="miner-tile-icon">${getMinerIcon(m.miner_type)}</div>
                     <div class="miner-tile-info">
                         <div class="miner-tile-name">${m.name}</div>
-                        <div class="miner-tile-type">${m.miner_type}</div>
+                        ${getMinerTypeBadge(m.miner_type)}
                     </div>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
                         ${m.is_offline ? '<span class="badge" style="background: #f97316;">Offline</span>' : ''}
@@ -545,7 +599,7 @@ async function loadMiners() {
                             <span>${getMinerIcon(m.miner_type)}</span>
                             <div>
                                 <div style="font-weight: 600;">${m.name}</div>
-                                <div style="font-size: 0.75rem; color: var(--text-secondary);">${m.miner_type}</div>
+                                ${getMinerTypeBadge(m.miner_type)}
                             </div>
                         </div>
                     </td>
