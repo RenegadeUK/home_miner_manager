@@ -394,35 +394,12 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     strategy_enabled = strategy and strategy.enabled
     current_band = strategy.current_price_band if strategy else None
     
-    # Map price band to active target coin with hysteresis logic
-    # Dashboard always checks next slot to show accurate real-time state
+    # Dashboard simply shows what strategy last decided - no duplicate logic
     active_target = None
     if strategy_enabled and strategy:
-        # Ensure bands exist
-        await ensure_strategy_bands(db, strategy.id)
-        
-        # Get current price and find matching band
-        from core.energy import get_current_energy_price
-        current_price_obj = await get_current_energy_price(db)
-        if current_price_obj is not None:
-            current_price_p_kwh = current_price_obj.price_pence
-            bands = await get_strategy_bands(db, strategy.id)
-            band = get_band_for_price(bands, current_price_p_kwh)
-            
-            if band and band.target_coin != "OFF":
-                # Always check next slot for dashboard display (don't rely on stale current_band state)
-                # This ensures dashboard shows what WILL happen, not what already happened
-                next_slot_price = await AgileSoloStrategy.get_next_slot_price(db)
-                
-                if next_slot_price is not None:
-                    next_band = get_band_for_price(bands, next_slot_price)
-                    
-                    # Only highlight if next slot ALSO stays active (1 hour minimum runtime guarantee)
-                    if next_band and next_band.target_coin != "OFF":
-                        active_target = band.target_coin
-                    # else: next slot returns to OFF, don't highlight (would turn on for <1 hour)
-                # else: no next price data, stay grayed out for safety
-        # OFF band means all grayed out (active_target stays None)
+        # Just show what strategy execution set in database
+        if strategy.current_price_band and strategy.current_price_band != "OFF":
+            active_target = strategy.current_price_band
     
     # Get all pools
     pool_result = await db.execute(select(Pool))
