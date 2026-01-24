@@ -488,18 +488,34 @@ def get_openai_api_key() -> Optional[str]:
 
 
 class SamAssistant:
-    """Sam - AI Mining Assistant using OpenAI GPT-4"""
+    """Sam - AI Mining Assistant using OpenAI GPT-4 or Ollama"""
     
     def __init__(self):
         self.api_key = get_openai_api_key()
-        if self.api_key:
-            self.client = AsyncOpenAI(api_key=self.api_key)
-        else:
-            self.client = None
-        
         config = app_config.get("openai", {})
+        
+        # Get provider (default to openai)
+        provider = config.get("provider", "openai")
         self.model = config.get("model", "gpt-4o")
         self.max_tokens = config.get("max_tokens", 1000)
+        
+        # Configure client based on provider
+        if provider == "ollama":
+            # Ollama: Use base_url, doesn't need real API key
+            base_url = config.get("base_url", "http://localhost:11434/v1")
+            self.client = AsyncOpenAI(
+                api_key="ollama",  # Ollama doesn't use API keys
+                base_url=base_url
+            )
+        elif self.api_key:
+            # OpenAI: Use API key
+            base_url = config.get("base_url", "https://api.openai.com/v1")
+            self.client = AsyncOpenAI(
+                api_key=self.api_key,
+                base_url=base_url
+            )
+        else:
+            self.client = None
     
     def is_enabled(self) -> bool:
         """Check if Sam is enabled and configured"""

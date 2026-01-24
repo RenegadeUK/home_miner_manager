@@ -21,42 +21,107 @@
             <p class="form-help">Allow Sam to access your mining data and provide AI-powered insights</p>
         </div>
         
-        <!-- API Key -->
+        <!-- Provider Selection -->
         <div class="form-group">
-            <label for="api-key">OpenAI API Key <span class="required">*</span></label>
-            <div class="input-with-button">
-                <input 
-                    type="password" 
-                    id="api-key" 
-                    name="api_key"
-                    placeholder="sk-..." 
-                    autocomplete="off"
-                >
-                <button type="button" class="btn btn-secondary" onclick="toggleApiKeyVisibility()" aria-label="Toggle API key visibility">
-                    <i class="fas fa-eye" id="eye-icon"></i>
-                </button>
-                <button type="button" class="btn btn-secondary" onclick="testConnection()" aria-label="Test connection">
-                    <i class="fas fa-plug"></i> Test
-                </button>
-            </div>
-            <p class="form-help">
-                Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a>.
-                Your key is stored securely and never shared.
-            </p>
-            <div id="key-status" style="margin-top: 0.5rem; display: none;"></div>
+            <label for="provider">AI Provider</label>
+            <select id="provider" name="provider" onchange="toggleProviderFields()">
+                <option value="openai">OpenAI (Cloud)</option>
+                <option value="ollama">Ollama (Local)</option>
+            </select>
+            <p class="form-help">Choose between cloud AI (OpenAI) or local AI (Ollama)</p>
         </div>
         
-        <!-- Model Selection -->
-        <div class="form-group">
-            <label for="model">Model</label>
-            <select id="model" name="model">
-                <option value="gpt-4o">GPT-4o (Recommended)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (Cheaper)</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-            </select>
-            <p class="form-help">
-                GPT-4o provides best quality. GPT-4o-mini is faster and cheaper for simple queries.
-            </p>
+        <!-- OpenAI Fields -->
+        <div id="openai-fields">
+            <!-- API Key -->
+            <div class="form-group">
+                <label for="api-key">OpenAI API Key <span class="required">*</span></label>
+                <div class="input-with-button">
+                    <input 
+                        type="password" 
+                        id="api-key" 
+                        name="api_key"
+                        placeholder="sk-..." 
+                        autocomplete="off"
+                    >
+                    <button type="button" class="btn btn-secondary" onclick="toggleApiKeyVisibility()" aria-label="Toggle API key visibility">
+                        <i class="fas fa-eye" id="eye-icon"></i>
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="testConnection()" aria-label="Test connection">
+                        <i class="fas fa-plug"></i> Test
+                    </button>
+                </div>
+                <p class="form-help">
+                    Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a>.
+                    Your key is stored securely and never shared.
+                </p>
+                <div id="key-status" style="margin-top: 0.5rem; display: none;"></div>
+            </div>
+            
+            <!-- Model Selection -->
+            <div class="form-group">
+                <label for="model">Model</label>
+                <select id="model" name="model">
+                    <option value="gpt-4o">GPT-4o (Recommended)</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini (Cheaper)</option>
+                    <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                </select>
+                <p class="form-help">
+                    GPT-4o provides best quality. GPT-4o-mini is faster and cheaper for simple queries.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Ollama Fields -->
+        <div id="ollama-fields" style="display: none;">
+            <!-- Base URL -->
+            <div class="form-group">
+                <label for="base-url">Ollama Base URL <span class="required">*</span></label>
+                <input 
+                    type="text" 
+                    id="base-url" 
+                    name="base_url"
+                    placeholder="http://localhost:11434/v1" 
+                    value="http://localhost:11434/v1"
+                >
+                <p class="form-help">
+                    URL to your Ollama instance. Use <code>http://ollama:11434/v1</code> if running in Docker.
+                    <a href="https://ollama.ai" target="_blank" rel="noopener">Install Ollama →</a>
+                </p>
+            </div>
+            
+            <!-- Ollama Model -->
+            <div class="form-group">
+                <label for="ollama-model">Model</label>
+                <select id="ollama-model" name="ollama_model">
+                    <option value="qwen2.5-coder:7b">Qwen 2.5 Coder 7B (Recommended - Function Calling)</option>
+                    <option value="llama3.1:8b">Llama 3.1 8B (Good Balance)</option>
+                    <option value="mistral:7b">Mistral 7B (Fast)</option>
+                    <option value="qwen2.5:7b">Qwen 2.5 7B (General)</option>
+                    <option value="custom">Custom Model...</option>
+                </select>
+                <p class="form-help">
+                    Choose a model or enter a custom one. Models with function calling support work best.
+                </p>
+            </div>
+            
+            <!-- Custom Model Name (hidden by default) -->
+            <div class="form-group" id="custom-model-group" style="display: none;">
+                <label for="custom-model">Custom Model Name</label>
+                <input 
+                    type="text" 
+                    id="custom-model" 
+                    name="custom_model"
+                    placeholder="e.g., llama3.1:70b"
+                >
+                <p class="form-help">Enter the exact model name from <code>ollama list</code></p>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Using Ollama:</strong> Run <code>ollama pull qwen2.5-coder:7b</code> to download the model first.
+                See <a href="https://github.com/ollama/ollama" target="_blank">Ollama docs</a> for setup instructions.
+            </div>
         </div>
         
         <!-- Max Tokens -->
@@ -198,6 +263,31 @@
 <script>
 let configData = {};
 
+// Toggle provider-specific fields
+function toggleProviderFields() {
+    const provider = document.getElementById('provider').value;
+    const openaiFields = document.getElementById('openai-fields');
+    const ollamaFields = document.getElementById('ollama-fields');
+    
+    if (provider === 'openai') {
+        openaiFields.style.display = 'block';
+        ollamaFields.style.display = 'none';
+    } else {
+        openaiFields.style.display = 'none';
+        ollamaFields.style.display = 'block';
+    }
+}
+
+// Toggle custom model input
+document.getElementById('ollama-model').addEventListener('change', function() {
+    const customGroup = document.getElementById('custom-model-group');
+    if (this.value === 'custom') {
+        customGroup.style.display = 'block';
+    } else {
+        customGroup.style.display = 'none';
+    }
+});
+
 async function loadConfig() {
     try {
         // Get status which includes configuration info
@@ -207,13 +297,38 @@ async function loadConfig() {
         
         // Populate form
         document.getElementById('sam-enabled').checked = configData.enabled !== false;
-        document.getElementById('model').value = configData.model || 'gpt-4o';
         document.getElementById('max-tokens').value = configData.max_tokens || 1000;
         
-        // Show masked API key if exists
-        if (status.configured) {
-            document.getElementById('api-key').placeholder = '●●●●●●●●●●●●●●●●';
-            showKeyStatus('success', '✓ API key is configured');
+        // Set provider (default to openai)
+        const provider = configData.provider || 'openai';
+        document.getElementById('provider').value = provider;
+        toggleProviderFields();
+        
+        // OpenAI fields
+        if (provider === 'openai') {
+            document.getElementById('model').value = configData.model || 'gpt-4o';
+            // Show masked API key if exists
+            if (status.configured) {
+                document.getElementById('api-key').placeholder = '●●●●●●●●●●●●●●●●';
+                showKeyStatus('success', '✓ API key is configured');
+            }
+        } else {
+            // Ollama fields
+            const baseUrl = configData.base_url || 'http://localhost:11434/v1';
+            document.getElementById('base-url').value = baseUrl;
+            
+            const ollamaModel = configData.model || 'qwen2.5-coder:7b';
+            const modelSelect = document.getElementById('ollama-model');
+            
+            // Check if it's a preset model or custom
+            const optionExists = Array.from(modelSelect.options).some(opt => opt.value === ollamaModel);
+            if (optionExists && ollamaModel !== 'custom') {
+                modelSelect.value = ollamaModel;
+            } else if (ollamaModel !== 'custom') {
+                modelSelect.value = 'custom';
+                document.getElementById('custom-model').value = ollamaModel;
+                document.getElementById('custom-model-group').style.display = 'block';
+            }
         }
         
         // Check connection status
@@ -329,16 +444,37 @@ async function testConnection() {
 document.getElementById('sam-config-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    const provider = document.getElementById('provider').value;
     const formData = {
         enabled: document.getElementById('sam-enabled').checked,
-        model: document.getElementById('model').value,
+        provider: provider,
         max_tokens: parseInt(document.getElementById('max-tokens').value)
     };
     
-    // Only include API key if it was changed
-    const apiKey = document.getElementById('api-key').value;
-    if (apiKey && apiKey !== '●●●●●●●●●●●●●●●●') {
-        formData.api_key = apiKey;
+    if (provider === 'openai') {
+        // OpenAI-specific fields
+        formData.model = document.getElementById('model').value;
+        
+        // Only include API key if it was changed
+        const apiKey = document.getElementById('api-key').value;
+        if (apiKey && apiKey !== '●●●●●●●●●●●●●●●●') {
+            formData.api_key = apiKey;
+        }
+        formData.base_url = 'https://api.openai.com/v1';  // Default OpenAI URL
+    } else {
+        // Ollama-specific fields
+        formData.base_url = document.getElementById('base-url').value;
+        
+        // Get model from select or custom input
+        const modelSelect = document.getElementById('ollama-model');
+        if (modelSelect.value === 'custom') {
+            formData.model = document.getElementById('custom-model').value;
+        } else {
+            formData.model = modelSelect.value;
+        }
+        
+        // Ollama doesn't need API key
+        formData.api_key = 'ollama';  // Placeholder since Ollama doesn't use keys
     }
     
     try {

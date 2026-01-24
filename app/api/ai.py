@@ -22,9 +22,11 @@ class ChatMessage(BaseModel):
 
 
 class OpenAIConfig(BaseModel):
-    """OpenAI configuration model"""
+    """OpenAI/Ollama configuration model"""
     enabled: bool
+    provider: str = "openai"  # "openai" or "ollama"
     api_key: Optional[str] = None
+    base_url: Optional[str] = None
     model: str = "gpt-4o"
     max_tokens: int = 1000
 
@@ -34,20 +36,27 @@ async def get_ai_status():
     """Get Sam's configuration status"""
     config = app_config.get("openai", {})
     enabled = config.get("enabled", True)  # Default to True if not set
+    provider = config.get("provider", "openai")
     has_key = bool(config.get("api_key"))
     
     result = {
         "enabled": enabled,
         "configured": False,
         "model": config.get("model", "gpt-4o"),
+        "provider": provider,
         "config": {
             "enabled": enabled,
+            "provider": provider,
             "model": config.get("model", "gpt-4o"),
-            "max_tokens": config.get("max_tokens", 1000)
+            "max_tokens": config.get("max_tokens", 1000),
+            "base_url": config.get("base_url")
         }
     }
     
-    if not enabled or not has_key:
+    # For Ollama, we don't need an API key
+    if not enabled or (provider == "openai" and not has_key):
+        result["error"] = "Sam is not configured" if not has_key else "Sam is disabled"
+        return result
         result["configured"] = False
         return result
     
@@ -111,16 +120,21 @@ async def chat_with_sam(chat_message: ChatMessage):
 
 @router.post("/config")
 async def save_openai_config(config: OpenAIConfig):
-    """Save OpenAI configuration"""
+    """Save OpenAI/Ollama configuration"""
     try:
         # Update config
         openai_config = {
             "enabled": config.enabled,
+            "provider": config.provider,
             "model": config.model,
             "max_tokens": config.max_tokens
         }
         
-        # Only update API key if provided
+        # Add base_url if provided
+        if config.base_url:
+            openai_config["base_url"] = config.base_url
+        
+        # Only update API key if provided (or keep existing)
         if config.api_key:
             # TODO: Encrypt API key before storing
             openai_config["api_key"] = config.api_key
@@ -132,20 +146,23 @@ async def save_openai_config(config: OpenAIConfig):
         app_config.save()
         
         # Test connection if enabled
-        if config.enabled and openai_config.get("api_key"):
-            sam = SamAssistant()
-            test_result = await sam.test_connection()
-            
-            if not test_result["success"]:
-                return {
-                    "success": False,
-                    "error": f"Configuration saved but connection test failed: {test_result.get('error')}"
-                }
+        if config.enabled:
+            # For Ollama, we don't need an API key
+            # For OpenAI, we need an API key
+            if config.provider == "ollama" or openai_config.get("api_key"):
+                sam = SamAssistant()
+                test_result = await sam.test_connection()
+                
+                if not test_result["success"]:
+                    return {
+                        "success": False,
+                        "error": f"Configuration saved but connection test failed: {test_result.get('error')}"
+                    }
         
         return {"success": True}
     
     except Exception as e:
-        logger.error(f"Failed to save OpenAI config: {e}")
+        logger.error(f"Failed to save config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
