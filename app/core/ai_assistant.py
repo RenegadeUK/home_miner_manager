@@ -1134,16 +1134,17 @@ Be accurate, be helpful, be worth the API costs."""
             
             # === DEVICE HEALTH ===
             result = await db.execute(
-                select(HealthScore)
+                select(HealthScore, Miner.name)
+                .join(Miner, HealthScore.miner_id == Miner.id)
                 .where(HealthScore.timestamp >= cutoff_24h)
                 .order_by(desc(HealthScore.timestamp))
             )
-            health_records = result.scalars().all()
+            health_records = result.all()
             health_summary = {}
-            for h in health_records:
-                if h.miner_name not in health_summary:
-                    health_summary[h.miner_name] = {
-                        "health_score": h.health_score,
+            for h, miner_name in health_records:
+                if miner_name not in health_summary:
+                    health_summary[miner_name] = {
+                        "overall_score": h.overall_score,
                         "uptime_score": h.uptime_score,
                         "temperature_score": h.temperature_score,
                         "hashrate_score": h.hashrate_score,
