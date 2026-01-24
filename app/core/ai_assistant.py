@@ -532,7 +532,7 @@ Be accurate, be helpful, be worth the API costs."""
                     select(
                         func.avg(Telemetry.hashrate).label('avg_hashrate'),
                         func.avg(Telemetry.temperature).label('avg_temp'),
-                        func.avg(Telemetry.power).label('avg_power'),
+                        func.avg(Telemetry.power_watts).label('avg_power'),
                         func.sum(Telemetry.shares_accepted).label('total_accepted'),
                         func.sum(Telemetry.shares_rejected).label('total_rejected')
                     )
