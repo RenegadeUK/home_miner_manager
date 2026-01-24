@@ -654,8 +654,15 @@ class SamAssistant:
                 # Fallback: Check if Ollama returned tool call as text content
                 elif message.content and message.content.strip().startswith("{"):
                     try:
+                        content_str = message.content.strip()
+                        
+                        # Fix unquoted function names (Ollama bug)
+                        # {"name": get_all_miners_power_usage, ...} -> {"name": "get_all_miners_power_usage", ...}
+                        import re
+                        content_str = re.sub(r'("name":\s*)([a-zA-Z_][a-zA-Z0-9_]*)', r'\1"\2"', content_str)
+                        
                         # Try to parse as JSON tool call
-                        content_json = json.loads(message.content.strip())
+                        content_json = json.loads(content_str)
                         if "name" in content_json and "arguments" in content_json:
                             logger.info(f"Ollama returned tool call as text, converting to tool_calls format")
                             
