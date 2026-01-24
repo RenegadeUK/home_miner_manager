@@ -42,6 +42,363 @@ def _initialize_docs():
 # Initialize docs on module load (runs once per container start)
 _initialize_docs()
 
+# =============================================================================
+# FUNCTION CALLING TOOLS FOR SAM
+# =============================================================================
+
+SAM_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_telemetry_stats",
+            "description": "Get statistical summary of telemetry data for a miner over a time period. Use this to analyze hashrate trends, detect degradation, or calculate averages.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "miner_id": {
+                        "type": "integer",
+                        "description": "The miner ID to get stats for"
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to look back (default: 7, max: 90)"
+                    }
+                },
+                "required": ["miner_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_hashrate_trend",
+            "description": "Analyze hashrate trend over time to detect degradation. Returns daily averages and calculates percentage change.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "miner_id": {
+                        "type": "integer",
+                        "description": "The miner ID to analyze"
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to analyze (default: 30, max: 90)"
+                    }
+                },
+                "required": ["miner_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_oldest_telemetry",
+            "description": "Get the timestamp of the oldest telemetry record in the database.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_block_history",
+            "description": "Get blocks found by a miner (or all miners) over a time period.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "miner_id": {
+                        "type": "integer",
+                        "description": "The miner ID to get blocks for (optional - omit for all miners)"
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to look back (default: 30, max: 365)"
+                    },
+                    "coin": {
+                        "type": "string",
+                        "description": "Filter by coin (BTC, BCH, DGB, BC2, XMR) - optional"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_price_history",
+            "description": "Get electricity price history (Octopus Agile) for trend analysis.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to look back (default: 7, max: 30)"
+                    }
+                },
+                "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_telemetry_range",
+            "description": "Get raw telemetry records for detailed analysis. Returns timestamp, hashrate, temperature, power, shares for each record.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "miner_id": {
+                        "type": "integer",
+                        "description": "The miner ID to query"
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Start date in YYYY-MM-DD format"
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "End date in YYYY-MM-DD format"
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum records to return (default: 1000, max: 10000)"
+                    }
+                },
+                "required": ["miner_id", "start_date", "end_date"]
+            }
+        }
+    }
+]
+
+# =============================================================================
+# FUNCTION HANDLERS - Execute database queries for Sam
+# =============================================================================
+
+async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> str:
+    """
+    Execute a tool function and return JSON string result.
+    All functions are read-only and safe to execute.
+    """
+    try:
+        args = arguments
+        
+        if tool_name == "get_telemetry_stats":
+            miner_id = args["miner_id"]
+            days = min(args.get("days", 7), 90)
+            since = datetime.utcnow() - timedelta(days=days)
+            
+            result = await db.execute(
+                select(
+                    func.count(Telemetry.id).label("count"),
+                    func.avg(Telemetry.hashrate).label("avg_hashrate"),
+                    func.min(Telemetry.hashrate).label("min_hashrate"),
+                    func.max(Telemetry.hashrate).label("max_hashrate"),
+                    func.avg(Telemetry.temperature).label("avg_temperature"),
+                    func.max(Telemetry.temperature).label("max_temperature"),
+                    func.avg(Telemetry.power_watts).label("avg_power_watts"),
+                    func.sum(Telemetry.shares_accepted).label("total_accepted"),
+                    func.sum(Telemetry.shares_rejected).label("total_rejected"),
+                    Telemetry.hashrate_unit
+                )
+                .where(Telemetry.miner_id == miner_id, Telemetry.timestamp >= since)
+                .group_by(Telemetry.hashrate_unit)
+            )
+            row = result.first()
+            
+            if not row or row.count == 0:
+                return json.dumps({"error": f"No telemetry found for miner {miner_id} in last {days} days"})
+            
+            reject_rate = (row.total_rejected / (row.total_accepted + row.total_rejected) * 100) if (row.total_accepted + row.total_rejected) > 0 else 0
+            
+            return json.dumps({
+                "miner_id": miner_id,
+                "days": days,
+                "record_count": row.count,
+                "avg_hashrate": f"{row.avg_hashrate:.2f} {row.hashrate_unit}",
+                "min_hashrate": f"{row.min_hashrate:.2f} {row.hashrate_unit}",
+                "max_hashrate": f"{row.max_hashrate:.2f} {row.hashrate_unit}",
+                "avg_temperature": f"{row.avg_temperature:.1f}°C" if row.avg_temperature else "N/A",
+                "max_temperature": f"{row.max_temperature:.1f}°C" if row.max_temperature else "N/A",
+                "avg_power": f"{row.avg_power_watts:.1f}W" if row.avg_power_watts else "N/A",
+                "shares_accepted": row.total_accepted,
+                "shares_rejected": row.total_rejected,
+                "reject_rate": f"{reject_rate:.2f}%"
+            })
+        
+        elif tool_name == "get_hashrate_trend":
+            miner_id = args["miner_id"]
+            days = min(args.get("days", 30), 90)
+            since = datetime.utcnow() - timedelta(days=days)
+            
+            # Get daily averages
+            result = await db.execute(
+                select(
+                    func.date(Telemetry.timestamp).label("date"),
+                    func.avg(Telemetry.hashrate).label("avg_hashrate"),
+                    Telemetry.hashrate_unit
+                )
+                .where(Telemetry.miner_id == miner_id, Telemetry.timestamp >= since)
+                .group_by(func.date(Telemetry.timestamp), Telemetry.hashrate_unit)
+                .order_by(func.date(Telemetry.timestamp))
+            )
+            rows = result.all()
+            
+            if not rows:
+                return json.dumps({"error": f"No telemetry found for miner {miner_id} in last {days} days"})
+            
+            daily_data = [{"date": str(row.date), "avg_hashrate": float(row.avg_hashrate)} for row in rows]
+            first_week_avg = sum(d["avg_hashrate"] for d in daily_data[:7]) / min(7, len(daily_data))
+            last_week_avg = sum(d["avg_hashrate"] for d in daily_data[-7:]) / min(7, len(daily_data))
+            percent_change = ((last_week_avg - first_week_avg) / first_week_avg * 100) if first_week_avg > 0 else 0
+            
+            unit = rows[0].hashrate_unit if rows else "GH/s"
+            
+            return json.dumps({
+                "miner_id": miner_id,
+                "days_analyzed": len(daily_data),
+                "first_week_avg": f"{first_week_avg:.2f} {unit}",
+                "last_week_avg": f"{last_week_avg:.2f} {unit}",
+                "percent_change": f"{percent_change:+.2f}%",
+                "trend": "declining" if percent_change < -5 else "stable" if abs(percent_change) <= 5 else "improving",
+                "daily_averages": daily_data
+            })
+        
+        elif tool_name == "get_oldest_telemetry":
+            result = await db.execute(
+                select(func.min(Telemetry.timestamp))
+            )
+            oldest = result.scalar()
+            
+            if not oldest:
+                return json.dumps({"error": "No telemetry records found"})
+            
+            age_days = (datetime.utcnow() - oldest).days
+            return json.dumps({
+                "oldest_timestamp": oldest.isoformat(),
+                "age_days": age_days,
+                "human_readable": f"{age_days} days ago ({oldest.strftime('%Y-%m-%d %H:%M:%S')})"
+            })
+        
+        elif tool_name == "get_block_history":
+            days = min(args.get("days", 30), 365)
+            since = datetime.utcnow() - timedelta(days=days)
+            
+            query = select(BlockFound).where(BlockFound.timestamp >= since)
+            
+            if "miner_id" in args:
+                query = query.where(BlockFound.miner_id == args["miner_id"])
+            if "coin" in args:
+                query = query.where(BlockFound.coin == args["coin"].upper())
+            
+            query = query.order_by(desc(BlockFound.timestamp)).limit(100)
+            
+            result = await db.execute(query)
+            blocks = result.scalars().all()
+            
+            if not blocks:
+                return json.dumps({"blocks": [], "total": 0})
+            
+            blocks_data = [{
+                "miner_name": b.miner_name,
+                "coin": b.coin,
+                "difficulty": float(b.difficulty),
+                "network_difficulty": float(b.network_difficulty) if b.network_difficulty else None,
+                "block_height": b.block_height,
+                "block_reward": float(b.block_reward) if b.block_reward else None,
+                "timestamp": b.timestamp.isoformat()
+            } for b in blocks]
+            
+            return json.dumps({
+                "blocks": blocks_data,
+                "total": len(blocks),
+                "days": days,
+                "by_coin": {coin: sum(1 for b in blocks if b.coin == coin) for coin in set(b.coin for b in blocks)}
+            })
+        
+        elif tool_name == "get_price_history":
+            days = min(args.get("days", 7), 30)
+            since = datetime.utcnow() - timedelta(days=days)
+            
+            result = await db.execute(
+                select(EnergyPrice)
+                .where(EnergyPrice.valid_from >= since)
+                .order_by(EnergyPrice.valid_from)
+            )
+            prices = result.scalars().all()
+            
+            if not prices:
+                return json.dumps({"error": "No price data found"})
+            
+            price_data = [{
+                "timestamp": p.valid_from.isoformat(),
+                "price_pence": float(p.price_pence),
+                "region": p.region
+            } for p in prices]
+            
+            avg_price = sum(p.price_pence for p in prices) / len(prices)
+            min_price = min(p.price_pence for p in prices)
+            max_price = max(p.price_pence for p in prices)
+            
+            return json.dumps({
+                "records": price_data[:100],  # Limit to 100 for context
+                "stats": {
+                    "avg_price": f"{avg_price:.2f}p/kWh",
+                    "min_price": f"{min_price:.2f}p/kWh",
+                    "max_price": f"{max_price:.2f}p/kWh",
+                    "total_slots": len(prices)
+                }
+            })
+        
+        elif tool_name == "query_telemetry_range":
+            miner_id = args["miner_id"]
+            start_date = datetime.fromisoformat(args["start_date"])
+            end_date = datetime.fromisoformat(args["end_date"])
+            limit = min(args.get("limit", 1000), 10000)
+            
+            result = await db.execute(
+                select(Telemetry)
+                .where(
+                    Telemetry.miner_id == miner_id,
+                    Telemetry.timestamp >= start_date,
+                    Telemetry.timestamp <= end_date
+                )
+                .order_by(Telemetry.timestamp)
+                .limit(limit)
+            )
+            records = result.scalars().all()
+            
+            if not records:
+                return json.dumps({"error": "No telemetry found in date range"})
+            
+            telemetry_data = [{
+                "timestamp": t.timestamp.isoformat(),
+                "hashrate": f"{t.hashrate:.2f} {t.hashrate_unit}" if t.hashrate else "N/A",
+                "temperature": f"{t.temperature:.1f}°C" if t.temperature else "N/A",
+                "power_watts": f"{t.power_watts:.1f}W" if t.power_watts else "N/A",
+                "shares_accepted": t.shares_accepted,
+                "shares_rejected": t.shares_rejected,
+                "pool": t.pool_in_use
+            } for t in records]
+            
+            return json.dumps({
+                "miner_id": miner_id,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
+                "record_count": len(records),
+                "records": telemetry_data
+            })
+        
+        else:
+            return json.dumps({"error": f"Unknown tool: {tool_name}"})
+    
+    except Exception as e:
+        logger.error(f"Error executing tool {tool_name}: {e}")
+        return json.dumps({"error": str(e)})
+
 
 def get_openai_api_key() -> Optional[str]:
     """Get OpenAI API key from config (encrypted storage)"""
@@ -134,7 +491,7 @@ class SamAssistant:
         conversation_history: List[Dict] = None
     ) -> AsyncGenerator[str, None]:
         """
-        Chat with Sam (streaming response)
+        Chat with Sam (streaming response with function calling)
         
         Args:
             user_message: User's question
@@ -164,18 +521,81 @@ class SamAssistant:
             # Add user message
             messages.append({"role": "user", "content": user_message})
             
-            # Stream response
-            stream = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                stream=True,
-                temperature=0.7
-            )
+            # Function calling loop - Sam can request data multiple times
+            max_iterations = 5  # Prevent infinite loops
+            iteration = 0
             
-            async for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+            while iteration < max_iterations:
+                iteration += 1
+                
+                # Call OpenAI with tools
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    tools=SAM_TOOLS,
+                    tool_choice="auto",
+                    temperature=0.7
+                )
+                
+                message = response.choices[0].message
+                
+                # If Sam wants to call functions, execute them
+                if message.tool_calls:
+                    # Add assistant message with tool calls to history
+                    messages.append({
+                        "role": "assistant",
+                        "content": message.content,
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments
+                                }
+                            } for tc in message.tool_calls
+                        ]
+                    })
+                    
+                    # Execute each tool call
+                    async with AsyncSessionLocal() as db:
+                        for tool_call in message.tool_calls:
+                            function_name = tool_call.function.name
+                            function_args = json.loads(tool_call.function.arguments)
+                            
+                            # Inform user what Sam is doing
+                            yield f"[Analyzing {function_name}...]\n\n"
+                            
+                            # Execute the function
+                            result = await _execute_tool(function_name, function_args, db)
+                            
+                            # Add tool result to messages
+                            messages.append({
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": result
+                            })
+                    
+                    # Continue loop to let Sam process the results
+                    continue
+                
+                # Sam has finished (no more tool calls), stream final response
+                if message.content:
+                    # Stream the final answer
+                    stream = await self.client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        max_tokens=self.max_tokens,
+                        stream=True,
+                        temperature=0.7
+                    )
+                    
+                    async for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            yield chunk.choices[0].delta.content
+                
+                break  # Done
         
         except Exception as e:
             logger.error(f"Sam chat error: {e}")
@@ -198,6 +618,9 @@ You help miners optimize their operations by analyzing real-time and historical 
 
 **✅ YOU CAN:**
 - Analyze current data and provide insights
+- **Query historical data using function calling tools** (telemetry stats, hashrate trends, block history, price history)
+- Detect performance degradation by analyzing trends over time
+- Answer questions about oldest/newest data, specific time ranges
 - Recommend actions based on electricity prices and performance
 - Explain how features work
 - Troubleshoot issues by identifying problems in the data
@@ -211,6 +634,24 @@ You help miners optimize their operations by analyzing real-time and historical 
 - Execute any commands or actions
 
 **When asked to "do" something**: Politely explain you can only provide recommendations, then tell them WHAT to do and WHERE to do it (e.g., "Go to Settings → Energy Optimization to enable auto-optimization").
+
+## FUNCTION CALLING TOOLS YOU HAVE ACCESS TO
+When you need more data than what's in the "Current System State", you can call these functions:
+
+1. **get_telemetry_stats(miner_id, days)** - Get statistical summary (avg/min/max hashrate, temperature, power, reject rate) over time period
+2. **get_hashrate_trend(miner_id, days)** - Analyze hashrate trend to detect degradation. Returns daily averages and percentage change
+3. **get_oldest_telemetry()** - Get timestamp of oldest telemetry record (how far back does data go?)
+4. **get_block_history(miner_id, days, coin)** - Get blocks found by miner(s) over time period, optionally filtered by coin
+5. **get_price_history(days)** - Get electricity price history for trend analysis
+6. **query_telemetry_range(miner_id, start_date, end_date, limit)** - Get raw telemetry records for detailed analysis
+
+**When to use tools:**
+- User asks "is my hashrate declining?" → Use get_hashrate_trend()
+- User asks "what's the oldest telemetry?" → Use get_oldest_telemetry()
+- User asks "how many blocks this month?" → Use get_block_history()
+- User asks "show me performance over past week" → Use get_telemetry_stats()
+
+**CRITICAL**: ALWAYS use these tools when user asks historical questions. Don't say "I don't have access" - you DO have access via function calling!
 
 ## DATA YOU HAVE ACCESS TO
 You receive a comprehensive JSON object called "Current System State" with every query containing:
@@ -244,15 +685,28 @@ You receive a comprehensive JSON object called "Current System State" with every
 - `recent_system_events`: Last 50 automated actions in 24h (pool switches, mode changes, reconciliations)
 
 ## DATABASE SCHEMA KNOWLEDGE
-You should understand the HMM data model to answer questions accurately:
+You should understand the HMM data model to answer questions accurately.
+**CRITICAL**: Read DATABASE-SCHEMA.md from the docs for complete field names!
 
-**Miner Table**: id, name, miner_type, ip_address, enabled, current_mode, current_pool, enrolled_in_strategy
-**Telemetry Table**: miner_id, timestamp, hashrate, hashrate_unit, temperature, power, shares_accepted, shares_rejected, uptime
-**Pool Table**: id, name, pool_type (solo/team), url, priority
-**BlockFound Table**: miner_name, coin, difficulty, timestamp, confirmed (validated against external APIs)
-**HighDiffShare Table**: miner_name, coin, difficulty, network_difficulty, timestamp
-**EnergyPrice Table**: valid_from, valid_to, price_pence, tariff (octopus_agile)
-**AutomationRule Table**: name, enabled, trigger_type (price_threshold/time_window/hybrid), action_type (set_mode/switch_pool)
+**Key Tables & Fields**:
+- **Miner**: id, name, miner_type, ip_address, enabled, current_mode, enrolled_in_strategy (NO current_pool field!)
+- **Telemetry**: miner_id, timestamp, hashrate, hashrate_unit, temperature, power_watts (NOT power!), shares_accepted, shares_rejected, pool_in_use (pool info here!)
+- **Pool**: id, name, url, port, user, enabled, priority, network_difficulty, best_share
+- **BlockFound**: miner_name, coin, difficulty, network_difficulty, block_height, block_reward, timestamp
+- **HighDiffShare**: miner_name, coin, difficulty, network_difficulty, was_block_solve, timestamp
+- **EnergyPrice**: valid_from, valid_to, price_pence, region (octopus_agile)
+- **CryptoPrice**: coin_id, price_gbp, source, updated_at
+- **AutomationRule**: name, enabled, trigger_type, trigger_config, action_type, action_config
+- **AgileStrategy**: enabled, current_price_band, hysteresis_counter, last_action_time
+- **HealthScore**: miner_id, timestamp, overall_score, uptime_score, temperature_score, hashrate_score
+- **PoolHealth**: pool_id, timestamp, response_time_ms, is_reachable, health_score, reject_rate
+- **Event**: timestamp, event_type, source, message
+- **AuditLog**: timestamp, user, action, resource_type, resource_name, changes
+
+**COMMON PITFALLS TO AVOID**:
+- ❌ WRONG: `miner.current_pool` (doesn't exist) → ✅ CORRECT: `telemetry.pool_in_use`
+- ❌ WRONG: `telemetry.power` (doesn't exist) → ✅ CORRECT: `telemetry.power_watts`
+- ❌ WRONG: `telemetry.uptime` (doesn't exist) → ✅ CORRECT: No uptime field available
 **PoolHealth Table**: pool_name, timestamp, health_score (0-100), reachable, response_time_ms, reject_rate
 **HealthScore Table**: miner_name, timestamp, health_score, uptime_score, temperature_score, hashrate_score, reject_rate_score
 **AuditLog Table**: action (e.g., agile_strategy_executed, pool_strategy_reconciled), triggered_by (automation/user), timestamp
@@ -546,7 +1000,7 @@ Be accurate, be helpful, be worth the API costs."""
                     "type": miner.miner_type,
                     "enabled": miner.enabled,
                     "current_mode": miner.current_mode,
-                    "pool": miner.current_pool  # Just pool name, not credentials
+                    "pool": latest.pool_in_use if latest else None  # Pool from telemetry, not miner
                 }
                 
                 if latest:
@@ -554,10 +1008,9 @@ Be accurate, be helpful, be worth the API costs."""
                         "hashrate": float(latest.hashrate) if latest.hashrate else 0,
                         "hashrate_unit": latest.hashrate_unit,
                         "temperature": float(latest.temperature) if latest.temperature else 0,
-                        "power_watts": float(latest.power) if latest.power else 0,
+                        "power_watts": float(latest.power_watts) if latest.power_watts else 0,
                         "shares_accepted": latest.shares_accepted or 0,
                         "shares_rejected": latest.shares_rejected or 0,
-                        "uptime_seconds": latest.uptime or 0,
                         "last_seen": latest.timestamp.isoformat()
                     }
                 
