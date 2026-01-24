@@ -19,7 +19,28 @@ logger = logging.getLogger(__name__)
 
 # Documentation directory (mounted in /config volume)
 DOCS_DIR = Path("/config/docs")
-DOCS_DIR.mkdir(parents=True, exist_ok=True)
+STARTER_DOCS_DIR = Path(__file__).parent.parent / "docs" / "starter"
+
+def _initialize_docs():
+    """
+    Copy starter documentation to /config/docs/ if it doesn't exist.
+    This runs once on first startup to provide default docs.
+    Users can then customize them without losing changes on updates.
+    """
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Only copy if /config/docs/ is empty
+    if not any(DOCS_DIR.rglob("*.md")):
+        if STARTER_DOCS_DIR.exists():
+            logger.info("Initializing Sam documentation from starter templates...")
+            import shutil
+            shutil.copytree(STARTER_DOCS_DIR, DOCS_DIR, dirs_exist_ok=True)
+            logger.info(f"Documentation initialized: {len(list(DOCS_DIR.rglob('*.md')))} files")
+        else:
+            logger.warning("Starter docs not found - Sam will work but with limited context")
+
+# Initialize docs on module load (runs once per container start)
+_initialize_docs()
 
 
 def get_openai_api_key() -> Optional[str]:
