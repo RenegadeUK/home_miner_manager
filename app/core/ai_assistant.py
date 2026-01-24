@@ -666,7 +666,7 @@ You receive a comprehensive JSON object called "Current System State" with every
 - `24h_averages`: Rolling 24h stats (avg hashrate/temp/power, total shares, reject_rate_percent)
 
 ### Pool Data
-- `pools`: Array of configured pools (name, pool_type, priority, url - NO PASSWORDS)
+- `pools`: Array of configured pools (name, enabled, priority, url - NO PASSWORDS)
 - `pool_health`: Per-pool health metrics (health_score 0-100, reachable, response_time_ms, reject_rate)
 
 ### Blocks & Shares
@@ -1034,7 +1034,7 @@ Be accurate, be helpful, be worth the API costs."""
             context["pools"] = [
                 {
                     "name": p.name,
-                    "pool_type": p.pool_type,
+                    "enabled": p.enabled,
                     "priority": p.priority,
                     "url": p.url  # URL is OK, just no passwords
                 }
@@ -1043,17 +1043,18 @@ Be accurate, be helpful, be worth the API costs."""
             
             # Pool health
             result = await db.execute(
-                select(PoolHealth)
+                select(PoolHealth, Pool.name)
+                .join(Pool, PoolHealth.pool_id == Pool.id)
                 .where(PoolHealth.timestamp >= cutoff_24h)
                 .order_by(desc(PoolHealth.timestamp))
             )
-            pool_health_records = result.scalars().all()
+            pool_health_records = result.all()
             pool_health_summary = {}
-            for ph in pool_health_records:
-                if ph.pool_name not in pool_health_summary:
-                    pool_health_summary[ph.pool_name] = {
+            for ph, pool_name in pool_health_records:
+                if pool_name not in pool_health_summary:
+                    pool_health_summary[pool_name] = {
                         "latest_health_score": ph.health_score,
-                        "reachable": ph.reachable,
+                        "reachable": ph.is_reachable,
                         "response_time_ms": ph.response_time_ms,
                         "reject_rate": ph.reject_rate
                     }
@@ -1070,8 +1071,9 @@ Be accurate, be helpful, be worth the API costs."""
                     "miner": b.miner_name,
                     "coin": b.coin,
                     "difficulty": float(b.difficulty),
-                    "timestamp": b.timestamp.isoformat(),
-                    "confirmed": b.confirmed
+                    "network_difficulty": float(b.network_difficulty) if b.network_difficulty else None,
+                    "block_height": b.block_height,
+                    "timestamp": b.timestamp.isoformat()
                 }
                 for b in all_blocks
             ]
