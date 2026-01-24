@@ -249,50 +249,56 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
         elif tool_name == "get_all_miners_power_usage":
             days = min(args.get("days", 7), 90)
             since = datetime.utcnow() - timedelta(days=days)
+            region = "H"  # TODO: Get from config
             
-            # Get average power per miner over the period
+            # Get all telemetry with power data
             result = await db.execute(
-                select(
-                    Telemetry.miner_id,
-                    func.avg(Telemetry.power_watts).label('avg_power')
-                )
+                select(Telemetry)
                 .where(
                     Telemetry.timestamp >= since,
                     Telemetry.power_watts.isnot(None)
                 )
-                .group_by(Telemetry.miner_id)
+                .order_by(Telemetry.timestamp)
             )
-            miner_power = result.all()
+            telemetry_records = result.scalars().all()
             
-            if not miner_power:
+            if not telemetry_records:
                 return json.dumps({"error": "No power data found"})
             
-            # Calculate total average power across all miners
-            total_avg_watts = sum(mp.avg_power for mp in miner_power)
+            # Calculate cost exactly like dashboard does
+            total_cost_pence = 0
             
-            # Calculate total kWh consumed over the period
-            # kWh = kW * hours
-            total_hours = days * 24
-            total_kwh = (total_avg_watts / 1000) * total_hours
+            for telem in telemetry_records:
+                if not telem.power_watts or telem.power_watts <= 0:
+                    continue
+                
+                # Find energy price for this timestamp
+                price_result = await db.execute(
+                    select(EnergyPrice)
+                    .where(EnergyPrice.region == region)
+                    .where(EnergyPrice.valid_from <= telem.timestamp)
+                    .where(EnergyPrice.valid_to > telem.timestamp)
+                    .limit(1)
+                )
+                price = price_result.scalar_one_or_none()
+                
+                if price:
+                    # 30 second telemetry interval (same as dashboard calculation)
+                    interval_hours = 30 / 3600
+                    energy_kwh = (telem.power_watts / 1000) * interval_hours
+                    total_cost_pence += energy_kwh * price.price_pence
             
-            # Get average electricity price for the period
-            price_result = await db.execute(
-                select(func.avg(EnergyPrice.price_pence))
-                .where(EnergyPrice.valid_from >= since)
-            )
-            avg_price_pence = price_result.scalar() or 0
-            
-            # Calculate cost
-            total_cost_pence = total_kwh * avg_price_pence
+            total_cost_gbp = total_cost_pence / 100
+            total_kwh = sum((t.power_watts / 1000) * (30 / 3600) for t in telemetry_records if t.power_watts)
+            avg_power = sum(t.power_watts for t in telemetry_records if t.power_watts) / len([t for t in telemetry_records if t.power_watts])
             
             return json.dumps({
                 "days": days,
                 "total_kwh": round(total_kwh, 2),
-                "total_cost_gbp": round(total_cost_pence / 100, 2),
-                "avg_power_watts": round(total_avg_watts, 2),
-                "avg_price_pence_kwh": round(avg_price_pence, 2),
-                "miners_tracked": len(miner_power),
-                "daily_cost_gbp": round(total_cost_pence / 100 / days, 2)
+                "total_cost_gbp": round(total_cost_gbp, 2),
+                "avg_power_watts": round(avg_power, 2),
+                "telemetry_records": len(telemetry_records),
+                "daily_cost_gbp": round(total_cost_gbp / days, 2)
             })
         
         elif tool_name == "get_hashrate_trend":
