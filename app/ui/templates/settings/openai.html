@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">🤖 Sam - AI Mining Assistant</h2>
+    </div>
+    
+    <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+        Sam is your AI-powered mining assistant that can answer questions about your operation,
+        provide optimization recommendations, and analyze performance data using OpenAI GPT-4.
+    </p>
+    
+    <form id="sam-config-form">
+        <!-- Enable Toggle -->
+        <div class="form-group">
+            <label class="toggle-label">
+                <input type="checkbox" id="sam-enabled" name="enabled">
+                <span>Enable Sam</span>
+            </label>
+            <p class="form-help">Allow Sam to access your mining data and provide AI-powered insights</p>
+        </div>
+        
+        <!-- API Key -->
+        <div class="form-group">
+            <label for="api-key">OpenAI API Key <span class="required">*</span></label>
+            <div class="input-with-button">
+                <input 
+                    type="password" 
+                    id="api-key" 
+                    name="api_key"
+                    placeholder="sk-..." 
+                    autocomplete="off"
+                >
+                <button type="button" class="btn btn-secondary" onclick="toggleApiKeyVisibility()" aria-label="Toggle API key visibility">
+                    <i class="fas fa-eye" id="eye-icon"></i>
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="testConnection()" aria-label="Test connection">
+                    <i class="fas fa-plug"></i> Test
+                </button>
+            </div>
+            <p class="form-help">
+                Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI Platform</a>.
+                Your key is stored securely and never shared.
+            </p>
+            <div id="key-status" style="margin-top: 0.5rem; display: none;"></div>
+        </div>
+        
+        <!-- Model Selection -->
+        <div class="form-group">
+            <label for="model">Model</label>
+            <select id="model" name="model">
+                <option value="gpt-4o">GPT-4o (Recommended)</option>
+                <option value="gpt-4o-mini">GPT-4o Mini (Cheaper)</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+            </select>
+            <p class="form-help">
+                GPT-4o provides best quality. GPT-4o-mini is faster and cheaper for simple queries.
+            </p>
+        </div>
+        
+        <!-- Max Tokens -->
+        <div class="form-group">
+            <label for="max-tokens">Max Response Tokens</label>
+            <input type="number" id="max-tokens" name="max_tokens" value="1000" min="100" max="4000" step="100">
+            <p class="form-help">Maximum length of Sam's responses. Higher = longer answers but more cost.</p>
+        </div>
+        
+        <!-- Status Indicator -->
+        <div id="connection-status" style="display: none; margin-bottom: 1.5rem;">
+            <div class="status-card"></div>
+        </div>
+        
+        <!-- Save Button -->
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save Configuration
+        </button>
+    </form>
+</div>
+
+<!-- Example Queries Card -->
+<div class="card" style="margin-top: 2rem;">
+    <div class="card-header">
+        <h3 class="card-title">💡 What Can Sam Help With?</h3>
+    </div>
+    
+    <div class="example-queries">
+        <div class="query-category">
+            <h4>Performance Analysis</h4>
+            <ul>
+                <li>"Which miner is most profitable today?"</li>
+                <li>"Why is Amber performing better than Green?"</li>
+                <li>"What's my total hashrate right now?"</li>
+            </ul>
+        </div>
+        
+        <div class="query-category">
+            <h4>Optimization Recommendations</h4>
+            <ul>
+                <li>"Should I be mining right now at this electricity price?"</li>
+                <li>"When's the best time to mine this week?"</li>
+                <li>"What mode should my miners be in?"</li>
+            </ul>
+        </div>
+        
+        <div class="query-category">
+            <h4>Troubleshooting</h4>
+            <ul>
+                <li>"Why is my reject rate high?"</li>
+                <li>"Which miner has the highest temperature?"</li>
+                <li>"Are all my miners online?"</li>
+            </ul>
+        </div>
+        
+        <div class="query-category">
+            <h4>Historical Analysis</h4>
+            <ul>
+                <li>"How many blocks did I find this month?"</li>
+                <li>"What was my closest share to solving a block?"</li>
+                <li>"How much have I saved with Agile pricing?"</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<style>
+.input-with-button {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.input-with-button input {
+    flex: 1;
+}
+
+.input-with-button button {
+    white-space: nowrap;
+}
+
+#key-status {
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+#key-status.success {
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+#key-status.error {
+    background: rgba(248, 113, 113, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.status-card {
+    padding: 1rem;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.example-queries {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.query-category h4 {
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.query-category ul {
+    list-style: none;
+    padding: 0;
+}
+
+.query-category li {
+    padding: 0.5rem 0;
+    color: var(--text-secondary);
+    font-style: italic;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.query-category li:last-child {
+    border-bottom: none;
+}
+
+.required {
+    color: #f87171;
+}
+</style>
+
+<script>
+let configData = {};
+
+async function loadConfig() {
+    try {
+        // Get status which includes configuration info
+        const response = await fetch('/api/ai/status');
+        const status = await response.json();
+        configData = status.config || {};
+        
+        // Populate form
+        document.getElementById('sam-enabled').checked = configData.enabled !== false;
+        document.getElementById('model').value = configData.model || 'gpt-4o';
+        document.getElementById('max-tokens').value = configData.max_tokens || 1000;
+        
+        // Show masked API key if exists
+        if (status.configured) {
+            document.getElementById('api-key').placeholder = '●●●●●●●●●●●●●●●●';
+            showKeyStatus('success', '✓ API key is configured');
+        }
+        
+        // Check connection status
+        await checkStatus();
+    } catch (error) {
+        console.error('Failed to load config:', error);
+    }
+}
+
+async function checkStatus() {
+    try {
+        const response = await fetch('/api/ai/status');
+        const status = await response.json();
+        
+        const statusDiv = document.getElementById('connection-status');
+        const statusCard = statusDiv.querySelector('.status-card');
+        
+        if (status.configured) {
+            statusCard.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="fas fa-check-circle" style="color: #4ade80; font-size: 1.5rem;"></i>
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-primary);">Connected</div>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">Model: ${status.model}</div>
+                    </div>
+                </div>
+            `;
+            statusDiv.style.display = 'block';
+        } else if (status.enabled) {
+            statusCard.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <i class="fas fa-exclamation-triangle" style="color: #fbbf24; font-size: 1.5rem;"></i>
+                    <div>
+                        <div style="font-weight: 600; color: var(--text-primary);">Configuration Error</div>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">${status.error || 'Please check your API key'}</div>
+                    </div>
+                </div>
+            `;
+            statusDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Failed to check status:', error);
+    }
+}
+
+function toggleApiKeyVisibility() {
+    const input = document.getElementById('api-key');
+    const icon = document.getElementById('eye-icon');
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function showKeyStatus(type, message) {
+    const statusDiv = document.getElementById('key-status');
+    statusDiv.className = type;
+    statusDiv.textContent = message;
+    statusDiv.style.display = 'block';
+}
+
+async function testConnection() {
+    const apiKey = document.getElementById('api-key').value;
+    
+    if (!apiKey && !configData.api_key) {
+        showKeyStatus('error', '✗ Please enter an API key first');
+        return;
+    }
+    
+    const button = event.target.closest('button');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    button.disabled = true;
+    
+    try {
+        // Save temporarily to test
+        if (apiKey) {
+            await fetch('/api/ai/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    enabled: true,
+                    api_key: apiKey,
+                    model: document.getElementById('model').value,
+                    max_tokens: parseInt(document.getElementById('max-tokens').value)
+                })
+            });
+        }
+        
+        const response = await fetch('/api/ai/test', {method: 'POST'});
+        const result = await response.json();
+        
+        if (result.success) {
+            showKeyStatus('success', `✓ Connection successful! Model: ${result.model}`);
+            await checkStatus();
+        } else {
+            showKeyStatus('error', `✗ Connection failed: ${result.error}`);
+        }
+    } catch (error) {
+        showKeyStatus('error', `✗ Test failed: ${error.message}`);
+    } finally {
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    }
+}
+
+document.getElementById('sam-config-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = {
+        enabled: document.getElementById('sam-enabled').checked,
+        model: document.getElementById('model').value,
+        max_tokens: parseInt(document.getElementById('max-tokens').value)
+    };
+    
+    // Only include API key if it was changed
+    const apiKey = document.getElementById('api-key').value;
+    if (apiKey && apiKey !== '●●●●●●●●●●●●●●●●') {
+        formData.api_key = apiKey;
+    }
+    
+    try {
+        const response = await fetch('/api/ai/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('✅ Sam configuration saved successfully!');
+            await loadConfig();
+        } else {
+            alert(`❌ ${result.error}`);
+        }
+    } catch (error) {
+        alert(`❌ Failed to save configuration: ${error.message}`);
+    }
+});
+
+// Load config on page load
+loadConfig();
+</script>
+{% endblock %}

@@ -175,6 +175,12 @@
                     <li><a href="/settings" class="{% if '/settings' in request.url.path %}active{% endif %}">
                         ⚙️ Settings
                     </a></li>
+                    <li class="nav-separator">
+                        <a href="#" id="sam-trigger" class="nav-sam" title="Sam - AI Assistant">
+                            🤖 Sam
+                            <span class="sam-status-dot" id="sam-status-dot"></span>
+                        </a>
+                    </li>
                 </ul>
             </nav>
             <div class="sidebar-footer">
@@ -381,6 +387,616 @@
                 const cpuNav = document.getElementById('nav-cpu-dashboard');
                 if (cpuNav) cpuNav.style.display = 'none';
             }
+        })();
+    </script>
+    
+    <!-- Sam AI Assistant Floating Chat Widget -->
+    <div id="sam-chat-widget" class="sam-chat-widget sam-minimized">
+        <div class="sam-chat-header">
+            <div class="sam-chat-title">
+                <span class="sam-avatar">🤖</span>
+                <div>
+                    <div class="sam-name">Sam</div>
+                    <div class="sam-subtitle">AI Assistant</div>
+                </div>
+            </div>
+            <div class="sam-chat-controls">
+                <button id="sam-minimize-btn" class="sam-control-btn" title="Minimize">
+                    <span class="minimize-icon">−</span>
+                    <span class="maximize-icon">□</span>
+                </button>
+                <button id="sam-close-btn" class="sam-control-btn" title="Close">×</button>
+            </div>
+        </div>
+        <div class="sam-chat-body">
+            <div id="sam-messages" class="sam-messages">
+                <div class="sam-message sam-system">
+                    👋 Hi! I'm Sam, your AI mining assistant. Ask me anything about your miners, pools, blocks, or energy optimization!
+                </div>
+            </div>
+            <div class="sam-chat-input-container">
+                <textarea id="sam-input" class="sam-input" placeholder="Ask Sam anything..." rows="1"></textarea>
+                <button id="sam-send-btn" class="sam-send-btn" title="Send">
+                    ▶
+                </button>
+            </div>
+        </div>
+        <div class="sam-chat-error" id="sam-error" style="display: none;">
+            <span class="sam-error-icon">⚠️</span>
+            <span class="sam-error-text" id="sam-error-text"></span>
+        </div>
+    </div>
+    
+    <style>
+        /* Sam Chat Widget Styles */
+        .sam-chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 420px;
+            max-height: 650px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            z-index: 9999;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .sam-chat-widget.sam-minimized {
+            max-height: 60px;
+            width: 200px;
+        }
+        
+        .sam-chat-widget.sam-hidden {
+            transform: translateY(calc(100% + 20px));
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .sam-chat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-radius: 16px 16px 0 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .sam-minimized .sam-chat-header {
+            border-radius: 16px;
+        }
+        
+        .sam-chat-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+        }
+        
+        .sam-avatar {
+            font-size: 28px;
+            line-height: 1;
+        }
+        
+        .sam-name {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        .sam-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+            font-weight: 400;
+        }
+        
+        .sam-chat-controls {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .sam-control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: 300;
+            transition: background 0.2s;
+        }
+        
+        .sam-control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .sam-minimized .minimize-icon {
+            display: none;
+        }
+        
+        .sam-minimized .maximize-icon {
+            display: inline;
+        }
+        
+        .minimize-icon {
+            display: inline;
+        }
+        
+        .maximize-icon {
+            display: none;
+        }
+        
+        .sam-chat-body {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            background: var(--bg-color);
+        }
+        
+        .sam-minimized .sam-chat-body {
+            display: none;
+        }
+        
+        .sam-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: var(--bg-color);
+        }
+        
+        .sam-message {
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 85%;
+            word-wrap: break-word;
+            animation: messageSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes messageSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .sam-message.sam-user {
+            background: #3b82f6;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        
+        .sam-message.sam-assistant {
+            background: var(--card-bg);
+            color: var(--text-color);
+            align-self: flex-start;
+            border: 1px solid var(--border-color);
+            line-height: 1.6;
+        }
+        
+        .sam-message.sam-assistant strong {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .sam-message.sam-system {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--text-secondary);
+            align-self: center;
+            font-size: 14px;
+            text-align: center;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        
+        .sam-message.sam-loading {
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            align-self: flex-start;
+            border: 1px solid var(--border-color);
+        }
+        
+        .sam-typing-indicator {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .sam-typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            animation: typingBounce 1.4s infinite;
+        }
+        
+        .sam-typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .sam-typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes typingBounce {
+            0%, 60%, 100% {
+                transform: translateY(0);
+            }
+            30% {
+                transform: translateY(-8px);
+            }
+        }
+        
+        .sam-chat-input-container {
+            display: flex;
+            gap: 12px;
+            padding: 16px;
+            border-top: 1px solid var(--border-color);
+            background: var(--card-bg);
+            border-radius: 0 0 16px 16px;
+        }
+        
+        .sam-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            resize: none;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        
+        .sam-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+        
+        .sam-send-btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .sam-send-btn:hover:not(:disabled) {
+            background: #2563eb;
+        }
+        
+        .sam-send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .sam-chat-error {
+            padding: 12px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border-top: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .sam-status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+            margin-left: 8px;
+            animation: pulse 2s infinite;
+        }
+        
+        .sam-status-dot.sam-configured {
+            background: #10b981;
+        }
+        
+        .sam-status-dot.sam-error {
+            background: #ef4444;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        .nav-sam {
+            position: relative;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .sam-chat-widget {
+                width: calc(100vw - 40px);
+                max-width: 420px;
+                bottom: 10px;
+                right: 10px;
+            }
+            
+            .sam-chat-widget.sam-minimized {
+                width: 180px;
+            }
+        }
+    </style>
+    
+    <script>
+        // Sam Chat Widget JavaScript
+        (function() {
+            const widget = document.getElementById('sam-chat-widget');
+            const trigger = document.getElementById('sam-trigger');
+            const minimizeBtn = document.getElementById('sam-minimize-btn');
+            const closeBtn = document.getElementById('sam-close-btn');
+            const sendBtn = document.getElementById('sam-send-btn');
+            const input = document.getElementById('sam-input');
+            const messages = document.getElementById('sam-messages');
+            const errorDiv = document.getElementById('sam-error');
+            const errorText = document.getElementById('sam-error-text');
+            const statusDot = document.getElementById('sam-status-dot');
+            
+            let isConfigured = false;
+            let isProcessing = false;
+            let conversationHistory = [];
+            
+            // Format Sam's responses for better readability
+            function formatSamResponse(text) {
+                // Convert markdown-style formatting to HTML
+                let formatted = text
+                    // Bold text: **text** -> <strong>text</strong>
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    // Numbered lists: "1. " -> line break + number
+                    .replace(/(\d+)\.\s/g, '<br><br><strong>$1.</strong> ')
+                    // Bullet points: "- " -> line break + bullet
+                    .replace(/\n-\s/g, '<br>• ')
+                    // Double line breaks for paragraphs
+                    .replace(/\n\n/g, '<br><br>')
+                    // Single line breaks
+                    .replace(/\n/g, '<br>');
+                
+                // Clean up leading breaks
+                formatted = formatted.replace(/^(<br>)+/, '');
+                
+                return formatted;
+            }
+            
+            // Check Sam configuration status
+            async function checkStatus() {
+                try {
+                    const response = await fetch('/api/ai/status');
+                    const data = await response.json();
+                    isConfigured = data.configured;
+                    
+                    if (isConfigured) {
+                        statusDot.classList.add('sam-configured');
+                        statusDot.classList.remove('sam-error');
+                    } else {
+                        statusDot.classList.remove('sam-configured');
+                        statusDot.classList.add('sam-error');
+                    }
+                    
+                    return isConfigured;
+                } catch (error) {
+                    console.error('Failed to check Sam status:', error);
+                    statusDot.classList.remove('sam-configured');
+                    statusDot.classList.add('sam-error');
+                    return false;
+                }
+            }
+            
+            // Show error message
+            function showError(message) {
+                errorText.textContent = message;
+                errorDiv.style.display = 'flex';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 5000);
+            }
+            
+            // Add message to chat
+            function addMessage(text, type = 'assistant') {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `sam-message sam-${type}`;
+                messageDiv.textContent = text;
+                messages.appendChild(messageDiv);
+                messages.scrollTop = messages.scrollHeight;
+                return messageDiv;
+            }
+            
+            // Show typing indicator
+            function showTyping() {
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'sam-message sam-loading';
+                typingDiv.id = 'sam-typing';
+                typingDiv.innerHTML = '<div class="sam-typing-indicator"><div class="sam-typing-dot"></div><div class="sam-typing-dot"></div><div class="sam-typing-dot"></div></div>';
+                messages.appendChild(typingDiv);
+                messages.scrollTop = messages.scrollHeight;
+            }
+            
+            // Remove typing indicator
+            function hideTyping() {
+                const typing = document.getElementById('sam-typing');
+                if (typing) typing.remove();
+            }
+            
+            // Send message to Sam
+            async function sendMessage() {
+                const message = input.value.trim();
+                if (!message || isProcessing) return;
+                
+                // Check if Sam is configured
+                if (!isConfigured) {
+                    showError('Sam is not configured. Please set up your OpenAI API key in Settings.');
+                    return;
+                }
+                
+                // Add user message
+                addMessage(message, 'user');
+                conversationHistory.push({ role: 'user', content: message });
+                
+                // Clear input
+                input.value = '';
+                input.style.height = 'auto';
+                
+                // Show typing indicator
+                showTyping();
+                isProcessing = true;
+                sendBtn.disabled = true;
+                
+                try {
+                    const response = await fetch('/api/ai/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            conversation_history: conversationHistory.slice(-10) // Last 10 messages
+                        })
+                    });
+                    
+                    hideTyping();
+                    
+                    if (!response.ok) {
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                    
+                    // Handle streaming response
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let assistantMessage = '';
+                    let messageDiv = null;
+                    
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') break;
+                                
+                                try {
+                                    const json = JSON.parse(data);
+                                    if (json.content) {
+                                        assistantMessage += json.content;
+                                        
+                                        if (!messageDiv) {
+                                            messageDiv = addMessage('', 'assistant');
+                                        }
+                                        
+                                        // Format and display with HTML
+                                        messageDiv.innerHTML = formatSamResponse(assistantMessage);
+                                    }
+                                } catch (e) {
+                                    // Ignore parse errors for incomplete chunks
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Add to conversation history
+                    conversationHistory.push({ role: 'assistant', content: assistantMessage });
+                    
+                    // Keep only last 20 messages (10 exchanges)
+                    if (conversationHistory.length > 20) {
+                        conversationHistory = conversationHistory.slice(-20);
+                    }
+                    
+                } catch (error) {
+                    console.error('Error sending message:', error);
+                    hideTyping();
+                    showError('Failed to get response from Sam. Please try again.');
+                } finally {
+                    isProcessing = false;
+                    sendBtn.disabled = false;
+                }
+            }
+            
+            // Event listeners
+            trigger.addEventListener('click', (e) => {
+                e.preventDefault();
+                widget.classList.toggle('sam-hidden');
+                if (!widget.classList.contains('sam-hidden')) {
+                    widget.classList.remove('sam-minimized');
+                    input.focus();
+                }
+            });
+            
+            minimizeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                widget.classList.toggle('sam-minimized');
+            });
+            
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                widget.classList.add('sam-hidden');
+            });
+            
+            sendBtn.addEventListener('click', sendMessage);
+            
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // Auto-resize textarea
+            input.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            });
+            
+            // Allow header click to toggle minimize
+            document.querySelector('.sam-chat-header').addEventListener('click', (e) => {
+                if (e.target.closest('.sam-control-btn')) return;
+                widget.classList.toggle('sam-minimized');
+            });
+            
+            // Initialize
+            widget.classList.add('sam-hidden'); // Start hidden
+            checkStatus(); // Check configuration status
+            
+            // Re-check status every 30 seconds
+            setInterval(checkStatus, 30000);
         })();
     </script>
     

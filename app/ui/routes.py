@@ -555,6 +555,20 @@ async def cloud_settings(request: Request):
     })
 
 
+@router.get("/settings/openai", response_class=HTMLResponse)
+async def openai_settings(request: Request):
+    """OpenAI / Sam AI Assistant Settings page"""
+    return templates.TemplateResponse("settings/openai.html", {
+        "request": request,
+        "page_title": "Sam - AI Assistant",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Settings", "url": "/settings"},
+            {"label": "Sam (AI Assistant)", "url": "/settings/openai"}
+        ]
+    })
+
+
 @router.get("/leaderboard", response_class=HTMLResponse)
 async def leaderboard(request: Request):
     """High difficulty share leaderboard page"""
