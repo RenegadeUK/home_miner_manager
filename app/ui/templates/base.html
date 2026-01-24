@@ -157,10 +157,10 @@
             </div>
             <nav>
                 <ul class="sidebar-nav">
-                    <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
+                    <li id="nav-asic-dashboard"><a href="/" class="{% if request.url.path == '/' %}active{% endif %}">
                         ⚡ ASIC Dashboard
                     </a></li>
-                    <li><a href="/dashboard/cpu" class="{% if request.url.path == '/dashboard/cpu' %}active{% endif %}">
+                    <li id="nav-cpu-dashboard"><a href="/dashboard/cpu" class="{% if request.url.path == '/dashboard/cpu' %}active{% endif %}">
                         🖥️ CPU Dashboard
                     </a></li>
                     <li><a href="/leaderboard" class="{% if '/leaderboard' in request.url.path %}active{% endif %}">
@@ -365,6 +365,23 @@
                 deferredPrompt = null;
             });
         }
+        
+        // Apply dashboard visibility settings
+        (function() {
+            const asicEnabled = localStorage.getItem('dashboard.asic.enabled');
+            const cpuEnabled = localStorage.getItem('dashboard.cpu.enabled');
+            
+            // Default: ASIC enabled, CPU disabled
+            if (asicEnabled === 'false') {
+                const asicNav = document.getElementById('nav-asic-dashboard');
+                if (asicNav) asicNav.style.display = 'none';
+            }
+            
+            if (cpuEnabled !== 'true') {
+                const cpuNav = document.getElementById('nav-cpu-dashboard');
+                if (cpuNav) cpuNav.style.display = 'none';
+            }
+        })();
     </script>
     
     {% block extra_scripts %}{% endblock %}
