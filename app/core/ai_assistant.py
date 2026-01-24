@@ -646,6 +646,11 @@ class SamAssistant:
                 
                 message = response.choices[0].message
                 
+                # DEBUG: Log the exact response format
+                logger.info(f"🔍 DEBUG: message.tool_calls = {message.tool_calls}")
+                logger.info(f"🔍 DEBUG: message.content = {repr(message.content)}")
+                logger.info(f"🔍 DEBUG: message.finish_reason = {response.choices[0].finish_reason}")
+                
                 # Check if model returned tool calls properly (OpenAI format)
                 if message.tool_calls:
                     # Standard OpenAI tool calling - works as expected
