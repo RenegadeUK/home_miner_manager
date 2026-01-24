@@ -305,11 +305,9 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
             result_data = {
                 "days": days,
                 "total_kwh": round(total_kwh, 2),
-                "total_cost_gbp": round(total_cost_gbp, 2),
-                "total_cost_pence": round(total_cost_pence, 2),
+                "total_cost": f"£{round(total_cost_gbp, 2):.2f}",  # Pre-formatted to prevent misinterpretation
                 "avg_power_watts": round(avg_power, 2),
-                "telemetry_records": len(telemetry_records),
-                "daily_cost_gbp": round(total_cost_gbp / days, 2)
+                "daily_cost": f"£{round(total_cost_gbp / days, 2):.2f}"
             }
             
             logger.info(f"Power usage calculation: {result_data}")
