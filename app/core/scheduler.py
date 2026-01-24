@@ -217,6 +217,36 @@ class SchedulerService:
                 name="Push telemetry to HMM Cloud"
             )
         
+        # Metrics computation - hourly at XX:05
+        self.scheduler.add_job(
+            self._compute_hourly_metrics,
+            'cron',
+            minute=5,
+            id="compute_hourly_metrics",
+            name="Compute hourly metrics"
+        )
+        
+        # Metrics computation - daily at 00:30
+        self.scheduler.add_job(
+            self._compute_daily_metrics,
+            'cron',
+            hour=0,
+            minute=30,
+            id="compute_daily_metrics",
+            name="Compute daily metrics"
+        )
+        
+        # Cleanup old metrics - monthly on 1st at 02:00
+        self.scheduler.add_job(
+            self._cleanup_old_metrics,
+            'cron',
+            day=1,
+            hour=2,
+            minute=0,
+            id="cleanup_old_metrics",
+            name="Cleanup old metrics (>1 year)"
+        )
+        
         self.scheduler.start()
         print(f"⏰ Scheduler started with {len(self.scheduler.get_jobs())} jobs")
         print("⏰ Scheduler started")
@@ -2527,6 +2557,61 @@ class SchedulerService:
                     
         except Exception as e:
             logger.error(f"Failed to push to cloud: {e}", exc_info=True)
+
+    async def _compute_hourly_metrics(self):
+        """Compute metrics for the previous hour"""
+        try:
+            from core.metrics import MetricsEngine
+            from core.database import AsyncSessionLocal
+            from datetime import datetime, timedelta
+            
+            # Calculate previous hour (floor to hour)
+            now = datetime.utcnow()
+            previous_hour = (now - timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+            
+            async with AsyncSessionLocal() as db:
+                engine = MetricsEngine(db)
+                await engine.compute_hourly_metrics(previous_hour)
+                await db.commit()
+            
+            logger.info(f"✅ Computed hourly metrics for {previous_hour.strftime('%Y-%m-%d %H:00')}")
+        except Exception as e:
+            logger.error(f"❌ Failed to compute hourly metrics: {e}", exc_info=True)
+
+    async def _compute_daily_metrics(self):
+        """Compute daily metrics for the previous day"""
+        try:
+            from core.metrics import MetricsEngine
+            from core.database import AsyncSessionLocal
+            from datetime import datetime, timedelta
+            
+            # Calculate previous day (midnight)
+            now = datetime.utcnow()
+            previous_day = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            async with AsyncSessionLocal() as db:
+                engine = MetricsEngine(db)
+                await engine.compute_daily_metrics(previous_day)
+                await db.commit()
+            
+            logger.info(f"✅ Computed daily metrics for {previous_day.strftime('%Y-%m-%d')}")
+        except Exception as e:
+            logger.error(f"❌ Failed to compute daily metrics: {e}", exc_info=True)
+
+    async def _cleanup_old_metrics(self):
+        """Cleanup metrics older than 1 year"""
+        try:
+            from core.metrics import MetricsEngine
+            from core.database import AsyncSessionLocal
+            
+            async with AsyncSessionLocal() as db:
+                engine = MetricsEngine(db)
+                deleted_count = await engine.cleanup_old_metrics(days=365)
+                await db.commit()
+            
+            logger.info(f"✅ Cleaned up {deleted_count} old metrics (>365 days)")
+        except Exception as e:
+            logger.error(f"❌ Failed to cleanup old metrics: {e}", exc_info=True)
 
 
 scheduler = SchedulerService()
