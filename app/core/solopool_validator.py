@@ -328,6 +328,19 @@ def validate_and_fix_blocks(coin: str, hours: int = 24, dry_run: bool = False) -
                         
                         asyncio.create_task(_log_correction())
                         
+                        # Log system event for block correction
+                        from core.database import AsyncSessionLocal, Event
+                        async def _log_system_event():
+                            async with AsyncSessionLocal() as event_db:
+                                event = Event(
+                                    event_type="info",
+                                    source="solopool_validator",
+                                    message=f"Block correction: {miner_name} - {coin} Block #{height}"
+                                )
+                                event_db.add(event)
+                                await event_db.commit()
+                        asyncio.create_task(_log_system_event())
+                        
                         # Send notification for retroactively discovered blockation for retroactively discovered block
                         import asyncio
                         from core.high_diff_tracker import _send_block_found_notification

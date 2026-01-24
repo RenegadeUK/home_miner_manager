@@ -396,6 +396,16 @@ class SchedulerService:
                         await db.commit()
                     
                     print(f"💡 Updated {len(results)} energy prices for region {region}")
+                    
+                    # Log success event
+                    async with AsyncSessionLocal() as db:
+                        event = Event(
+                            event_type="info",
+                            source="octopus_agile",
+                            message=f"Updated {len(results)} energy prices for region {region}"
+                        )
+                        db.add(event)
+                        await db.commit()
         
         except Exception as e:
             print(f"❌ Failed to update energy prices: {e}")
@@ -639,6 +649,17 @@ class SchedulerService:
                             await db.rollback()
                         else:
                             raise
+        
+                # Log successful collection
+                print(f"✅ Telemetry collection completed: {len(miners)} miners")
+                async with AsyncSessionLocal() as db:
+                    event = Event(
+                        event_type="info",
+                        source="telemetry",
+                        message=f"Collected telemetry from {len(miners)} enabled miners"
+                    )
+                    db.add(event)
+                    await db.commit()
         
         except Exception as e:
             print(f"❌ Error in telemetry collection: {e}")
@@ -1145,6 +1166,15 @@ class SchedulerService:
                                                     "reason": "Miner was out of sync with active automation rule"
                                                 }
                                             )
+                                            await db.commit()
+                                            
+                                            # Log system event
+                                            event = Event(
+                                                event_type="info",
+                                                source="automation",
+                                                message=f"Reconciled {miner.name} to {expected_mode} mode (rule: {rule.name})"
+                                            )
+                                            db.add(event)
                                             await db.commit()
                                         else:
                                             logger.warning(f"✗ Failed to reconcile {miner.name} to mode '{expected_mode}'")
@@ -1909,6 +1939,15 @@ class SchedulerService:
                                         "reason": "Miner was out of sync with energy optimization state"
                                     }
                                 )
+                                await db.commit()
+                                
+                                # Log system event
+                                event = Event(
+                                    event_type="info",
+                                    source="energy_optimization",
+                                    message=f"Reconciled {miner.name} to {expected_mode} mode (price: {current_price}p)"
+                                )
+                                db.add(event)
                                 await db.commit()
                             else:
                                 logger.warning(f"❌ Failed to reconcile {miner.name} to mode '{expected_mode}'")

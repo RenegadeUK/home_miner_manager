@@ -542,6 +542,15 @@ class AgileSoloStrategy:
                     "hysteresis_counter": new_counter
                 }
             )
+            
+            # Log system event
+            from core.database import Event
+            event = Event(
+                event_type="info",
+                source="agile_strategy",
+                message=f"Agile strategy executed: {target_coin} @ {current_price}p/kWh ({len(enrolled_miners)} miners)"
+            )
+            db.add(event)
         
         await db.commit()
         

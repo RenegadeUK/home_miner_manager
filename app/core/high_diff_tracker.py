@@ -230,6 +230,15 @@ async def track_high_diff_share(
             difficulty=difficulty,
             network_difficulty=network_difficulty
         )
+        
+        # Log system event
+        from core.database import Event
+        event = Event(
+            event_type="info",
+            source="mining",
+            message=f"🏆 Block found! {miner_name} - {coin} (diff: {difficulty:,.0f})"
+        )
+        db.add(event)
     
     # Create new high diff share entry
     new_share = HighDiffShare(
@@ -248,6 +257,17 @@ async def track_high_diff_share(
     )
     
     db.add(new_share)
+    
+    # Log high diff share event (only if not a block - blocks already logged)
+    if not was_block_solve:
+        from core.database import Event
+        percentage = (difficulty / network_difficulty * 100) if network_difficulty else 0
+        event = Event(
+            event_type="info",
+            source="mining",
+            message=f"⭐ High diff share: {miner_name} - {coin} ({percentage:.2f}% of network diff)"
+        )
+        db.add(event)
     
     # Keep only top 30 shares per miner (prevent infinite growth)
     # Delete older shares beyond the top 30

@@ -882,6 +882,16 @@ async def reconcile_strategy_miners(db: AsyncSession):
                                 }
                             )
                             await db.commit()
+                            
+                            # Log system event
+                            from core.database import Event
+                            event = Event(
+                                event_type="info",
+                                source="pool_strategy",
+                                message=f"Reconciled {miner.name} to {expected_pool.name} ({strategy.name})"
+                            )
+                            db.add(event)
+                            await db.commit()
                         else:
                             if strategy_type == "pro_mode":
                                 logger.warning(f"✗ Pro Mode reconciliation failed - {miner.name} still not on {expected_pool.name} after {max_retries} attempts")
