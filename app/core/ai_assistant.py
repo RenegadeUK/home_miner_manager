@@ -249,7 +249,10 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
         elif tool_name == "get_all_miners_power_usage":
             days = min(args.get("days", 7), 90)
             since = datetime.utcnow() - timedelta(days=days)
-            region = "H"  # TODO: Get from config
+            
+            # Load region from config
+            config = self.config_manager.get_section("octopus_agile") or {}
+            region = config.get("region", "H")
             
             # Get all telemetry with power data
             result = await db.execute(
@@ -267,6 +270,8 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
             
             # Calculate cost exactly like dashboard does
             total_cost_pence = 0
+            prices_found = 0
+            prices_missing = 0
             
             for telem in telemetry_records:
                 if not telem.power_watts or telem.power_watts <= 0:
@@ -283,10 +288,15 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
                 price = price_result.scalar_one_or_none()
                 
                 if price:
+                    prices_found += 1
                     # 30 second telemetry interval (same as dashboard calculation)
                     interval_hours = 30 / 3600
                     energy_kwh = (telem.power_watts / 1000) * interval_hours
                     total_cost_pence += energy_kwh * price.price_pence
+                else:
+                    prices_missing += 1
+            
+            logger.info(f"Price lookup: found={prices_found}, missing={prices_missing}, total_records={len(telemetry_records)}")
             
             total_cost_gbp = total_cost_pence / 100
             total_kwh = sum((t.power_watts / 1000) * (30 / 3600) for t in telemetry_records if t.power_watts)
