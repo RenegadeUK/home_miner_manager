@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import Metric, Telemetry, Miner, Pool, EnergyPrice, PoolHealthMetric
+from core.database import Metric, Telemetry, Miner, Pool, EnergyPrice
 from core.config import app_config
 import logging
 
