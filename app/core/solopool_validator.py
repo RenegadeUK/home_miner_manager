@@ -302,6 +302,18 @@ def validate_and_fix_blocks(coin: str, hours: int = 24, dry_run: bool = False) -
                             'height': height
                         })
                         logger.info(f"✓ Fixed share {share_id} - marked as block")
+                        
+                        # Send notification for retroactively discovered block
+                        import asyncio
+                        from core.high_diff_tracker import _send_block_found_notification
+                        asyncio.create_task(_send_block_found_notification(
+                            miner_name=miner_name,
+                            coin=coin,
+                            pool_name=block.get('pool', 'Solopool.org'),
+                            difficulty=share_diff,
+                            network_difficulty=actual_network_diff
+                        ))
+                        
                     except Exception as e:
                         error_msg = f"Failed to fix share {share_id}: {e}"
                         logger.error(error_msg)

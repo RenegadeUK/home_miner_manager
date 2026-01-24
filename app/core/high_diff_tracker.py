@@ -8,13 +8,57 @@ from typing import Optional
 import logging
 import aiohttp
 
-from core.database import HighDiffShare, BlockFound, Miner
+from core.database import HighDiffShare, BlockFound, Miner, AsyncSessionLocal, AlertConfig
 
 logger = logging.getLogger(__name__)
 
 # Cache network difficulties (TTL: 10 minutes)
 _network_diff_cache = {}
 _cache_ttl = 600  # seconds
+
+
+async def _send_block_found_notification(
+    miner_name: str,
+    coin: str,
+    pool_name: str,
+    difficulty: float,
+    network_difficulty: float
+):
+    """Send notification when a block is found"""
+    try:
+        from core.notifications import NotificationService
+        
+        # Check if block_found alert is enabled
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(AlertConfig).where(
+                    AlertConfig.alert_type == "block_found",
+                    AlertConfig.enabled == True
+                )
+            )
+            alert_config = result.scalar_one_or_none()
+            
+            if not alert_config:
+                return  # Alert not enabled
+        
+        # Format message
+        message = (
+            f"🎉 <b>BLOCK FOUND!</b> 🎉\n\n"
+            f"Miner: {miner_name}\n"
+            f"Coin: {coin}\n"
+            f"Pool: {pool_name}\n"
+            f"Difficulty: {difficulty:,.0f}\n"
+            f"Network: {network_difficulty:,.0f}\n"
+            f"Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+        )
+        
+        # Send to all enabled channels
+        service = NotificationService()
+        await service.send_notification("telegram", message, "block_found")
+        await service.send_notification("discord", message.replace("<b>", "**").replace("</b>", "**"), "block_found")
+        
+    except Exception as e:
+        logger.error(f"Failed to send block found notification: {e}")
 
 
 async def get_network_difficulty(coin: str, force_fresh: bool = False) -> Optional[float]:
@@ -177,6 +221,15 @@ async def track_high_diff_share(
             timestamp=datetime.utcnow()
         )
         db.add(block)
+        
+        # Trigger block found notification
+        await _send_block_found_notification(
+            miner_name=miner_name,
+            coin=coin,
+            pool_name=pool_name,
+            difficulty=difficulty,
+            network_difficulty=network_difficulty
+        )
     
     # Create new high diff share entry
     new_share = HighDiffShare(
