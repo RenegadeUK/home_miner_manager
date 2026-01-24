@@ -631,6 +631,35 @@ class SamAssistant:
                 
                 message = response.choices[0].message
                 
+                # Check if model returned tool calls properly (OpenAI format)
+                if message.tool_calls:
+                    # Standard OpenAI tool calling - works as expected
+                    pass
+                
+                # Fallback: Check if Ollama returned tool call as text content
+                elif message.content and message.content.strip().startswith("{"):
+                    try:
+                        # Try to parse as JSON tool call
+                        content_json = json.loads(message.content.strip())
+                        if "name" in content_json and "arguments" in content_json:
+                            logger.info(f"Ollama returned tool call as text, converting to tool_calls format")
+                            
+                            # Create a mock tool_call structure
+                            from types import SimpleNamespace
+                            mock_tool_call = SimpleNamespace(
+                                id=f"call_{iteration}",
+                                type="function",
+                                function=SimpleNamespace(
+                                    name=content_json["name"],
+                                    arguments=json.dumps(content_json["arguments"])
+                                )
+                            )
+                            message.tool_calls = [mock_tool_call]
+                            message.content = None  # Clear content since we converted it
+                    except json.JSONDecodeError:
+                        # Not a JSON tool call, treat as regular response
+                        pass
+                
                 # If Sam wants to call functions, execute them
                 if message.tool_calls:
                     # Add assistant message with tool calls to history
