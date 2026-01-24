@@ -273,6 +273,22 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
             if not telemetry_records:
                 return json.dumps({"error": "No power data found"})
             
+            # Fetch all prices for the period ONCE (huge optimization)
+            prices_result = await db.execute(
+                select(EnergyPrice)
+                .where(EnergyPrice.region == region)
+                .where(EnergyPrice.valid_from >= since)
+                .order_by(EnergyPrice.valid_from)
+            )
+            all_prices = prices_result.scalars().all()
+            
+            # Build price lookup cache
+            def find_price_for_timestamp(ts):
+                for price in all_prices:
+                    if price.valid_from <= ts < price.valid_to:
+                        return price.price_pence
+                return None
+            
             # Calculate cost
             if daily_breakdown:
                 # Group by day
@@ -284,21 +300,12 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
                         continue
                     
                     day_key = telem.timestamp.date().isoformat()
+                    price_pence = find_price_for_timestamp(telem.timestamp)
                     
-                    # Find energy price
-                    price_result = await db.execute(
-                        select(EnergyPrice)
-                        .where(EnergyPrice.region == region)
-                        .where(EnergyPrice.valid_from <= telem.timestamp)
-                        .where(EnergyPrice.valid_to > telem.timestamp)
-                        .limit(1)
-                    )
-                    price = price_result.scalar_one_or_none()
-                    
-                    if price:
+                    if price_pence:
                         interval_hours = 30 / 3600
                         energy_kwh = (telem.power_watts / 1000) * interval_hours
-                        daily_data[day_key]["cost_pence"] += energy_kwh * price.price_pence
+                        daily_data[day_key]["cost_pence"] += energy_kwh * price_pence
                         daily_data[day_key]["kwh"] += energy_kwh
                         daily_data[day_key]["records"] += 1
                 
@@ -314,26 +321,19 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
                 return json.dumps({"days": days, "daily_breakdown": daily_costs})
             
             else:
-                # Total only (existing logic)
+                # Total only - use cached prices too
                 total_cost_pence = 0
                 
                 for telem in telemetry_records:
                     if not telem.power_watts or telem.power_watts <= 0:
                         continue
                     
-                    price_result = await db.execute(
-                        select(EnergyPrice)
-                        .where(EnergyPrice.region == region)
-                        .where(EnergyPrice.valid_from <= telem.timestamp)
-                        .where(EnergyPrice.valid_to > telem.timestamp)
-                        .limit(1)
-                    )
-                    price = price_result.scalar_one_or_none()
+                    price_pence = find_price_for_timestamp(telem.timestamp)
                     
-                    if price:
+                    if price_pence:
                         interval_hours = 30 / 3600
                         energy_kwh = (telem.power_watts / 1000) * interval_hours
-                        total_cost_pence += energy_kwh * price.price_pence
+                        total_cost_pence += energy_kwh * price_pence
                 
                 total_cost_gbp = total_cost_pence / 100
                 total_kwh = sum((t.power_watts / 1000) * (30 / 3600) for t in telemetry_records if t.power_watts)
