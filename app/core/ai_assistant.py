@@ -251,8 +251,10 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
             since = datetime.utcnow() - timedelta(days=days)
             
             # Load region from config
-            config = self.config_manager.get_section("octopus_agile") or {}
-            region = config.get("region", "H")
+            from core.config import ConfigManager
+            config_mgr = ConfigManager()
+            agile_config = config_mgr.get_section("octopus_agile") or {}
+            region = agile_config.get("region", "H")
             
             # Get all telemetry with power data
             result = await db.execute(
