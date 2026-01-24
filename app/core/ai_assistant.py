@@ -1165,7 +1165,10 @@ Be accurate, be helpful, be worth the API costs."""
             context["recent_system_events"] = [
                 {
                     "action": e.action,
-                    "triggered_by": e.triggered_by,
+                    "user": e.user,
+                    "resource_type": e.resource_type,
+                    "resource_name": e.resource_name,
+                    "status": e.status,
                     "timestamp": e.timestamp.isoformat()
                 }
                 for e in recent_events
