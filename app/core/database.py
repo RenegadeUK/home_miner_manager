@@ -579,6 +579,24 @@ engine = create_async_engine(
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
+class Metric(Base):
+    """Pre-computed metrics for fast querying"""
+    __tablename__ = "metrics"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    metric_type: Mapped[str] = mapped_column(String(50), index=True)  # energy_cost, hashrate, pool_health, etc
+    entity_type: Mapped[Optional[str]] = mapped_column(String(20), index=True, nullable=True)  # miner, pool, system
+    entity_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)  # Miner ID, Pool ID, or NULL
+    period: Mapped[str] = mapped_column(String(20), index=True)  # hourly, daily, weekly, monthly
+    timestamp: Mapped[datetime] = mapped_column(DateTime, index=True)  # Start of period
+    value_json: Mapped[dict] = mapped_column(JSON)  # Flexible metric-specific data
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)  # When calculated
+    
+    __table_args__ = (
+        Index('idx_metric_lookup', 'metric_type', 'entity_type', 'entity_id', 'period', 'timestamp'),
+    )
+
+
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:

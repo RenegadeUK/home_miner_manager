@@ -309,16 +309,33 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
                         daily_data[day_key]["kwh"] += energy_kwh
                         daily_data[day_key]["records"] += 1
                 
-                # Format daily results
-                daily_costs = []
-                for day, data in sorted(daily_data.items()):
-                    daily_costs.append({
-                        "date": day,
-                        "cost": f"£{data['cost_pence'] / 100:.2f}",
-                        "kwh": round(data["kwh"], 2)
-                    })
+                # Return useful insights (compact for Ollama)
+                sorted_days = sorted(daily_data.items(), key=lambda x: x[1]["cost_pence"], reverse=True)
+                total_cost = sum(d['cost_pence'] for d in daily_data.values())
+                avg_cost = total_cost / len(daily_data)
                 
-                return json.dumps({"days": days, "daily_breakdown": daily_costs})
+                # Top 3 most expensive
+                top_3 = [
+                    {"date": day, "cost": f"£{data['cost_pence']/100:.2f}", "kwh": round(data['kwh'], 2)}
+                    for day, data in sorted_days[:3]
+                ]
+                
+                # Bottom 3 cheapest
+                bottom_3 = [
+                    {"date": day, "cost": f"£{data['cost_pence']/100:.2f}", "kwh": round(data['kwh'], 2)}
+                    for day, data in sorted_days[-3:]
+                ]
+                
+                result = {
+                    "period": f"{days} days",
+                    "total_cost": f"£{total_cost/100:.2f}",
+                    "avg_daily_cost": f"£{avg_cost/100:.2f}",
+                    "most_expensive_days": top_3,
+                    "cheapest_days": bottom_3,
+                    "total_days": len(daily_data)
+                }
+                
+                return json.dumps(result)
             
             else:
                 # Total only - use cached prices too
