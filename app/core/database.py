@@ -389,6 +389,100 @@ class PoolHealthDaily(Base):
     )
 
 
+class HourlyMinerAnalytics(Base):
+    """Hourly aggregated miner analytics combining power, hash work, and performance metrics"""
+    __tablename__ = "hourly_miner_analytics"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    miner_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    pool_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Which pool active during hour
+    coin: Mapped[str] = mapped_column(String(10), nullable=False)  # 'BTC', 'XMR'
+    hour_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    mode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # low/med/high/eco/turbo
+    tuning_profile_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Hash work metrics
+    total_hashes_gh: Mapped[float] = mapped_column(Float, nullable=False)  # Gigahashes completed this hour
+    avg_hashrate_gh: Mapped[float] = mapped_column(Float, nullable=False)
+    peak_hashrate_gh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    min_hashrate_gh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    uptime_seconds: Mapped[int] = mapped_column(Integer, nullable=False)  # Actual mining time
+    
+    # Share statistics
+    shares_accepted: Mapped[int] = mapped_column(Integer, default=0)
+    shares_rejected: Mapped[int] = mapped_column(Integer, default=0)
+    share_difficulty_avg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    best_share_difficulty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Closest to block
+    
+    # Network context
+    network_difficulty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    block_height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Power and thermal metrics
+    avg_power_watts: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    min_power_watts: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_power_watts: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    avg_chip_temp_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_chip_temp_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Derived efficiency metrics
+    watts_per_gh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Power efficiency
+    hashes_per_share: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # Share efficiency
+    reject_rate_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('ix_hourly_analytics_miner_hour', 'miner_id', 'hour_start'),
+        Index('ix_hourly_analytics_coin_hour', 'coin', 'hour_start'),
+        Index('ix_hourly_analytics_pool_hour', 'pool_id', 'hour_start'),
+    )
+
+
+class DailyMinerAnalytics(Base):
+    """Daily aggregated miner analytics for long-term trend analysis"""
+    __tablename__ = "daily_miner_analytics"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    miner_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    coin: Mapped[str] = mapped_column(String(10), nullable=False)
+    date: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    
+    # Hash work aggregates
+    total_hashes_th: Mapped[float] = mapped_column(Float, nullable=False)  # Terahashes for the day
+    avg_hashrate_gh: Mapped[float] = mapped_column(Float, nullable=False)
+    peak_hashrate_gh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    uptime_hours: Mapped[float] = mapped_column(Float, nullable=False)
+    
+    # Share statistics
+    total_shares_accepted: Mapped[int] = mapped_column(Integer, default=0)
+    total_shares_rejected: Mapped[int] = mapped_column(Integer, default=0)
+    avg_reject_rate_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    best_share_difficulty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Power aggregates
+    avg_power_watts: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_power_watts: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    total_energy_kwh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Thermal aggregates
+    avg_temp_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    max_temp_c: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Efficiency aggregates
+    avg_watts_per_gh: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    
+    # Mode distribution (JSON: {"low": 8, "med": 12, "high": 4} hours per mode)
+    mode_distribution: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('ix_daily_analytics_miner_date', 'miner_id', 'date'),
+        Index('ix_daily_analytics_coin_date', 'coin', 'date'),
+    )
+
+
 class TuningProfile(Base):
     """Saved tuning/overclocking profiles"""
     __tablename__ = "tuning_profiles"

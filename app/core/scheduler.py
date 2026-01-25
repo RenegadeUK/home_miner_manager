@@ -1931,22 +1931,28 @@ class SchedulerService:
             # 1. Aggregate pool health data
             await self._aggregate_pool_health()
             
-            # 2. Purge old telemetry
+            # 2. Aggregate miner analytics data
+            await self._aggregate_miner_analytics()
+            
+            # 3. Purge old telemetry
             await self._purge_old_telemetry()
             
-            # 3. Purge old events
+            # 4. Purge old events
             await self._purge_old_events()
             
-            # 4. Purge old pool health (raw + hourly)
+            # 5. Purge old pool health (raw + hourly)
             await self._purge_old_pool_health()
             
-            # 5. SQLite VACUUM (defragment and reclaim space)
+            # 6. Purge old miner analytics (hourly only)
+            await self._purge_old_miner_analytics()
+            
+            # 7. SQLite VACUUM (defragment and reclaim space)
             print("🧹 Running VACUUM...")
             async with engine.begin() as conn:
                 await conn.execute(text("VACUUM"))
             print("✅ VACUUM complete")
             
-            # 6. SQLite ANALYZE (update query planner statistics)
+            # 8. SQLite ANALYZE (update query planner statistics)
             print("📊 Running ANALYZE...")
             async with engine.begin() as conn:
                 await conn.execute(text("ANALYZE"))
@@ -2570,6 +2576,25 @@ class SchedulerService:
         except Exception as e:
             print(f"❌ Failed to purge old pool health data: {e}")
     
+    async def _purge_old_miner_analytics(self):
+        """Purge hourly miner analytics older than 30 days (daily aggregates retained forever)"""
+        from core.database import AsyncSessionLocal, HourlyMinerAnalytics
+        from sqlalchemy import delete
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                # Purge hourly data older than 30 days (daily aggregates kept forever)
+                hourly_cutoff = datetime.utcnow() - timedelta(days=30)
+                hourly_result = await db.execute(
+                    delete(HourlyMinerAnalytics).where(HourlyMinerAnalytics.hour_start < hourly_cutoff)
+                )
+                
+                await db.commit()
+                print(f"🗑️ Purged {hourly_result.rowcount} hourly miner analytics records (>30d)")
+        
+        except Exception as e:
+            print(f"❌ Failed to purge old miner analytics data: {e}")
+    
     async def _aggregate_pool_health(self):
         """Aggregate raw pool health checks into hourly and daily summaries"""
         from core.database import AsyncSessionLocal, PoolHealth, PoolHealthHourly, PoolHealthDaily, Pool
@@ -2727,6 +2752,225 @@ class SchedulerService:
         except Exception as e:
             logger.error(f"Failed to aggregate pool health: {e}", exc_info=True)
             print(f"❌ Pool health aggregation failed: {e}")
+    
+    async def _aggregate_miner_analytics(self):
+        """Aggregate raw telemetry into hourly and daily miner analytics"""
+        try:
+            from core.database import AsyncSessionLocal, Telemetry, HourlyMinerAnalytics, DailyMinerAnalytics, Miner, Pool
+            from sqlalchemy import select, func, and_
+            from datetime import datetime, timedelta
+            
+            async with AsyncSessionLocal() as db:
+                print("📊 Starting miner analytics aggregation...")
+                
+                # Get all miners
+                miners_result = await db.execute(select(Miner))
+                miners = miners_result.scalars().all()
+                
+                hourly_created = 0
+                daily_created = 0
+                
+                for miner in miners:
+                    # Determine coin type based on miner type or pool
+                    coin = "BTC"  # Default
+                    if miner.miner_type == "xmrig":
+                        coin = "XMR"
+                    
+                    # ========== HOURLY AGGREGATION ==========
+                    # Find last hourly aggregation for this miner
+                    last_hourly = await db.execute(
+                        select(HourlyMinerAnalytics)
+                        .where(HourlyMinerAnalytics.miner_id == miner.id)
+                        .order_by(HourlyMinerAnalytics.hour_start.desc())
+                        .limit(1)
+                    )
+                    last_hourly_record = last_hourly.scalar_one_or_none()
+                    
+                    # Start from last aggregation or 30 days ago
+                    if last_hourly_record:
+                        start_time = last_hourly_record.hour_start + timedelta(hours=1)
+                    else:
+                        start_time = datetime.utcnow() - timedelta(days=30)
+                    
+                    # Aggregate hour by hour
+                    current_hour = start_time.replace(minute=0, second=0, microsecond=0)
+                    now = datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+                    
+                    while current_hour < now:
+                        hour_end = current_hour + timedelta(hours=1)
+                        
+                        # Get all telemetry for this hour
+                        telemetry_result = await db.execute(
+                            select(Telemetry)
+                            .where(and_(
+                                Telemetry.miner_id == miner.id,
+                                Telemetry.timestamp >= current_hour,
+                                Telemetry.timestamp < hour_end
+                            ))
+                            .order_by(Telemetry.timestamp)
+                        )
+                        telemetry_records = telemetry_result.scalars().all()
+                        
+                        if telemetry_records:
+                            # Calculate aggregates
+                            hashrates = [t.hashrate for t in telemetry_records if t.hashrate is not None]
+                            powers = [t.power_watts for t in telemetry_records if t.power_watts is not None]
+                            temps = [t.temperature for t in telemetry_records if t.temperature is not None]
+                            
+                            if hashrates:
+                                avg_hashrate_gh = sum(hashrates) / len(hashrates)
+                                
+                                # Calculate total hashes (avg_hashrate * uptime_seconds)
+                                uptime_seconds = len(telemetry_records) * 60  # Assuming 1min intervals
+                                total_hashes_gh = (avg_hashrate_gh * uptime_seconds) / 3600  # Convert to GH
+                                
+                                # Aggregate shares
+                                total_accepted = sum(t.shares_accepted or 0 for t in telemetry_records if t.shares_accepted is not None)
+                                total_rejected = sum(t.shares_rejected or 0 for t in telemetry_records if t.shares_rejected is not None)
+                                
+                                # Get mode (most common mode in this hour)
+                                modes = [miner.current_mode] if miner.current_mode else []
+                                mode = modes[0] if modes else None
+                                
+                                # Get pool_id (from first record with pool info)
+                                pool_id = None
+                                for t in telemetry_records:
+                                    if t.pool_in_use:
+                                        # Try to match pool by URL/user
+                                        pool_result = await db.execute(
+                                            select(Pool).where(Pool.url.like(f"%{t.pool_in_use}%")).limit(1)
+                                        )
+                                        pool = pool_result.scalar_one_or_none()
+                                        if pool:
+                                            pool_id = pool.id
+                                            break
+                                
+                                # Calculate derived metrics
+                                avg_power = sum(powers) / len(powers) if powers else None
+                                avg_temp = sum(temps) / len(temps) if temps else None
+                                watts_per_gh = avg_power / avg_hashrate_gh if avg_power and avg_hashrate_gh else None
+                                reject_rate = (total_rejected * 100.0 / (total_accepted + total_rejected)) if (total_accepted + total_rejected) > 0 else None
+                                hashes_per_share = total_hashes_gh / total_accepted if total_accepted > 0 else None
+                                
+                                # Create hourly record
+                                hourly_agg = HourlyMinerAnalytics(
+                                    miner_id=miner.id,
+                                    pool_id=pool_id,
+                                    coin=coin,
+                                    hour_start=current_hour,
+                                    mode=mode,
+                                    total_hashes_gh=total_hashes_gh,
+                                    avg_hashrate_gh=avg_hashrate_gh,
+                                    peak_hashrate_gh=max(hashrates),
+                                    min_hashrate_gh=min(hashrates),
+                                    uptime_seconds=uptime_seconds,
+                                    shares_accepted=total_accepted,
+                                    shares_rejected=total_rejected,
+                                    avg_power_watts=avg_power,
+                                    min_power_watts=min(powers) if powers else None,
+                                    max_power_watts=max(powers) if powers else None,
+                                    avg_chip_temp_c=avg_temp,
+                                    max_chip_temp_c=max(temps) if temps else None,
+                                    watts_per_gh=watts_per_gh,
+                                    hashes_per_share=hashes_per_share,
+                                    reject_rate_percent=reject_rate
+                                )
+                                db.add(hourly_agg)
+                                hourly_created += 1
+                        
+                        current_hour = hour_end
+                    
+                    # ========== DAILY AGGREGATION ==========
+                    # Find last daily aggregation
+                    last_daily = await db.execute(
+                        select(DailyMinerAnalytics)
+                        .where(DailyMinerAnalytics.miner_id == miner.id)
+                        .order_by(DailyMinerAnalytics.date.desc())
+                        .limit(1)
+                    )
+                    last_daily_record = last_daily.scalar_one_or_none()
+                    
+                    # Start from last aggregation or 90 days ago
+                    if last_daily_record:
+                        start_date = last_daily_record.date + timedelta(days=1)
+                    else:
+                        start_date = datetime.utcnow() - timedelta(days=90)
+                    
+                    # Aggregate day by day from hourly data
+                    current_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+                    
+                    while current_date < today:
+                        date_end = current_date + timedelta(days=1)
+                        
+                        # Get hourly records for this day
+                        hourly_result = await db.execute(
+                            select(HourlyMinerAnalytics)
+                            .where(and_(
+                                HourlyMinerAnalytics.miner_id == miner.id,
+                                HourlyMinerAnalytics.hour_start >= current_date,
+                                HourlyMinerAnalytics.hour_start < date_end
+                            ))
+                        )
+                        hourly_records = hourly_result.scalars().all()
+                        
+                        if hourly_records:
+                            # Aggregate daily metrics
+                            total_hashes_th = sum(h.total_hashes_gh for h in hourly_records) / 1000.0  # Convert to TH
+                            uptime_hours = sum(h.uptime_seconds for h in hourly_records) / 3600.0
+                            
+                            hashrates = [h.avg_hashrate_gh for h in hourly_records]
+                            powers = [h.avg_power_watts for h in hourly_records if h.avg_power_watts is not None]
+                            temps = [h.avg_chip_temp_c for h in hourly_records if h.avg_chip_temp_c is not None]
+                            
+                            # Mode distribution
+                            mode_counts = {}
+                            for h in hourly_records:
+                                if h.mode:
+                                    mode_counts[h.mode] = mode_counts.get(h.mode, 0) + (h.uptime_seconds / 3600.0)
+                            
+                            # Calculate daily aggregates
+                            avg_hashrate_gh = sum(hashrates) / len(hashrates)
+                            avg_power = sum(powers) / len(powers) if powers else None
+                            total_energy_kwh = (avg_power * uptime_hours / 1000.0) if avg_power else None
+                            avg_watts_per_gh = avg_power / avg_hashrate_gh if avg_power and avg_hashrate_gh else None
+                            
+                            total_shares = sum(h.shares_accepted for h in hourly_records)
+                            total_rejects = sum(h.shares_rejected for h in hourly_records)
+                            avg_reject_rate = (total_rejects * 100.0 / (total_shares + total_rejects)) if (total_shares + total_rejects) > 0 else None
+                            
+                            # Create daily record
+                            daily_agg = DailyMinerAnalytics(
+                                miner_id=miner.id,
+                                coin=coin,
+                                date=current_date,
+                                total_hashes_th=total_hashes_th,
+                                avg_hashrate_gh=avg_hashrate_gh,
+                                peak_hashrate_gh=max(h.peak_hashrate_gh for h in hourly_records if h.peak_hashrate_gh),
+                                uptime_hours=uptime_hours,
+                                total_shares_accepted=total_shares,
+                                total_shares_rejected=total_rejects,
+                                avg_reject_rate_percent=avg_reject_rate,
+                                best_share_difficulty=max((h.best_share_difficulty for h in hourly_records if h.best_share_difficulty), default=None),
+                                avg_power_watts=avg_power,
+                                max_power_watts=max(powers) if powers else None,
+                                total_energy_kwh=total_energy_kwh,
+                                avg_temp_c=sum(temps) / len(temps) if temps else None,
+                                max_temp_c=max(temps) if temps else None,
+                                avg_watts_per_gh=avg_watts_per_gh,
+                                mode_distribution=mode_counts
+                            )
+                            db.add(daily_agg)
+                            daily_created += 1
+                        
+                        current_date = date_end
+                
+                await db.commit()
+                print(f"✅ Miner analytics aggregation complete: {hourly_created} hourly, {daily_created} daily records created")
+        
+        except Exception as e:
+            logger.error(f"Failed to aggregate miner analytics: {e}", exc_info=True)
+            print(f"❌ Miner analytics aggregation failed: {e}")
     
     async def _execute_pool_strategies(self):
         """Execute active pool strategies"""

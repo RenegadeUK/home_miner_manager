@@ -1069,3 +1069,91 @@ async def run_migrations():
                 print("✅ Home Assistant keepalive fields already exist")
         except Exception as e:
             print(f"⚠️  Error adding Home Assistant keepalive fields: {e}")
+    
+    # Migration 25: Create hourly_miner_analytics table (26 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS hourly_miner_analytics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    miner_id INTEGER NOT NULL,
+                    pool_id INTEGER,
+                    coin VARCHAR(10) NOT NULL,
+                    hour_start DATETIME NOT NULL,
+                    mode VARCHAR(20),
+                    tuning_profile_id INTEGER,
+                    total_hashes_gh REAL NOT NULL,
+                    avg_hashrate_gh REAL NOT NULL,
+                    peak_hashrate_gh REAL,
+                    min_hashrate_gh REAL,
+                    uptime_seconds INTEGER NOT NULL,
+                    shares_accepted INTEGER DEFAULT 0,
+                    shares_rejected INTEGER DEFAULT 0,
+                    share_difficulty_avg REAL,
+                    best_share_difficulty REAL,
+                    network_difficulty REAL,
+                    block_height INTEGER,
+                    avg_power_watts REAL,
+                    min_power_watts REAL,
+                    max_power_watts REAL,
+                    avg_chip_temp_c REAL,
+                    max_chip_temp_c REAL,
+                    watts_per_gh REAL,
+                    hashes_per_share REAL,
+                    reject_rate_percent REAL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created hourly_miner_analytics table")
+        except Exception as e:
+            print(f"⚠️  hourly_miner_analytics table may already exist: {e}")
+    
+    # Migration 26: Add indexes to hourly_miner_analytics
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_hourly_analytics_miner_hour ON hourly_miner_analytics(miner_id, hour_start)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_hourly_analytics_coin_hour ON hourly_miner_analytics(coin, hour_start)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_hourly_analytics_pool_hour ON hourly_miner_analytics(pool_id, hour_start)"))
+            print("✓ Created indexes on hourly_miner_analytics")
+        except Exception as e:
+            print(f"⚠️  Indexes on hourly_miner_analytics may already exist: {e}")
+    
+    # Migration 27: Create daily_miner_analytics table (26 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS daily_miner_analytics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    miner_id INTEGER NOT NULL,
+                    coin VARCHAR(10) NOT NULL,
+                    date DATETIME NOT NULL,
+                    total_hashes_th REAL NOT NULL,
+                    avg_hashrate_gh REAL NOT NULL,
+                    peak_hashrate_gh REAL,
+                    uptime_hours REAL NOT NULL,
+                    total_shares_accepted INTEGER DEFAULT 0,
+                    total_shares_rejected INTEGER DEFAULT 0,
+                    avg_reject_rate_percent REAL,
+                    best_share_difficulty REAL,
+                    avg_power_watts REAL,
+                    max_power_watts REAL,
+                    total_energy_kwh REAL,
+                    avg_temp_c REAL,
+                    max_temp_c REAL,
+                    avg_watts_per_gh REAL,
+                    mode_distribution TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created daily_miner_analytics table")
+        except Exception as e:
+            print(f"⚠️  daily_miner_analytics table may already exist: {e}")
+    
+    # Migration 28: Add indexes to daily_miner_analytics
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_daily_analytics_miner_date ON daily_miner_analytics(miner_id, date)"))
+            await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_daily_analytics_coin_date ON daily_miner_analytics(coin, date)"))
+            print("✓ Created indexes on daily_miner_analytics")
+        except Exception as e:
+            print(f"⚠️  Indexes on daily_miner_analytics may already exist: {e}")
