@@ -922,7 +922,13 @@ async function loadTelemetry(forceLive = false) {
             document.getElementById('firmware').textContent = extra.version || extra.asic_model || '--';
         }
         
-        document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        // Update last-updated with actual telemetry timestamp
+        if (telemetry.timestamp) {
+            const telemetryDate = new Date(telemetry.timestamp);
+            document.getElementById('last-updated').textContent = telemetryDate.toLocaleString();
+        } else {
+            document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        }
         
         // Store current pool info for radio button selection
         if (telemetry.pool_in_use) {
