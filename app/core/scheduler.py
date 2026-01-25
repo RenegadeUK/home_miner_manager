@@ -464,7 +464,7 @@ class SchedulerService:
     
     async def _collect_telemetry(self):
         """Collect telemetry from all miners"""
-        from core.database import AsyncSessionLocal, Miner, Telemetry, Event, Pool, MinerStrategy
+        from core.database import AsyncSessionLocal, Miner, Telemetry, Event, Pool, MinerStrategy, EnergyPrice, AgileSoloStrategy
         from adapters import create_adapter
         from sqlalchemy import select, String
         
@@ -472,6 +472,14 @@ class SchedulerService:
         
         try:
             async with AsyncSessionLocal() as db:
+                # Check if Agile strategy is in OFF state
+                agile_in_off_state = False
+                strategy_result = await db.execute(select(AgileSoloStrategy).limit(1))
+                strategy = strategy_result.scalar_one_or_none()
+                if strategy and strategy.enabled and strategy.current_price_band == "OFF":
+                    agile_in_off_state = True
+                    print("⚡ Agile strategy is OFF - using ping-first optimization")
+                
                 # Get all enabled miners
                 result = await db.execute(select(Miner).where(Miner.enabled == True))
                 miners = result.scalars().all()
@@ -498,6 +506,18 @@ class SchedulerService:
                         # Skip NMMiner - it uses passive UDP listening
                         if miner.miner_type == "nmminer":
                             continue
+                        
+                        # Optimization: If Agile is OFF, ping first before attempting full telemetry
+                        # This avoids long timeout waits for miners that are powered off
+                        if agile_in_off_state:
+                            try:
+                                is_online = await asyncio.wait_for(adapter.is_online(), timeout=2.0)
+                                if not is_online:
+                                    print(f"💤 {miner.name} offline (ping failed) - skipping telemetry")
+                                    continue
+                            except asyncio.TimeoutError:
+                                print(f"💤 {miner.name} ping timeout - skipping telemetry")
+                                continue
                         
                         # Get telemetry
                         telemetry = await adapter.get_telemetry()
