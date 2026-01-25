@@ -177,7 +177,8 @@ class BraiinsPoolService:
         summary["workers_online"] = workers_online
         summary["workers_offline"] = workers_offline
         summary["total_hashrate"] = total_hashrate_24h
-        # Braiins returns hashrate in GH/s, convert to TH/s for formatting
+        # Braiins returns hashrate in GH/s, convert to TH/s for formatting and raw value
+        summary["hashrate_raw"] = total_hashrate_5m / 1000  # Convert GH/s to TH/s for consistency with dashboard
         summary["hashrate_5m"] = BraiinsPoolService._format_hashrate(total_hashrate_5m / 1000)
         summary["hashrate_24h"] = BraiinsPoolService._format_hashrate(total_hashrate_24h)
         
