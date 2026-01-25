@@ -68,6 +68,14 @@ class AgileSoloStrategy:
                 access_token=ha_config.access_token
             )
             
+            # Check current state before sending command (optimization)
+            current_state = await ha_integration.get_device_state(ha_device.entity_id)
+            desired_state = "on" if turn_on else "off"
+            
+            if current_state and current_state.state == desired_state:
+                logger.debug(f"⏭️ HA device {ha_device.name} already {desired_state.upper()} for miner {miner.name} - skipping")
+                return True  # Already in desired state, no action needed
+            
             # Control device
             action = "turn_on" if turn_on else "turn_off"
             logger.info(f"HA: {action} device {ha_device.name} for miner {miner.name}")
