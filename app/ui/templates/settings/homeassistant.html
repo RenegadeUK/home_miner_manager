@@ -49,6 +49,14 @@
                             </label>
                         </div>
 
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="keepalive_enabled" name="keepalive_enabled">
+                            <label class="form-check-label" for="keepalive_enabled">
+                                Keep Alive Notification
+                            </label>
+                            <small class="text-muted d-block">Monitor HA connectivity every minute. Sends alerts if HA goes offline (at 1, 5, and 15 minutes) and when it recovers.</small>
+                        </div>
+
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">💾 Save Configuration</button>
                             <button type="button" class="btn btn-secondary" id="testConnectionBtn">🔌 Test Connection</button>
@@ -159,6 +167,7 @@
                 document.getElementById('name').value = data.name;
                 document.getElementById('base_url').value = data.base_url;
                 document.getElementById('enabled').checked = data.enabled;
+                document.getElementById('keepalive_enabled').checked = data.keepalive_enabled || false;
                 document.getElementById('deleteConfigBtn').style.display = 'inline-block';
                 document.getElementById('discoverDevicesBtn').disabled = false;
                 
@@ -197,7 +206,8 @@
             name: document.getElementById('name').value,
             base_url: document.getElementById('base_url').value,
             access_token: document.getElementById('access_token').value || null,
-            enabled: document.getElementById('enabled').checked
+            enabled: document.getElementById('enabled').checked,
+            keepalive_enabled: document.getElementById('keepalive_enabled').checked
         };
 
         try {

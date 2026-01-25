@@ -666,6 +666,11 @@ class HomeAssistantConfig(Base):
     base_url: Mapped[str] = mapped_column(String(255))  # e.g., http://homeassistant.local:8123
     access_token: Mapped[str] = mapped_column(String(500))  # Long-Lived Access Token
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    keepalive_enabled: Mapped[bool] = mapped_column(Boolean, default=False)  # Monitor HA connectivity and send alerts
+    keepalive_last_check: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Last keepalive check
+    keepalive_last_success: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Last successful check
+    keepalive_downtime_start: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When downtime began
+    keepalive_alerts_sent: Mapped[int] = mapped_column(Integer, default=0)  # Number of alerts sent for current downtime
     last_test: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_test_success: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

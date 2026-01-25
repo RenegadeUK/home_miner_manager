@@ -359,7 +359,8 @@ input:checked + .toggle-slider:before {
 const DEFAULT_ALERTS = [
     { alert_type: 'high_temperature', label: 'High Temperature', description: 'Alert when temperature exceeds threshold', config: { threshold_celsius: 75 } },
     { alert_type: 'block_found', label: '🎉 Block Found', description: 'Alert when any block is found (Solopool, etc.)', config: {} },
-    { alert_type: 'aggregation_status', label: '📊 Telemetry Aggregation', description: 'Alert on aggregation success or failure during OFF periods', config: {} }
+    { alert_type: 'aggregation_status', label: '📊 Telemetry Aggregation', description: 'Alert on aggregation success or failure during OFF periods', config: {} },
+    { alert_type: 'ha_offline', label: '🏠 Home Assistant Offline', description: 'Alert when Home Assistant is unreachable (requires Keep Alive Notification enabled)', config: {} }
 ];
 
 // Load notification channels

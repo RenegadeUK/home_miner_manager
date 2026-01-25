@@ -1050,3 +1050,22 @@ async def run_migrations():
             print("✓ Created indexes on pool_health_daily")
         except Exception as e:
             print(f"⚠️  Indexes on pool_health_daily may already exist: {e}")
+    
+    # Migration 24: Add keepalive fields to homeassistant_config table (25 Jan 2026)
+    try:
+        result = await db.execute(text("PRAGMA table_info(homeassistant_config)"))
+        columns = [row[1] for row in result.fetchall()]
+        
+        if "keepalive_enabled" not in columns:
+            print("📝 Adding keepalive_enabled to homeassistant_config table...")
+            await db.execute(text("ALTER TABLE homeassistant_config ADD COLUMN keepalive_enabled BOOLEAN DEFAULT 0"))
+            await db.execute(text("ALTER TABLE homeassistant_config ADD COLUMN keepalive_last_check TIMESTAMP NULL"))
+            await db.execute(text("ALTER TABLE homeassistant_config ADD COLUMN keepalive_last_success TIMESTAMP NULL"))
+            await db.execute(text("ALTER TABLE homeassistant_config ADD COLUMN keepalive_downtime_start TIMESTAMP NULL"))
+            await db.execute(text("ALTER TABLE homeassistant_config ADD COLUMN keepalive_alerts_sent INTEGER DEFAULT 0"))
+            await db.commit()
+            print("✅ Home Assistant keepalive fields added successfully")
+        else:
+            print("✅ Home Assistant keepalive fields already exist")
+    except Exception as e:
+        print(f"⚠️  Error adding Home Assistant keepalive fields: {e}")

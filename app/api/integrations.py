@@ -29,6 +29,11 @@ class HomeAssistantConfigResponse(BaseModel):
     name: str
     base_url: str
     enabled: bool
+    keepalive_enabled: bool
+    keepalive_last_check: Optional[str] = None
+    keepalive_last_success: Optional[str] = None
+    keepalive_downtime_start: Optional[str] = None
+    keepalive_alerts_sent: int
     last_test: Optional[str] = None
     last_test_success: Optional[bool] = None
     
@@ -101,6 +106,11 @@ async def create_or_update_ha_config(
         if config_data.access_token and config_data.access_token.strip():
             existing.access_token = config_data.access_token
         existing.enabled = config_data.enabled
+        existing.keepalive_enabled = config_data.keepalive_enabled
+        # Reset keepalive state if being disabled
+        if not config_data.keepalive_enabled:
+            existing.keepalive_downtime_start = None
+            existing.keepalive_alerts_sent = 0
         config = existing
     else:
         # Create new (token required)
@@ -114,7 +124,8 @@ async def create_or_update_ha_config(
             name=config_data.name,
             base_url=config_data.base_url.rstrip('/'),
             access_token=config_data.access_token,
-            enabled=config_data.enabled
+            enabled=config_data.enabled,
+            keepalive_enabled=config_data.keepalive_enabled
         )
         db.add(config)
     

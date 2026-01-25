@@ -200,6 +200,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._monitor_ha_keepalive,
+            IntervalTrigger(minutes=1),
+            id="monitor_ha_keepalive",
+            name="Monitor Home Assistant connectivity"
+        )
+        
+        self.scheduler.add_job(
             self._start_nmminer_listener,
             id="start_nmminer_listener",
             name="Start NMMiner UDP listener"
@@ -2852,6 +2859,110 @@ class SchedulerService:
         
         except Exception as e:
             logger.error(f"Failed to create SupportXMR snapshots: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def _monitor_ha_keepalive(self):
+        """Monitor Home Assistant connectivity and send alerts if down"""
+        try:
+            from core.database import AsyncSessionLocal, HomeAssistantConfig
+            from core.homeassistant import HomeAssistantService
+            from core.notifications import NotificationService
+            from datetime import datetime, timedelta
+            from sqlalchemy import select
+            
+            async with AsyncSessionLocal() as db:
+                # Get HA config
+                result = await db.execute(select(HomeAssistantConfig))
+                ha_config = result.scalar_one_or_none()
+                
+                if not ha_config:
+                    return
+                
+                # Only monitor if keepalive is enabled
+                if not ha_config.keepalive_enabled:
+                    return
+                
+                ha_config.keepalive_last_check = datetime.utcnow()
+                
+                # Test connection
+                ha_service = HomeAssistantService(db)
+                success = await ha_service.test_connection(ha_config)
+                
+                now = datetime.utcnow()
+                
+                if success:
+                    # Connection successful
+                    was_down = ha_config.keepalive_downtime_start is not None
+                    
+                    ha_config.keepalive_last_success = now
+                    
+                    # Send recovery notification if was previously down
+                    if was_down:
+                        downtime_duration = (now - ha_config.keepalive_downtime_start).total_seconds()
+                        minutes_down = int(downtime_duration / 60)
+                        
+                        notification_service = NotificationService(db)
+                        await notification_service.send_notification(
+                            alert_type="ha_offline",
+                            title="🟢 Home Assistant Online",
+                            message=f"Home Assistant is back online after {minutes_down} minute(s) of downtime."
+                        )
+                        logger.info(f"✅ Home Assistant recovered after {minutes_down} minutes")
+                    
+                    # Reset downtime tracking
+                    ha_config.keepalive_downtime_start = None
+                    ha_config.keepalive_alerts_sent = 0
+                
+                else:
+                    # Connection failed
+                    if ha_config.keepalive_downtime_start is None:
+                        # First failure - start tracking
+                        ha_config.keepalive_downtime_start = now
+                        ha_config.keepalive_alerts_sent = 0
+                    
+                    # Calculate downtime
+                    downtime_seconds = (now - ha_config.keepalive_downtime_start).total_seconds()
+                    downtime_minutes = int(downtime_seconds / 60)
+                    
+                    # Escalating alerts: 1 min, 5 min, 15 min
+                    alert_thresholds = [1, 5, 15]
+                    should_alert = False
+                    
+                    for threshold in alert_thresholds:
+                        # Check if we've crossed this threshold and haven't sent this alert yet
+                        threshold_index = alert_thresholds.index(threshold)
+                        if downtime_minutes >= threshold and ha_config.keepalive_alerts_sent <= threshold_index:
+                            should_alert = True
+                            ha_config.keepalive_alerts_sent = threshold_index + 1
+                            break
+                    
+                    if should_alert:
+                        notification_service = NotificationService(db)
+                        
+                        if downtime_minutes >= 15:
+                            severity = "🔴"
+                            message_suffix = "still"
+                        elif downtime_minutes >= 5:
+                            severity = "🟠"
+                            message_suffix = "still"
+                        else:
+                            severity = "🟡"
+                            message_suffix = "now"
+                        
+                        await notification_service.send_notification(
+                            alert_type="ha_offline",
+                            title=f"{severity} Home Assistant Offline",
+                            message=f"Home Assistant has been offline for {downtime_minutes} minute(s). The system is {message_suffix} unable to reach {ha_config.base_url}"
+                        )
+                        logger.warning(f"⚠️  Home Assistant offline for {downtime_minutes} minutes (alert sent)")
+                    else:
+                        logger.debug(f"Home Assistant offline for {downtime_minutes} minutes (no new alert)")
+                
+                await db.commit()
+        
+        except Exception as e:
+            logger.error(f"Failed to monitor Home Assistant keepalive: {e}")
             import traceback
             traceback.print_exc()
     
