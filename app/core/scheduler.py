@@ -2703,8 +2703,27 @@ class SchedulerService:
                                     strategy.last_aggregation_time = datetime.utcnow()
                                     await db.commit()
                                     logger.info("✅ Aggregation complete during OFF period")
+                                    
+                                    # Send success notification
+                                    from core.notifications import send_alert
+                                    await send_alert(
+                                        "📊 Telemetry aggregation complete\n\n"
+                                        "✅ Successfully aggregated telemetry data during OFF period (miners idle)\n"
+                                        f"⏰ Time: {datetime.utcnow().strftime('%H:%M UTC')}",
+                                        alert_type="system"
+                                    )
                                 except Exception as e:
                                     logger.error(f"❌ Aggregation failed during OFF period: {e}")
+                                    
+                                    # Send failure notification
+                                    from core.notifications import send_alert
+                                    await send_alert(
+                                        "⚠️ Telemetry aggregation FAILED\n\n"
+                                        f"❌ Error: {str(e)[:200]}\n"
+                                        f"⏰ Time: {datetime.utcnow().strftime('%H:%M UTC')}\n\n"
+                                        "Check logs for details.",
+                                        alert_type="system"
+                                    )
                             else:
                                 logger.debug(f"⏭️ Skipping aggregation (last ran {hours_since_agg:.1f}h ago)")
                 else:
