@@ -489,14 +489,14 @@ async def pool_integrations_settings(request: Request):
 
 @router.get("/settings/agile-solo-strategy", response_class=HTMLResponse)
 async def agile_solo_strategy_settings(request: Request):
-    """Agile Solo Strategy settings page"""
+    """Agile Strategy settings page"""
     return templates.TemplateResponse("settings/agile_solo_strategy.html", {
         "request": request,
-        "page_title": "Agile Solo Strategy",
+        "page_title": "Agile Strategy",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
             {"label": "Miner Management", "url": "/miner-management"},
-            {"label": "Agile Solo Strategy", "url": "/settings/agile-solo-strategy"}
+            {"label": "Agile Strategy", "url": "/settings/agile-solo-strategy"}
         ]
     })
 
@@ -593,8 +593,7 @@ async def homeassistant_integration(request: Request):
         "page_title": "Home Assistant Integration",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Settings", "url": "/settings"},
-            {"label": "Integrations", "url": "/settings/integrations"},
+            {"label": "Miner Management", "url": "/miner-management"},
             {"label": "Home Assistant", "url": "/settings/integrations/homeassistant"}
         ]
     })

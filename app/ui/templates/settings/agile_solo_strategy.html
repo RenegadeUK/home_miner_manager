@@ -294,11 +294,16 @@
             </div>
             
             <div class="info-box">
-                <h4>🔌 OFF State (≥20p/kWh)</h4>
+                <h4>🔌 OFF State (Expensive Pricing)</h4>
                 <p>
-                    When prices reach ≥20p/kWh, the strategy detects the OFF band but does NOT disable miners.
-                    Miner shutdown at high prices is managed through external automation. The strategy will resume
-                    normal operation when prices drop below 20p.
+                    When prices reach the OFF band threshold (configured in your band settings), the strategy minimizes energy costs:
+                </p>
+                <ul style="margin-top: 10px;">
+                    <li><strong>Miners:</strong> Remain on but skip pool/mode changes (miners cannot be powered off)</li>
+                    <li><strong>Home Assistant Devices:</strong> If configured, switches and plugs will be automatically turned OFF to eliminate power consumption during expensive periods</li>
+                </ul>
+                <p style="margin-top: 10px;">
+                    Normal operation resumes when prices drop below the OFF band threshold.
                 </p>
             </div>
             

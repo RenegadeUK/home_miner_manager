@@ -2394,7 +2394,7 @@ class SchedulerService:
     async def _execute_agile_solo_strategy(self):
         """Execute Agile Solo Mining Strategy every 30 minutes"""
         try:
-            logger.info("Executing Agile Solo Strategy")
+            logger.info("Executing Agile Strategy")
             from core.database import AsyncSessionLocal
             from core.agile_solo_strategy import AgileSoloStrategy
             

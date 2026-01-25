@@ -28,7 +28,7 @@ class AgileStrategyStatus(BaseModel):
 
 @router.get("/agile-solo-strategy")
 async def get_agile_strategy_settings(db: AsyncSession = Depends(get_db)):
-    """Get current Agile Solo Strategy settings"""
+    """Get current Agile Strategy settings"""
     # Get strategy config
     result = await db.execute(select(AgileStrategy))
     strategy = result.scalar_one_or_none()
@@ -109,7 +109,7 @@ async def save_agile_strategy_settings(
     settings: AgileStrategySettings,
     db: AsyncSession = Depends(get_db)
 ):
-    """Save Agile Solo Strategy settings"""
+    """Save Agile Strategy settings"""
     # Get or create strategy
     result = await db.execute(select(AgileStrategy))
     strategy = result.scalar_one_or_none()
@@ -142,7 +142,7 @@ async def save_agile_strategy_settings(
     await db.commit()
     
     return {
-        "message": "Agile Solo Strategy settings saved successfully",
+        "message": "Agile Strategy settings saved successfully",
         "enabled": settings.enabled,
         "enrolled_count": len(settings.miner_ids)
     }
@@ -150,7 +150,7 @@ async def save_agile_strategy_settings(
 
 @router.post("/agile-solo-strategy/execute")
 async def execute_agile_strategy_manual(db: AsyncSession = Depends(get_db)):
-    """Manually trigger Agile Solo Strategy execution"""
+    """Manually trigger Agile Strategy execution"""
     from core.agile_solo_strategy import AgileSoloStrategy
     
     try:
@@ -166,7 +166,7 @@ async def execute_agile_strategy_manual(db: AsyncSession = Depends(get_db)):
 
 @router.post("/agile-solo-strategy/reconcile")
 async def reconcile_agile_strategy_manual(db: AsyncSession = Depends(get_db)):
-    """Manually trigger Agile Solo Strategy reconciliation"""
+    """Manually trigger Agile Strategy reconciliation"""
     from core.agile_solo_strategy import AgileSoloStrategy
     
     try:
