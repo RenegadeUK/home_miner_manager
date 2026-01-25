@@ -755,7 +755,7 @@ class AgileSoloStrategy:
             }
         
         # Find target pool
-        target_pool = await AgileSoloStrategy.find_solo_pool(db, target_coin)
+        target_pool = await AgileSoloStrategy.find_pool_for_coin(db, target_coin)
         if not target_pool:
             logger.warning(f"No solo pool found for {target_coin} during reconciliation")
             return {"reconciled": False, "error": "NO_POOL"}
