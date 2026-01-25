@@ -934,8 +934,8 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         
         # 2. SupportXMR Pool earnings (24h delta from snapshots) - only for CPU/XMRig miners
         supportxmr_enabled = app_config.get("supportxmr_enabled", False)
-        logging.info(f"🔍 SupportXMR check: enabled={supportxmr_enabled}, xmr_price_gbp={xmr_price_gbp}, dashboard_type={dashboard_type}")
         if supportxmr_enabled and xmr_price_gbp > 0 and dashboard_type != "asic":
+            logging.info(f"🔍 SupportXMR check: enabled={supportxmr_enabled}, xmr_price_gbp={xmr_price_gbp}, dashboard_type={dashboard_type}")
             # Only count SupportXMR for CPU dashboard (skip for ASIC dashboard)
             from core.supportxmr import SupportXMRService
             from core.database import SupportXMRSnapshot
