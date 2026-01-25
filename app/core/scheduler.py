@@ -88,28 +88,15 @@ class SchedulerService:
             name="Reconcile miners with energy optimization state"
         )
         
-        # Aggregation now runs during Agile OFF periods instead of fixed 00:05
+        # Heavy maintenance tasks now run during Agile OFF periods instead of fixed schedules
+        # Includes: aggregation, purge operations, VACUUM, ANALYZE
         # Triggered by _execute_agile_solo_strategy() when entering OFF state
-        
-        self.scheduler.add_job(
-            self._purge_old_telemetry,
-            IntervalTrigger(hours=6),
-            id="purge_old_telemetry",
-            name="Purge telemetry older than 48 hours"
-        )
         
         self.scheduler.add_job(
             self._update_crypto_prices,
             IntervalTrigger(minutes=10),
             id="update_crypto_prices",
             name="Update crypto price cache"
-        )
-        
-        self.scheduler.add_job(
-            self._purge_old_events,
-            IntervalTrigger(hours=24),
-            id="purge_old_events",
-            name="Purge events older than 30 days"
         )
         
         self.scheduler.add_job(
@@ -1915,6 +1902,41 @@ class SchedulerService:
         except Exception as e:
             print(f"❌ Failed to purge old events: {e}")
     
+    async def _db_maintenance(self):
+        """
+        Comprehensive database maintenance during OFF periods
+        Includes: purge old data, VACUUM, ANALYZE
+        """
+        from core.database import AsyncSessionLocal, engine
+        from sqlalchemy import text
+        
+        print("🔧 Starting database maintenance...")
+        
+        try:
+            # 1. Purge old telemetry
+            await self._purge_old_telemetry()
+            
+            # 2. Purge old events
+            await self._purge_old_events()
+            
+            # 3. SQLite VACUUM (defragment and reclaim space)
+            print("🧹 Running VACUUM...")
+            async with engine.begin() as conn:
+                await conn.execute(text("VACUUM"))
+            print("✅ VACUUM complete")
+            
+            # 4. SQLite ANALYZE (update query planner statistics)
+            print("📊 Running ANALYZE...")
+            async with engine.begin() as conn:
+                await conn.execute(text("ANALYZE"))
+            print("✅ ANALYZE complete")
+            
+            print("✅ Database maintenance complete")
+            
+        except Exception as e:
+            print(f"❌ Database maintenance failed: {e}")
+            raise
+    
     async def _purge_old_energy_prices(self):
         """Purge energy prices older than 60 days"""
         from core.database import AsyncSessionLocal, EnergyPrice
@@ -2697,25 +2719,33 @@ class SchedulerService:
                                     should_aggregate = True
                             
                             if should_aggregate:
-                                logger.info("🗜️ OFF state detected - triggering telemetry aggregation (miners idle)")
+                                logger.info("🗜️ OFF state detected - triggering maintenance (miners idle)")
                                 
-                                # Try aggregation with retry (max 3 attempts over 90 minutes)
+                                # Try aggregation + maintenance with retry (max 3 attempts over 90 minutes)
                                 max_retries = 3
                                 retry_interval = 1800  # 30 minutes between retries
                                 
                                 for attempt in range(1, max_retries + 1):
                                     try:
-                                        logger.info(f"📊 Aggregation attempt {attempt}/{max_retries}")
+                                        logger.info(f"📊 Maintenance attempt {attempt}/{max_retries}")
+                                        
+                                        # Run telemetry aggregation
                                         await self._aggregate_telemetry()
+                                        
+                                        # Run database maintenance (purge + VACUUM + ANALYZE)
+                                        await self._db_maintenance()
+                                        
                                         strategy.last_aggregation_time = datetime.utcnow()
                                         await db.commit()
-                                        logger.info("✅ Aggregation complete during OFF period")
+                                        logger.info("✅ Maintenance complete during OFF period")
                                         
                                         # Send success notification
                                         from core.notifications import send_alert
                                         await send_alert(
-                                            "📊 Telemetry aggregation complete\n\n"
-                                            "✅ Successfully aggregated telemetry data during OFF period (miners idle)\n"
+                                            "🔧 Database maintenance complete\n\n"
+                                            "✅ Telemetry aggregation complete\n"
+                                            "✅ Old data purged\n"
+                                            "✅ Database optimized (VACUUM + ANALYZE)\n"
                                             f"⏰ Time: {datetime.utcnow().strftime('%H:%M UTC')}\n"
                                             f"🔄 Attempt: {attempt}/{max_retries}",
                                             alert_type="aggregation_status"
@@ -2723,7 +2753,7 @@ class SchedulerService:
                                         break  # Success, exit retry loop
                                         
                                     except Exception as e:
-                                        logger.error(f"❌ Aggregation attempt {attempt}/{max_retries} failed: {e}")
+                                        logger.error(f"❌ Maintenance attempt {attempt}/{max_retries} failed: {e}")
                                         
                                         if attempt < max_retries:
                                             # Not last attempt, schedule retry
@@ -2733,7 +2763,7 @@ class SchedulerService:
                                             # Final attempt failed, send notification
                                             from core.notifications import send_alert
                                             await send_alert(
-                                                "⚠️ Telemetry aggregation FAILED\n\n"
+                                                "⚠️ Database maintenance FAILED\n\n"
                                                 f"❌ All {max_retries} attempts failed\n"
                                                 f"Last error: {str(e)[:200]}\n"
                                                 f"⏰ Time: {datetime.utcnow().strftime('%H:%M UTC')}\n\n"
@@ -2741,7 +2771,7 @@ class SchedulerService:
                                                 alert_type="aggregation_status"
                                             )
                             else:
-                                logger.debug(f"⏭️ Skipping aggregation (last ran {hours_since_agg:.1f}h ago)")
+                                logger.debug(f"⏭️ Skipping maintenance (last ran {hours_since_agg:.1f}h ago)")
                 else:
                     logger.debug(f"Agile Solo Strategy: {report.get('message', 'disabled')}")
         
