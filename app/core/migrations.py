@@ -137,6 +137,17 @@ async def run_migrations():
             # Column already exists
             pass
         
+        # Migration 9.5: Add miner_id column to homeassistant_devices
+        try:
+            await conn.execute(text("""
+                ALTER TABLE homeassistant_devices 
+                ADD COLUMN miner_id INTEGER
+            """))
+            print("✓ Added miner_id column to homeassistant_devices")
+        except Exception:
+            # Column already exists
+            pass
+        
         # Migration 10: Create miner_pool_slots table for Avalon Nano pool caching
         try:
             await conn.execute(text("""

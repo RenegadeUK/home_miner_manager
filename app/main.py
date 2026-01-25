@@ -118,6 +118,10 @@ app.include_router(settings_api.router, prefix="/api/settings", tags=["settings"
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 app.include_router(energy.router, prefix="/api/energy", tags=["energy"])
+
+# Import integrations routes
+from api.integrations import router as integrations_router
+app.include_router(integrations_router, tags=["integrations"])
 app.include_router(pool_health.router, prefix="/api", tags=["pool-health"])
 app.include_router(discovery.router, prefix="/api", tags=["discovery"])
 app.include_router(tuning.router, prefix="/api/tuning", tags=["tuning"])

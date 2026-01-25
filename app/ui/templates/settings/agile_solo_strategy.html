@@ -593,7 +593,7 @@ async function loadBands() {
         
         // Generic descriptions - actual price ranges are shown in the first column
         const descriptions = [
-            'Capital preservation (external automation)',
+            'Turns off linked Home Assistant devices',
             'Frequent wins, low regret',
             'Baseline probability',
             'Meaningful upside',
@@ -616,12 +616,12 @@ async function loadBands() {
             
             row.style.cssText = rowStyle;
             
-            // If OFF, show managed externally colspan
+            // If OFF, show HA device control message
             if (band.target_coin === 'OFF') {
                 row.innerHTML = `
                     <td>${priceRangeHtml}</td>
                     <td>${createCoinDropdown(band)}</td>
-                    <td colspan="3" style="text-align: center; font-style: italic; color: var(--text-secondary);">Managed Externally</td>
+                    <td colspan="3" style="text-align: center; font-style: italic; color: var(--text-secondary);">HA Devices OFF</td>
                     <td>${descriptions[index] || ''}</td>
                 `;
             } else {

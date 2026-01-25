@@ -555,6 +555,35 @@ async def cloud_settings(request: Request):
     })
 
 
+@router.get("/settings/integrations", response_class=HTMLResponse)
+async def integrations_settings(request: Request):
+    """Integrations Settings page (Home Assistant, etc.)"""
+    return templates.TemplateResponse("settings/integrations.html", {
+        "request": request,
+        "page_title": "External Integrations",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Settings", "url": "/settings"},
+            {"label": "Integrations", "url": "/settings/integrations"}
+        ]
+    })
+
+
+@router.get("/settings/integrations/homeassistant", response_class=HTMLResponse)
+async def homeassistant_integration(request: Request):
+    """Home Assistant integration page"""
+    return templates.TemplateResponse("settings/homeassistant.html", {
+        "request": request,
+        "page_title": "Home Assistant Integration",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Settings", "url": "/settings"},
+            {"label": "Integrations", "url": "/settings/integrations"},
+            {"label": "Home Assistant", "url": "/settings/integrations/homeassistant"}
+        ]
+    })
+
+
 @router.get("/settings/openai", response_class=HTMLResponse)
 async def openai_settings(request: Request):
     """OpenAI / Sam AI Assistant Settings page"""

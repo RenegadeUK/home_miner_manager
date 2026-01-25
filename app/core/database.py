@@ -597,6 +597,39 @@ class Metric(Base):
     )
 
 
+class HomeAssistantConfig(Base):
+    """Home Assistant integration configuration"""
+    __tablename__ = "homeassistant_config"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), default="Home Assistant")
+    base_url: Mapped[str] = mapped_column(String(255))  # e.g., http://homeassistant.local:8123
+    access_token: Mapped[str] = mapped_column(String(500))  # Long-Lived Access Token
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_test: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_test_success: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class HomeAssistantDevice(Base):
+    """Home Assistant devices tracked by HMM"""
+    __tablename__ = "homeassistant_devices"
+    
+    id: Mapped[int] = mapped_column(primary_key=True)
+    entity_id: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # e.g., switch.miner_power
+    name: Mapped[str] = mapped_column(String(255))
+    domain: Mapped[str] = mapped_column(String(50))  # switch, light, climate, etc.
+    miner_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)  # Link to miner
+    enrolled: Mapped[bool] = mapped_column(Boolean, default=False)  # Can automation control this?
+    never_auto_control: Mapped[bool] = mapped_column(Boolean, default=False)  # Safety lock
+    current_state: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # on, off, unavailable
+    last_state_change: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    capabilities: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:

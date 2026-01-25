@@ -10,7 +10,7 @@ from typing import Optional, Dict, List, Tuple
 import logging
 import asyncio
 
-from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice, Telemetry, AgileStrategyBand
+from core.database import AgileStrategy, MinerStrategy, Miner, Pool, EnergyPrice, Telemetry, AgileStrategyBand, HomeAssistantConfig, HomeAssistantDevice
 from core.energy import get_current_energy_price
 from core.audit import log_audit
 from core.solopool import SolopoolService
@@ -24,6 +24,69 @@ class AgileSoloStrategy:
     
     # Hysteresis counter requirement for upgrading bands
     HYSTERESIS_SLOTS = 2
+    
+    @staticmethod
+    async def control_ha_device_for_miner(db: AsyncSession, miner: Miner, turn_on: bool) -> bool:
+        """
+        Control Home Assistant device linked to a miner
+        
+        Args:
+            db: Database session
+            miner: Miner object
+            turn_on: True to turn on, False to turn off
+            
+        Returns:
+            True if device was controlled, False if no device linked or control failed
+        """
+        try:
+            # Check if miner has a linked HA device
+            result = await db.execute(
+                select(HomeAssistantDevice)
+                .where(HomeAssistantDevice.miner_id == miner.id)
+                .where(HomeAssistantDevice.enrolled == True)
+            )
+            ha_device = result.scalar_one_or_none()
+            
+            if not ha_device:
+                logger.debug(f"No HA device linked to miner {miner.name}")
+                return False
+            
+            # Get HA config
+            config_result = await db.execute(select(HomeAssistantConfig))
+            ha_config = config_result.scalar_one_or_none()
+            
+            if not ha_config or not ha_config.enabled:
+                logger.warning(f"HA integration not configured or disabled, cannot control device for {miner.name}")
+                return False
+            
+            # Import here to avoid circular dependencies
+            from integrations.homeassistant import HomeAssistantIntegration
+            
+            # Create HA integration instance
+            ha_integration = HomeAssistantIntegration(
+                base_url=ha_config.base_url,
+                access_token=ha_config.access_token
+            )
+            
+            # Control device
+            action = "turn_on" if turn_on else "turn_off"
+            logger.info(f"HA: {action} device {ha_device.name} for miner {miner.name}")
+            
+            if turn_on:
+                success = await ha_integration.turn_on(ha_device.entity_id)
+            else:
+                success = await ha_integration.turn_off(ha_device.entity_id)
+            
+            if success:
+                logger.info(f"✓ HA device {ha_device.name} {'ON' if turn_on else 'OFF'} for miner {miner.name}")
+                return True
+            else:
+                logger.error(f"✗ Failed to control HA device {ha_device.name} for miner {miner.name}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error controlling HA device for miner {miner.name}: {e}")
+            return False
     
     @staticmethod
     async def get_enrolled_miners(db: AsyncSession) -> List[Miner]:
@@ -389,16 +452,28 @@ class AgileSoloStrategy:
         
         actions_taken = []
         
-        # Handle OFF state - managed externally
+        # Handle OFF state - turn off HA devices
         if target_coin == "OFF":
-            logger.info(f"Target coin is OFF (price: {current_price}p/kWh) - shutdown managed externally")
+            logger.info(f"Target coin is OFF (price: {current_price}p/kWh) - turning off linked HA devices")
+            
+            ha_actions = []
+            for miner in enrolled_miners:
+                controlled = await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=False)
+                if controlled:
+                    ha_actions.append(f"{miner.name}: HA device turned OFF")
+                else:
+                    ha_actions.append(f"{miner.name}: No HA device linked")
             
             await log_audit(
                 db,
                 action="agile_strategy_off_detected",
                 resource_type="agile_strategy",
                 resource_name="Agile Solo Strategy",
-                changes={"price": current_price, "miners_enrolled": len(enrolled_miners)}
+                changes={
+                    "price": current_price,
+                    "miners_enrolled": len(enrolled_miners),
+                    "ha_devices_controlled": len([a for a in ha_actions if "turned OFF" in a])
+                }
             )
             
             await db.commit()
@@ -409,8 +484,8 @@ class AgileSoloStrategy:
                 "band": "OFF",
                 "coin": None,
                 "miners": len(enrolled_miners),
-                "message": "OFF state - shutdown managed externally",
-                "actions": ["OFF state detected - external automation will handle shutdown"]
+                "message": f"OFF state - {len([a for a in ha_actions if 'turned OFF' in a])} HA devices turned off",
+                "actions": ha_actions
             }
         
         else:
@@ -428,6 +503,12 @@ class AgileSoloStrategy:
             
             # Apply changes to each miner
             from adapters import get_adapter
+            
+            # First, turn on HA devices if any are linked (ensure power is on before pool switching)
+            for miner in enrolled_miners:
+                await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=True)
+                # Small delay to let device power up
+                await asyncio.sleep(2)
             
             for miner in enrolled_miners:
                 # Get target mode from band based on miner type
@@ -620,9 +701,58 @@ class AgileSoloStrategy:
         
         target_coin = band.target_coin
         
-        # If OFF state, ensure all miners are disabled
+        # If OFF state, ensure HA devices are actually off
         if target_coin == "OFF":
-            return {"reconciled": True, "message": "OFF state - no reconciliation needed"}
+            ha_corrections = []
+            for miner in enrolled_miners:
+                # Check if HA device is enrolled and linked
+                result = await db.execute(
+                    select(HomeAssistantDevice)
+                    .where(HomeAssistantDevice.miner_id == miner.id)
+                    .where(HomeAssistantDevice.enrolled == True)
+                )
+                ha_device = result.scalar_one_or_none()
+                
+                if ha_device:
+                    # Get current device state from HA
+                    try:
+                        config_result = await db.execute(select(HomeAssistantConfig))
+                        ha_config = config_result.scalar_one_or_none()
+                        
+                        if ha_config and ha_config.enabled:
+                            from integrations.homeassistant import HomeAssistantIntegration
+                            ha_integration = HomeAssistantIntegration(
+                                base_url=ha_config.base_url,
+                                access_token=ha_config.access_token
+                            )
+                            
+                            state = await ha_integration.get_device_state(ha_device.entity_id)
+                            if state and state.state == "on":
+                                # Device is ON but should be OFF
+                                logger.warning(f"Reconciliation: HA device {ha_device.name} for {miner.name} is ON during OFF period - turning off")
+                                success = await ha_integration.turn_off(ha_device.entity_id)
+                                if success:
+                                    ha_corrections.append(f"{miner.name}: HA device turned OFF")
+                                else:
+                                    ha_corrections.append(f"{miner.name}: HA device turn OFF FAILED")
+                    except Exception as e:
+                        logger.error(f"Reconciliation: Failed to check HA device for {miner.name}: {e}")
+            
+            if ha_corrections:
+                await log_audit(
+                    db,
+                    action="agile_strategy_reconciled_ha_devices",
+                    resource_type="agile_strategy",
+                    resource_name="Agile Solo Strategy",
+                    changes={"corrections": ha_corrections, "band": "OFF"}
+                )
+                await db.commit()
+                
+            return {
+                "reconciled": True,
+                "message": f"OFF state - {len(ha_corrections)} HA devices corrected",
+                "ha_corrections": ha_corrections
+            }
         
         # Find target pool
         target_pool = await AgileSoloStrategy.find_solo_pool(db, target_coin)
@@ -633,6 +763,7 @@ class AgileSoloStrategy:
         # Check each miner and re-apply if needed
         from adapters import get_adapter
         corrections = []
+        ha_corrections = []
         
         # Build target pool URL for comparison
         target_pool_url = f"{target_pool.url}:{target_pool.port}"
@@ -648,6 +779,40 @@ class AgileSoloStrategy:
             
             # Skip managed_externally miners
             if target_mode == "managed_externally":
+                continue
+            
+            # Check if HA device should be ON (we're in active mining state)
+            result = await db.execute(
+                select(HomeAssistantDevice)
+                .where(HomeAssistantDevice.miner_id == miner.id)
+                .where(HomeAssistantDevice.enrolled == True)
+            )
+            ha_device = result.scalar_one_or_none()
+            
+            if ha_device:
+                try:
+                    config_result = await db.execute(select(HomeAssistantConfig))
+                    ha_config = config_result.scalar_one_or_none()
+                    
+                    if ha_config and ha_config.enabled:
+                        from integrations.homeassistant import HomeAssistantIntegration
+                        ha_integration = HomeAssistantIntegration(
+                            base_url=ha_config.base_url,
+                            access_token=ha_config.access_token
+                        )
+                        
+                        state = await ha_integration.get_device_state(ha_device.entity_id)
+                        if state and state.state == "off":
+                            # Device is OFF but should be ON during active mining
+                            logger.warning(f"Reconciliation: HA device {ha_device.name} for {miner.name} is OFF during active mining - turning on")
+                            success = await ha_integration.turn_on(ha_device.entity_id)
+                            if success:
+                                ha_corrections.append(f"{miner.name}: HA device turned ON")
+                                await asyncio.sleep(2)  # Wait for power up
+                            else:
+                                ha_corrections.append(f"{miner.name}: HA device turn ON FAILED")
+                except Exception as e:
+                    logger.error(f"Reconciliation: Failed to check HA device for {miner.name}: {e}")
                 continue
             
             # Check both pool AND mode in single pass
@@ -702,13 +867,18 @@ class AgileSoloStrategy:
         
         await db.commit()
         
-        if corrections:
+        if corrections or ha_corrections:
             await log_audit(
                 db,
                 action="agile_strategy_reconciled",
                 resource_type="agile_strategy",
                 resource_name="Agile Solo Strategy",
-                changes={"corrections": corrections, "band": current_band, "coin": target_coin}
+                changes={
+                    "corrections": corrections,
+                    "ha_corrections": ha_corrections,
+                    "band": current_band,
+                    "coin": target_coin
+                }
             )
             await db.commit()
         
@@ -717,5 +887,6 @@ class AgileSoloStrategy:
             "band": current_band,
             "coin": target_coin,
             "corrections": len(corrections),
-            "details": corrections
+            "ha_corrections": len(ha_corrections),
+            "details": corrections + ha_corrections
         }
