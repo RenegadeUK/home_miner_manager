@@ -91,6 +91,14 @@ class SchedulerService:
         # Heavy maintenance tasks now run during Agile OFF periods instead of fixed schedules
         # Includes: aggregation, purge operations, VACUUM, ANALYZE
         # Triggered by _execute_agile_solo_strategy() when entering OFF state
+        # Fallback: If strategy disabled or hasn't run in 7 days, runs daily at 3am
+        
+        self.scheduler.add_job(
+            self._fallback_maintenance,
+            CronTrigger(hour=3, minute=0),
+            id="fallback_maintenance",
+            name="Fallback maintenance (3am daily if needed)"
+        )
         
         self.scheduler.add_job(
             self._update_crypto_prices,
@@ -1936,6 +1944,71 @@ class SchedulerService:
         except Exception as e:
             print(f"❌ Database maintenance failed: {e}")
             raise
+    
+    async def _fallback_maintenance(self):
+        """
+        Fallback maintenance runs daily at 3am IF:
+        1. Agile strategy is disabled (no OFF triggers), OR
+        2. Last maintenance was >7 days ago (strategy never hitting OFF)
+        """
+        from core.database import AsyncSessionLocal, AgileStrategy
+        from sqlalchemy import select
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                # Check strategy state
+                strategy_result = await db.execute(select(AgileStrategy).limit(1))
+                strategy = strategy_result.scalar_one_or_none()
+                
+                should_run = False
+                reason = ""
+                
+                if not strategy or not strategy.enabled:
+                    should_run = True
+                    reason = "Agile strategy disabled"
+                elif strategy.last_aggregation_time is None:
+                    should_run = True
+                    reason = "Never run before"
+                else:
+                    days_since = (datetime.utcnow() - strategy.last_aggregation_time).total_seconds() / 86400
+                    if days_since >= 7:
+                        should_run = True
+                        reason = f"Last run {days_since:.1f} days ago"
+                
+                if should_run:
+                    logger.info(f"🔧 Fallback maintenance triggered: {reason}")
+                    
+                    # Run aggregation
+                    await self._aggregate_telemetry()
+                    
+                    # Run database maintenance
+                    await self._db_maintenance()
+                    
+                    # Update timestamp if we have strategy
+                    if strategy:
+                        strategy.last_aggregation_time = datetime.utcnow()
+                        await db.commit()
+                    
+                    logger.info("✅ Fallback maintenance complete")
+                    
+                    # Send notification
+                    from core.notifications import send_alert
+                    await send_alert(
+                        "🔧 Database maintenance complete (fallback)\n\n"
+                        f"Reason: {reason}\n"
+                        "✅ Telemetry aggregation complete\n"
+                        "✅ Old data purged\n"
+                        "✅ Database optimized (VACUUM + ANALYZE)\n"
+                        f"⏰ Time: {datetime.utcnow().strftime('%H:%M UTC')}",
+                        alert_type="aggregation_status"
+                    )
+                else:
+                    logger.debug("Fallback maintenance skipped (Agile strategy handling it)")
+        
+        except Exception as e:
+            logger.error(f"Fallback maintenance failed: {e}")
+            import traceback
+            traceback.print_exc()
     
     async def _purge_old_energy_prices(self):
         """Purge energy prices older than 60 days"""
