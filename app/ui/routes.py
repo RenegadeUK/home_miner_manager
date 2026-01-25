@@ -275,8 +275,8 @@ async def pools_strategies(request: Request, db: AsyncSession = Depends(get_db))
         "page_title": "Pool Strategies",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Pools", "url": "/pools"},
-            {"label": "Strategies", "url": "/pools/strategies"}
+            {"label": "Miner Management", "url": "/miner-management"},
+            {"label": "Pool Strategies", "url": "/pools/strategies"}
         ],
         "strategies": strategies,
         "pools": pools
@@ -299,8 +299,8 @@ async def pools_strategies_add(request: Request, db: AsyncSession = Depends(get_
         "page_title": "Add Pool Strategy",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Pools", "url": "/pools"},
-            {"label": "Strategies", "url": "/pools/strategies"},
+            {"label": "Miner Management", "url": "/miner-management"},
+            {"label": "Pool Strategies", "url": "/pools/strategies"},
             {"label": "Add", "url": "/pools/strategies/add"}
         ],
         "pools": pools
@@ -333,8 +333,8 @@ async def pools_strategies_edit(request: Request, strategy_id: int, db: AsyncSes
         "page_title": f"Edit Strategy: {strategy.name}",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Pools", "url": "/pools"},
-            {"label": "Strategies", "url": "/pools/strategies"},
+            {"label": "Miner Management", "url": "/miner-management"},
+            {"label": "Pool Strategies", "url": "/pools/strategies"},
             {"label": strategy.name, "url": f"/pools/strategies/{strategy_id}/edit"}
         ],
         "strategy": strategy,
@@ -353,7 +353,8 @@ async def automation_list(request: Request, db: AsyncSession = Depends(get_db)):
         "page_title": "Automation Rules",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Automation", "url": "/automation"}
+            {"label": "Miner Management", "url": "/miner-management"},
+            {"label": "Automation Rules", "url": "/automation"}
         ],
         "rules": rules
     })
@@ -367,7 +368,8 @@ async def add_rule(request: Request):
         "page_title": "Add Automation Rule",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Automation", "url": "/automation"},
+            {"label": "Miner Management", "url": "/miner-management"},
+            {"label": "Automation Rules", "url": "/automation"},
             {"label": "Add Rule", "url": "/automation/add"}
         ]
     })
@@ -381,7 +383,8 @@ async def edit_rule(request: Request, rule_id: int):
         "page_title": "Edit Automation Rule",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Automation", "url": "/automation"},
+            {"label": "Miner Management", "url": "/miner-management"},
+            {"label": "Automation Rules", "url": "/automation"},
             {"label": "Edit Rule", "url": f"/automation/edit/{rule_id}"}
         ],
         "rule_id": rule_id
@@ -396,7 +399,7 @@ async def energy_settings(request: Request):
         "page_title": "Energy Pricing",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Settings", "url": "/settings"},
+            {"label": "Miner Management", "url": "/miner-management"},
             {"label": "Energy Pricing", "url": "/settings/energy"}
         ]
     })
@@ -410,8 +413,21 @@ async def energy_optimization_settings(request: Request):
         "page_title": "Energy Optimization",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Settings", "url": "/settings"},
+            {"label": "Miner Management", "url": "/miner-management"},
             {"label": "Energy Optimization", "url": "/settings/optimization"}
+        ]
+    })
+
+
+@router.get("/miner-management", response_class=HTMLResponse)
+async def miner_management(request: Request):
+    """Miner Management page"""
+    return templates.TemplateResponse("miner_management.html", {
+        "request": request,
+        "page_title": "Miner Management",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Miner Management", "url": "/miner-management"}
         ]
     })
 
@@ -479,7 +495,7 @@ async def agile_solo_strategy_settings(request: Request):
         "page_title": "Agile Solo Strategy",
         "breadcrumbs": [
             {"label": "Dashboard", "url": "/"},
-            {"label": "Settings", "url": "/settings"},
+            {"label": "Miner Management", "url": "/miner-management"},
             {"label": "Agile Solo Strategy", "url": "/settings/agile-solo-strategy"}
         ]
     })

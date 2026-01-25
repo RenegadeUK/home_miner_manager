@@ -160,11 +160,6 @@
 
 {% block content %}
 <div class="pools-container">
-    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 1.5rem;">
-        <a href="/pools/strategies" class="btn btn-secondary">
-            <i class="fas fa-random"></i> Strategies
-        </a>
-    </div>
     <div class="pools-grid">
         {% for pool in pools %}
         {% set health = pool_health_map.get(pool.id) %}
