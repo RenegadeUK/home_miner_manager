@@ -578,6 +578,7 @@ class AgileStrategy(Base):
     hysteresis_counter: Mapped[int] = mapped_column(Integer, default=0)  # 2-slot delay for upgrading bands
     last_action_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     last_price_checked: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # p/kWh
+    last_aggregation_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # When telemetry was last aggregated
     state_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Additional state tracking
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -975,3 +975,10 @@ async def run_migrations():
             print("✓ Created telemetry_daily table")
         except Exception:
             pass
+
+        # Migration: Add last_aggregation_time to agile_strategy
+        try:
+            await conn.execute(text("ALTER TABLE agile_strategy ADD COLUMN last_aggregation_time DATETIME"))
+            print("✓ Added last_aggregation_time to agile_strategy")
+        except Exception:
+            pass

@@ -88,12 +88,8 @@ class SchedulerService:
             name="Reconcile miners with energy optimization state"
         )
         
-        self.scheduler.add_job(
-            self._aggregate_telemetry,
-            CronTrigger(hour=0, minute=5),
-            id="aggregate_telemetry",
-            name="Aggregate telemetry data (daily at 00:05)"
-        )
+        # Aggregation now runs during Agile OFF periods instead of fixed 00:05
+        # Triggered by _execute_agile_solo_strategy() when entering OFF state
         
         self.scheduler.add_job(
             self._purge_old_telemetry,
@@ -2671,17 +2667,46 @@ class SchedulerService:
             traceback.print_exc()
     
     async def _execute_agile_solo_strategy(self):
-        """Execute Agile Solo Mining Strategy every 30 minutes"""
+        """Execute Agile Solo Mining Strategy every minute"""
         try:
             logger.info("Executing Agile Strategy")
-            from core.database import AsyncSessionLocal
+            from core.database import AsyncSessionLocal, AgileStrategy
             from core.agile_solo_strategy import AgileSoloStrategy
+            from sqlalchemy import select
+            from datetime import datetime
             
             async with AsyncSessionLocal() as db:
                 report = await AgileSoloStrategy.execute_strategy(db)
                 
                 if report.get("enabled"):
                     logger.info(f"Agile Solo Strategy executed: {report}")
+                    
+                    # Check if we just entered OFF state and should trigger aggregation
+                    if report.get("band") and "OFF" in report.get("band", ""):
+                        strategy_result = await db.execute(select(AgileStrategy).limit(1))
+                        strategy = strategy_result.scalar_one_or_none()
+                        
+                        if strategy:
+                            # Check if aggregation hasn't run in the last 22 hours
+                            should_aggregate = False
+                            if strategy.last_aggregation_time is None:
+                                should_aggregate = True
+                            else:
+                                hours_since_agg = (datetime.utcnow() - strategy.last_aggregation_time).total_seconds() / 3600
+                                if hours_since_agg >= 22:
+                                    should_aggregate = True
+                            
+                            if should_aggregate:
+                                logger.info("🗜️ OFF state detected - triggering telemetry aggregation (miners idle)")
+                                try:
+                                    await self._aggregate_telemetry()
+                                    strategy.last_aggregation_time = datetime.utcnow()
+                                    await db.commit()
+                                    logger.info("✅ Aggregation complete during OFF period")
+                                except Exception as e:
+                                    logger.error(f"❌ Aggregation failed during OFF period: {e}")
+                            else:
+                                logger.debug(f"⏭️ Skipping aggregation (last ran {hours_since_agg:.1f}h ago)")
                 else:
                     logger.debug(f"Agile Solo Strategy: {report.get('message', 'disabled')}")
         
