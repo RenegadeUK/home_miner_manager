@@ -702,8 +702,9 @@ async def check_all_miners_health(db: AsyncSession):
             # Log warnings for unhealthy miners
             if health_data["status"] in ["warning", "critical"] or (ml_score and ml_score > 0.7):
                 reason_codes = [r["code"] for r in health_data["reasons"]]
+                miner_name = miner.name or f"Miner-{miner.id}"
                 logger.warning(
-                    f"Miner {miner.name} (ID {miner.id}) - Health: {health_data['health_score']}/100 "
+                    f"Miner {miner_name} (ID {miner.id}) - Health: {health_data['health_score']}/100 "
                     f"Status: {health_data['status'].upper()} - ML: {ml_score:.2f if ml_score else 'N/A'} - "
                     f"Issues: {', '.join(reason_codes)} - Actions: {', '.join(health_data['suggested_actions'])}"
                 )
