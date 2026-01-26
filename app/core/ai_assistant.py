@@ -11,7 +11,10 @@ import os
 from pathlib import Path
 
 from core.config import app_config
-from core.database import AsyncSessionLocal, Miner, Telemetry, BlockFound, EnergyPrice, HighDiffShare
+from core.database import (
+    AsyncSessionLocal, Miner, Telemetry, BlockFound, EnergyPrice, HighDiffShare,
+    HourlyMinerAnalytics, DailyMinerAnalytics, TelemetryHourly, TelemetryDaily
+)
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -190,6 +193,73 @@ SAM_TOOLS = [
                     }
                 },
                 "required": ["miner_id", "start_date", "end_date"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_hourly_analytics",
+            "description": "Get hourly aggregated miner analytics with mode tracking, power efficiency, and performance metrics. MUCH FASTER than raw telemetry for multi-day analysis. Use this for performance trends, mode analysis, and efficiency calculations.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "miner_id": {
+                        "type": "integer",
+                        "description": "The miner ID to query"
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to look back (default: 7, max: 90)"
+                    },
+                    "mode_filter": {
+                        "type": "string",
+                        "description": "Filter by mode (e.g., 'high', 'low', 'eco', 'turbo'). Optional."
+                    }
+                },
+                "required": ["miner_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_daily_analytics",
+            "description": "Get daily aggregated miner analytics with total hashes, energy consumption, and mode distribution. Best for long-term trends, weekly/monthly comparisons, and energy cost analysis.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "miner_id": {
+                        "type": "integer",
+                        "description": "The miner ID to query"
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to look back (default: 30, max: 365)"
+                    }
+                },
+                "required": ["miner_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "compare_mode_performance",
+            "description": "Compare miner performance across different modes (low/med/high/eco/turbo) using hourly analytics. Shows hashrate, efficiency, and temperature by mode.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "miner_id": {
+                        "type": "integer",
+                        "description": "The miner ID to analyze"
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "Number of days to look back (default: 7, max: 90)"
+                    }
+                },
+                "required": ["miner_id"]
             }
         }
     }
@@ -528,6 +598,149 @@ async def _execute_tool(tool_name: str, arguments: Dict, db: AsyncSession) -> st
                 "end_date": end_date.isoformat(),
                 "record_count": len(records),
                 "records": telemetry_data
+            })
+        
+        elif tool_name == "get_hourly_analytics":
+            miner_id = args["miner_id"]
+            days = min(args.get("days", 7), 90)
+            mode_filter = args.get("mode_filter")
+            since = datetime.utcnow() - timedelta(days=days)
+            
+            query = select(HourlyMinerAnalytics).where(
+                HourlyMinerAnalytics.miner_id == miner_id,
+                HourlyMinerAnalytics.hour_start >= since
+            )
+            
+            if mode_filter:
+                query = query.where(HourlyMinerAnalytics.mode == mode_filter)
+            
+            query = query.order_by(HourlyMinerAnalytics.hour_start)
+            result = await db.execute(query)
+            records = result.scalars().all()
+            
+            if not records:
+                return json.dumps({"error": f"No hourly analytics found for miner {miner_id}"})
+            
+            analytics_data = [{
+                "hour_start": h.hour_start.isoformat(),
+                "mode": h.mode,
+                "mode_changes": h.mode_changes,
+                "mode_distribution": h.mode_distribution,
+                "avg_hashrate_gh": f"{h.avg_hashrate_gh:.2f}",
+                "peak_hashrate_gh": f"{h.peak_hashrate_gh:.2f}" if h.peak_hashrate_gh else None,
+                "uptime_minutes": round(h.uptime_seconds / 60),
+                "shares_accepted": h.shares_accepted,
+                "shares_rejected": h.shares_rejected,
+                "reject_rate": f"{h.reject_rate_percent:.2f}%" if h.reject_rate_percent else None,
+                "avg_power_watts": f"{h.avg_power_watts:.1f}" if h.avg_power_watts else None,
+                "avg_temp_c": f"{h.avg_chip_temp_c:.1f}" if h.avg_chip_temp_c else None,
+                "watts_per_gh": f"{h.watts_per_gh:.2f}" if h.watts_per_gh else None
+            } for h in records]
+            
+            return json.dumps({
+                "miner_id": miner_id,
+                "days": days,
+                "mode_filter": mode_filter,
+                "record_count": len(records),
+                "analytics": analytics_data
+            })
+        
+        elif tool_name == "get_daily_analytics":
+            miner_id = args["miner_id"]
+            days = min(args.get("days", 30), 365)
+            since = datetime.utcnow() - timedelta(days=days)
+            
+            result = await db.execute(
+                select(DailyMinerAnalytics).where(
+                    DailyMinerAnalytics.miner_id == miner_id,
+                    DailyMinerAnalytics.date >= since
+                ).order_by(DailyMinerAnalytics.date)
+            )
+            records = result.scalars().all()
+            
+            if not records:
+                return json.dumps({"error": f"No daily analytics found for miner {miner_id}"})
+            
+            daily_data = [{
+                "date": d.date.date().isoformat(),
+                "total_hashes_th": f"{d.total_hashes_th:.2f}",
+                "avg_hashrate_gh": f"{d.avg_hashrate_gh:.2f}",
+                "uptime_hours": f"{d.uptime_hours:.1f}",
+                "total_shares": d.total_shares_accepted,
+                "reject_rate": f"{d.avg_reject_rate_percent:.2f}%" if d.avg_reject_rate_percent else None,
+                "total_energy_kwh": f"{d.total_energy_kwh:.2f}" if d.total_energy_kwh else None,
+                "avg_power_watts": f"{d.avg_power_watts:.1f}" if d.avg_power_watts else None,
+                "avg_temp_c": f"{d.avg_temp_c:.1f}" if d.avg_temp_c else None,
+                "avg_watts_per_gh": f"{d.avg_watts_per_gh:.2f}" if d.avg_watts_per_gh else None,
+                "mode_distribution": d.mode_distribution
+            } for d in records]
+            
+            return json.dumps({
+                "miner_id": miner_id,
+                "days": days,
+                "record_count": len(records),
+                "daily_analytics": daily_data
+            })
+        
+        elif tool_name == "compare_mode_performance":
+            miner_id = args["miner_id"]
+            days = min(args.get("days", 7), 90)
+            since = datetime.utcnow() - timedelta(days=days)
+            
+            result = await db.execute(
+                select(HourlyMinerAnalytics).where(
+                    HourlyMinerAnalytics.miner_id == miner_id,
+                    HourlyMinerAnalytics.hour_start >= since,
+                    HourlyMinerAnalytics.mode.isnot(None)
+                )
+            )
+            records = result.scalars().all()
+            
+            if not records:
+                return json.dumps({"error": f"No mode data found for miner {miner_id}"})
+            
+            # Group by mode
+            mode_stats = {}
+            for h in records:
+                if h.mode not in mode_stats:
+                    mode_stats[h.mode] = {
+                        "hours": 0,
+                        "total_hashrate": 0,
+                        "total_power": 0,
+                        "total_temp": 0,
+                        "mode_changes": 0,
+                        "count": 0
+                    }
+                
+                mode_stats[h.mode]["hours"] += h.uptime_seconds / 3600
+                mode_stats[h.mode]["total_hashrate"] += h.avg_hashrate_gh
+                if h.avg_power_watts:
+                    mode_stats[h.mode]["total_power"] += h.avg_power_watts
+                if h.avg_chip_temp_c:
+                    mode_stats[h.mode]["total_temp"] += h.avg_chip_temp_c
+                mode_stats[h.mode]["mode_changes"] += (h.mode_changes or 0)
+                mode_stats[h.mode]["count"] += 1
+            
+            # Calculate averages
+            mode_comparison = {}
+            for mode, stats in mode_stats.items():
+                avg_hashrate = stats["total_hashrate"] / stats["count"]
+                avg_power = stats["total_power"] / stats["count"] if stats["total_power"] > 0 else None
+                avg_temp = stats["total_temp"] / stats["count"] if stats["total_temp"] > 0 else None
+                
+                mode_comparison[mode] = {
+                    "hours_in_mode": f"{stats['hours']:.1f}",
+                    "avg_hashrate_gh": f"{avg_hashrate:.2f}",
+                    "avg_power_watts": f"{avg_power:.1f}" if avg_power else None,
+                    "avg_temp_c": f"{avg_temp:.1f}" if avg_temp else None,
+                    "watts_per_gh": f"{avg_power / avg_hashrate:.2f}" if avg_power and avg_hashrate else None,
+                    "mode_changes_total": stats["mode_changes"]
+                }
+            
+            return json.dumps({
+                "miner_id": miner_id,
+                "days": days,
+                "mode_comparison": mode_comparison
             })
         
         else:
