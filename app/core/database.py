@@ -134,6 +134,7 @@ class Telemetry(Base):
     shares_accepted: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     shares_rejected: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     pool_in_use: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    mode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # low/med/high/eco/turbo/oc captured at poll time
     data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Additional miner-specific data
     
     # Composite index for common query pattern (miner_id + timestamp)
@@ -398,7 +399,9 @@ class HourlyMinerAnalytics(Base):
     pool_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Which pool active during hour
     coin: Mapped[str] = mapped_column(String(10), nullable=False)  # 'BTC', 'XMR'
     hour_start: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
-    mode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # low/med/high/eco/turbo
+    mode: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # Dominant mode (most frequent during hour)
+    mode_changes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)  # Number of mode transitions this hour
+    mode_distribution: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Minutes per mode: {"high": 30, "low": 30}
     tuning_profile_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     
     # Hash work metrics

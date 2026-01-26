@@ -345,6 +345,7 @@ async def set_miner_mode(miner_id: int, mode: str, db: AsyncSession = Depends(ge
             shares_accepted=telemetry.shares_accepted,
             shares_rejected=telemetry.shares_rejected,
             pool_in_use=telemetry.pool_in_use,
+            mode=miner.current_mode,
             data=telemetry.extra_data
         )
         db.add(db_telemetry)

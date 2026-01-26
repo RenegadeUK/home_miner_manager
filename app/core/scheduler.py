@@ -694,6 +694,7 @@ class SchedulerService:
                                 shares_accepted=telemetry.shares_accepted,
                                 shares_rejected=telemetry.shares_rejected,
                                 pool_in_use=telemetry.pool_in_use,
+                                mode=miner.current_mode,
                                 data=telemetry.extra_data
                             )
                             db.add(db_telemetry)
@@ -2901,9 +2902,21 @@ class SchedulerService:
                                 total_accepted = sum(t.shares_accepted or 0 for t in telemetry_records if t.shares_accepted is not None)
                                 total_rejected = sum(t.shares_rejected or 0 for t in telemetry_records if t.shares_rejected is not None)
                                 
-                                # Get mode (most common mode in this hour)
-                                modes = [miner.current_mode] if miner.current_mode else []
-                                mode = modes[0] if modes else None
+                                # Calculate mode distribution and changes
+                                mode_minutes = {}
+                                mode_changes = 0
+                                prev_mode = None
+                                
+                                for t in telemetry_records:
+                                    if t.mode:
+                                        mode_minutes[t.mode] = mode_minutes.get(t.mode, 0) + 1
+                                        if prev_mode and prev_mode != t.mode:
+                                            mode_changes += 1
+                                        prev_mode = t.mode
+                                
+                                # Dominant mode = most minutes
+                                dominant_mode = max(mode_minutes.items(), key=lambda x: x[1])[0] if mode_minutes else None
+                                mode_distribution = mode_minutes if mode_minutes else None
                                 
                                 # Get pool_id (from first record with pool info)
                                 pool_id = None
@@ -2931,7 +2944,9 @@ class SchedulerService:
                                     pool_id=pool_id,
                                     coin=coin,
                                     hour_start=current_hour,
-                                    mode=mode,
+                                    mode=dominant_mode,
+                                    mode_changes=mode_changes,
+                                    mode_distribution=mode_distribution,
                                     total_hashes_gh=total_hashes_gh,
                                     avg_hashrate_gh=avg_hashrate_gh,
                                     peak_hashrate_gh=max(hashrates),
