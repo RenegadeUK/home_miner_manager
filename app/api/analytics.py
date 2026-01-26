@@ -21,7 +21,7 @@ router = APIRouter()
 class HealthScoreResponse(BaseModel):
     overall_score: float
     uptime_score: float
-    temperature_score: Optional[float] = None  # Optional for XMRig miners without temp sensors
+    temperature_score: Optional[float] = None
     hashrate_score: float
     reject_rate_score: float
     data_points: int

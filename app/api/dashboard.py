@@ -125,8 +125,8 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
         if latest_data and latest_data[0]:  # If hashrate exists
             latest_hashrate, latest_power = latest_data
             total_hashrate += latest_hashrate
-            # Only count power for ASIC miners (exclude xmrig)
-            if miner.miner_type != 'xmrig' and latest_power:
+            # Count power usage
+            if latest_power:
                 total_power_watts += latest_power
             online_miners += 1
     
@@ -638,13 +638,12 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     Uses cached telemetry from database instead of live polling
     
     Args:
-        dashboard_type: Filter by miner type - "asic", "cpu", or "all"
+        dashboard_type: Filter by miner type - "asic" or "all"
     """
     from core.database import Pool
     
     # Define miner type filters
     ASIC_TYPES = ["avalon_nano", "bitaxe", "nerdqaxe", "nmminer"]
-    CPU_TYPES = ["xmrig"]
     
     # Get all miners
     result = await db.execute(select(Miner))
@@ -653,8 +652,6 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     # Filter miners based on dashboard type
     if dashboard_type == "asic":
         miners = [m for m in all_miners if m.miner_type in ASIC_TYPES]
-    elif dashboard_type == "cpu":
-        miners = [m for m in all_miners if m.miner_type in CPU_TYPES]
     else:
         miners = all_miners
     

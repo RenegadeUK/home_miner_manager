@@ -1303,3 +1303,13 @@ async def run_migrations():
             print("✓ Created index on miner_health_current.status")
         except Exception:
             pass  # Index already exists
+    
+    # Migration 36: Remove XMR support - Drop supportxmr_snapshots table (27 Jan 2026)
+    try:
+        await conn.execute(text("""
+            DROP TABLE IF EXISTS supportxmr_snapshots
+        """))
+        print("✓ Dropped supportxmr_snapshots table (XMR support removed)")
+    except Exception as e:
+        print(f"✗ Failed to drop supportxmr_snapshots table: {e}")
+        pass

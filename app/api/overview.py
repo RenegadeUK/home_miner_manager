@@ -192,22 +192,14 @@ async def get_hardware_comparison(
     
     # Group by type
     asic_stats = {"hashrates": [], "temps": [], "powers": [], "costs": [], "kwh": 0, "uptime": [], "reject_rates": [], "count": 0}
-    cpu_stats = {"hashrates": [], "temps": [], "powers": [], "costs": [], "kwh": 0, "uptime": [], "reject_rates": [], "count": 0}
-    
+    # All stats go to asic_stats since we no longer support CPU miners
     for stat in stats:
         if stat.miner_id not in miners:
             continue
         
         miner = miners[stat.miner_id]
         
-        if miner.miner_type == "xmrig":
-            if stat.avg_hashrate: cpu_stats["hashrates"].append(stat.avg_hashrate)
-            if stat.avg_temperature: cpu_stats["temps"].append(stat.avg_temperature)
-            if stat.avg_power: cpu_stats["powers"].append(stat.avg_power)
-            cpu_stats["costs"].append(stat.energy_cost_gbp)
-            cpu_stats["kwh"] += stat.total_kwh or 0
-            cpu_stats["uptime"].append(stat.uptime_percent)
-            if stat.reject_rate_percent: cpu_stats["reject_rates"].append(stat.reject_rate_percent)
+        if stat.avg_hashrate: asic_stats["hashrates"].append(stat.avg_hashrate)
             cpu_stats["count"] += 1
         else:
             if stat.avg_hashrate: asic_stats["hashrates"].append(stat.avg_hashrate)
@@ -230,16 +222,6 @@ async def get_hardware_comparison(
             "avg_uptime_percent": round(sum(asic_stats["uptime"]) / len(asic_stats["uptime"]), 2) if asic_stats["uptime"] else 0,
             "avg_reject_rate": round(sum(asic_stats["reject_rates"]) / len(asic_stats["reject_rates"]), 2) if asic_stats["reject_rates"] else 0,
             "data_points": asic_stats["count"]
-        },
-        "cpu": {
-            "avg_hashrate_khs": round(sum(cpu_stats["hashrates"]) / len(cpu_stats["hashrates"]), 2) if cpu_stats["hashrates"] else 0,
-            "avg_temperature": round(sum(cpu_stats["temps"]) / len(cpu_stats["temps"]), 2) if cpu_stats["temps"] else 0,
-            "avg_power_watts": round(sum(cpu_stats["powers"]) / len(cpu_stats["powers"]), 2) if cpu_stats["powers"] else 0,
-            "total_cost_gbp": round(sum(cpu_stats["costs"]), 2),
-            "total_kwh": round(cpu_stats["kwh"], 2),
-            "avg_uptime_percent": round(sum(cpu_stats["uptime"]) / len(cpu_stats["uptime"]), 2) if cpu_stats["uptime"] else 0,
-            "avg_reject_rate": round(sum(cpu_stats["reject_rates"]) / len(cpu_stats["reject_rates"]), 2) if cpu_stats["reject_rates"] else 0,
-            "data_points": cpu_stats["count"]
         },
         "period_days": days
     }
