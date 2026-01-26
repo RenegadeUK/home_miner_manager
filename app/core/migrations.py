@@ -1188,3 +1188,118 @@ async def run_migrations():
             print("✓ Added mode_distribution column to hourly_miner_analytics")
         except Exception:
             pass  # Column already exists
+    
+    # Migration 31: Phase A - Create miner_baselines table (26 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS miner_baselines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    miner_id INTEGER NOT NULL,
+                    mode TEXT,
+                    metric_name TEXT NOT NULL,
+                    median_value REAL NOT NULL,
+                    mad_value REAL NOT NULL,
+                    sample_count INTEGER NOT NULL,
+                    window_hours INTEGER NOT NULL,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created miner_baselines table")
+        except Exception:
+            pass  # Table already exists
+        
+        try:
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_baseline_miner_mode_metric 
+                ON miner_baselines(miner_id, mode, metric_name)
+            """))
+            print("✓ Created index on miner_baselines(miner_id, mode, metric_name)")
+        except Exception:
+            pass  # Index already exists
+    
+    # Migration 32: Phase A - Create health_events table (26 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS health_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    miner_id INTEGER NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    health_score REAL NOT NULL,
+                    reasons TEXT NOT NULL,
+                    mode TEXT
+                )
+            """))
+            print("✓ Created health_events table")
+        except Exception:
+            pass  # Table already exists
+        
+        try:
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_health_miner_timestamp 
+                ON health_events(miner_id, timestamp)
+            """))
+            print("✓ Created index on health_events(miner_id, timestamp)")
+        except Exception:
+            pass  # Index already exists
+    
+    # Migration 33: Phase B - Add anomaly_score to health_events (26 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                ALTER TABLE health_events 
+                ADD COLUMN anomaly_score REAL
+            """))
+            print("✓ Added anomaly_score column to health_events")
+        except Exception:
+            pass  # Column already exists
+    
+    # Migration 34: Phase C - Add status and suggested_actions to health_events (26 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                ALTER TABLE health_events 
+                ADD COLUMN status TEXT DEFAULT 'warning'
+            """))
+            print("✓ Added status column to health_events")
+        except Exception:
+            pass  # Column already exists
+        
+        try:
+            await conn.execute(text("""
+                ALTER TABLE health_events 
+                ADD COLUMN suggested_actions TEXT
+            """))
+            print("✓ Added suggested_actions column to health_events")
+        except Exception:
+            pass  # Column already exists
+    
+    # Migration 35: Phase C - Create miner_health_current table (26 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS miner_health_current (
+                    miner_id INTEGER PRIMARY KEY,
+                    timestamp DATETIME NOT NULL,
+                    health_score INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    anomaly_score REAL,
+                    reasons TEXT NOT NULL,
+                    suggested_actions TEXT NOT NULL,
+                    mode TEXT,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            print("✓ Created miner_health_current table")
+        except Exception:
+            pass  # Table already exists
+        
+        try:
+            await conn.execute(text("""
+                CREATE INDEX IF NOT EXISTS ix_miner_health_current_status 
+                ON miner_health_current(status)
+            """))
+            print("✓ Created index on miner_health_current.status")
+        except Exception:
+            pass  # Index already exists
