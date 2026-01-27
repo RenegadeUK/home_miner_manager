@@ -102,17 +102,56 @@ export function Dashboard() {
           subtext={
             <>
               <div>
-                Pool: {braiinsData?.enabled && braiinsData?.stats?.hashrate_5m 
-                  ? braiinsData.stats.hashrate_5m 
-                  : formatHashrate(stats.total_hashrate_ghs || 0)}
+                Pool: {(() => {
+                  // Aggregate hashrate from all active pools
+                  let totalPoolHashrateGH = 0;
+                  
+                  // Solopool miners (hashrate_raw in H/s, need to convert)
+                  solopoolData?.dgb_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9; // H/s to GH/s
+                  });
+                  solopoolData?.bch_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9;
+                  });
+                  solopoolData?.bc2_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9;
+                  });
+                  solopoolData?.btc_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9;
+                  });
+                  
+                  // Braiins (hashrate_raw in TH/s, convert to GH/s)
+                  if (braiinsData?.stats?.hashrate_raw) {
+                    totalPoolHashrateGH += braiinsData.stats.hashrate_raw * 1000;
+                  }
+                  
+                  return formatHashrate(totalPoolHashrateGH);
+                })()}
               </div>
               <div className="text-xs">
                 ⚡ {(() => {
                   const minerHashrate = stats.total_hashrate_ghs || 0; // GH/s
-                  const poolHashrate = braiinsData?.stats?.hashrate_raw || 0; // TH/s
-                  if (minerHashrate > 0 && poolHashrate > 0) {
-                    const poolHashrateGH = poolHashrate * 1000; // Convert TH/s to GH/s
-                    const efficiency = (poolHashrateGH / minerHashrate) * 100;
+                  
+                  // Calculate total pool hashrate
+                  let totalPoolHashrateGH = 0;
+                  solopoolData?.dgb_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9;
+                  });
+                  solopoolData?.bch_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9;
+                  });
+                  solopoolData?.bc2_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9;
+                  });
+                  solopoolData?.btc_miners?.forEach((m: any) => {
+                    totalPoolHashrateGH += (m.stats?.hashrate_raw || 0) / 1e9;
+                  });
+                  if (braiinsData?.stats?.hashrate_raw) {
+                    totalPoolHashrateGH += braiinsData.stats.hashrate_raw * 1000;
+                  }
+                  
+                  if (minerHashrate > 0 && totalPoolHashrateGH > 0) {
+                    const efficiency = (totalPoolHashrateGH / minerHashrate) * 100;
                     return `${efficiency.toFixed(1)}%`;
                   }
                   return "Unavailable";
