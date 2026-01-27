@@ -47,6 +47,16 @@ export function Dashboard() {
     enabled: !!solopoolData?.strategy_enabled,
   });
 
+  // Fetch chart data for sparklines
+  const { data: chartsData } = useQuery({
+    queryKey: ["solopool-charts"],
+    queryFn: async () => {
+      const response = await fetch("/api/settings/solopool/charts");
+      return response.json();
+    },
+    refetchInterval: 60000, // Refresh every minute
+  });
+
   // Extract coins from strategy bands (exclude "OFF")
   const strategyCoins = new Set<string>();
   if (solopoolData?.strategy_enabled && bandsData?.bands) {
@@ -281,6 +291,7 @@ export function Dashboard() {
               accountUrl={`https://dgb-sha.solopool.org/account/${miner.username}`}
               isStrategyActive={miner.is_active_target}
               isStrategyInactive={miner.is_strategy_pool && !miner.is_active_target}
+              chartData={chartsData?.charts?.dgb || []}
             />
           ))}
 
@@ -337,6 +348,7 @@ export function Dashboard() {
               accountUrl={`https://bc2.solopool.org/account/${miner.username}`}
               isStrategyActive={miner.is_active_target}
               isStrategyInactive={miner.is_strategy_pool && !miner.is_active_target}
+              chartData={chartsData?.charts?.bc2 || []}
             />
           ))}
 
@@ -364,8 +376,7 @@ export function Dashboard() {
               paidValue={`£${calculateGBP(miner.stats?.paid ? miner.stats.paid / 100000000 : 0, 'bitcoin')}`}
               accountUrl={`https://btc.solopool.org/account/${miner.username}`}
               isStrategyActive={miner.is_active_target}
-              isStrategyInactive={miner.is_strategy_pool && !miner.is_active_target}
-            />
+              isStrategyInactive={miner.is_strategy_pool && !miner.is_active_target}              chartData={chartsData?.charts?.btc || []}            />
           ))}
           </>
         )}

@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
 
 interface PoolTileProps {
   coin: "BTC" | "BCH" | "DGB" | "BC2";
@@ -21,6 +22,7 @@ interface PoolTileProps {
   accountUrl: string;
   isStrategyActive?: boolean;
   isStrategyInactive?: boolean;
+  chartData?: Array<{ x: number; y: number }>;
 }
 
 const coinConfig = {
@@ -49,8 +51,91 @@ export function PoolTile({
   accountUrl,
   isStrategyActive,
   isStrategyInactive,
+  chartData,
 }: PoolTileProps) {
   const config = coinConfig[coin];
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Draw sparkline chart
+  useEffect(() => {
+    if (!canvasRef.current || !chartData || chartData.length === 0) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    
+    const rect = parent.getBoundingClientRect();
+    const width = Math.max(rect.width, 100);
+    const height = Math.max(rect.height, 50);
+    
+    // Set canvas size with device pixel ratio
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.scale(dpr, dpr);
+    
+    // Sort data by timestamp
+    const sortedData = [...chartData]
+      .filter(d => d && d.y !== null && d.y !== undefined)
+      .sort((a, b) => a.x - b.x);
+    
+    if (sortedData.length < 2) return;
+    
+    // Get min/max for scaling
+    const yValues = sortedData.map(d => d.y);
+    const minY = Math.min(...yValues);
+    const maxY = Math.max(...yValues);
+    const range = maxY - minY || 1;
+    
+    // Coin-specific colors
+    const colors: Record<string, { fill: string; stroke: string }> = {
+      DGB: { fill: 'rgba(59, 130, 246, 0.15)', stroke: 'rgba(59, 130, 246, 0.8)' },
+      BCH: { fill: 'rgba(34, 197, 94, 0.15)', stroke: 'rgba(34, 197, 94, 0.8)' },
+      BC2: { fill: 'rgba(249, 115, 22, 0.15)', stroke: 'rgba(249, 115, 22, 0.8)' },
+      BTC: { fill: 'rgba(234, 179, 8, 0.15)', stroke: 'rgba(234, 179, 8, 0.8)' },
+    };
+    
+    const color = colors[coin] || colors.DGB;
+    
+    // Draw area fill
+    ctx.beginPath();
+    ctx.moveTo(0, height);
+    
+    sortedData.forEach((point, i) => {
+      const x = (i / (sortedData.length - 1)) * width;
+      const y = height - ((point.y - minY) / range) * height * 0.9 - height * 0.05;
+      if (i === 0) {
+        ctx.lineTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    
+    ctx.lineTo(width, height);
+    ctx.closePath();
+    ctx.fillStyle = color.fill;
+    ctx.fill();
+    
+    // Draw line
+    ctx.beginPath();
+    sortedData.forEach((point, i) => {
+      const x = (i / (sortedData.length - 1)) * width;
+      const y = height - ((point.y - minY) / range) * height * 0.9 - height * 0.05;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    ctx.strokeStyle = color.stroke;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }, [chartData, coin]);
   
   const formatLuck = (luck: number | null) => {
     if (luck === null || luck === 0) return "0%";
@@ -108,14 +193,21 @@ export function PoolTile({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         {/* Workers Online */}
         <Card className={cn("hover:shadow-md transition-all", config.bg)}>
-          <CardContent className="p-4">
-            <div className="text-xs font-medium text-muted-foreground mb-1">
-              {config.logo} Workers Online
+          <CardContent className="p-4 relative overflow-hidden">
+            <canvas
+              ref={canvasRef}
+              className="absolute top-0 left-0 w-full h-full opacity-25 pointer-events-none"
+              style={{ zIndex: 0 }}
+            />
+            <div className="relative" style={{ zIndex: 1 }}>
+              <div className="text-xs font-medium text-muted-foreground mb-1">
+                {config.logo} Workers Online
+              </div>
+              <div className="text-2xl font-bold">{workersOnline}</div>
+              {hashrate && (
+                <div className="text-xs text-muted-foreground mt-1">{hashrate}</div>
+              )}
             </div>
-            <div className="text-2xl font-bold">{workersOnline}</div>
-            {hashrate && (
-              <div className="text-xs text-muted-foreground mt-1">{hashrate}</div>
-            )}
           </CardContent>
         </Card>
 
