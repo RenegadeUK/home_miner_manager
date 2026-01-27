@@ -36,6 +36,27 @@ export function Dashboard() {
     refetchInterval: 60000, // Refresh every minute
   });
 
+  // Fetch strategy bands to determine which coins are in the strategy
+  const { data: bandsData } = useQuery({
+    queryKey: ["agile-bands"],
+    queryFn: async () => {
+      const response = await fetch("/api/settings/agile-solo-strategy/bands");
+      return response.json();
+    },
+    refetchInterval: 60000,
+    enabled: !!solopoolData?.strategy_enabled,
+  });
+
+  // Extract coins from strategy bands (exclude "OFF")
+  const strategyCoins = new Set<string>();
+  if (solopoolData?.strategy_enabled && bandsData?.bands) {
+    bandsData.bands.forEach((band: any) => {
+      if (band.target_coin && band.target_coin !== 'OFF') {
+        strategyCoins.add(band.target_coin);
+      }
+    });
+  }
+
   // Helper to calculate GBP value
   const calculateGBP = (amount: number, coinKey: string): string => {
     if (!pricesData?.success) return "0.00";
@@ -236,7 +257,7 @@ export function Dashboard() {
         {solopoolData && solopoolData.enabled && (
           <>
             {/* DGB Pools */}
-            {solopoolData.dgb_miners?.filter((m: any) => {
+            {(strategyCoins.size === 0 || strategyCoins.has('DGB')) && solopoolData.dgb_miners?.filter((m: any) => {
               if (m.is_strategy_pool) return true;
               return (m.stats?.workers || 0) > 0;
             }).map((miner: any) => (
@@ -264,7 +285,7 @@ export function Dashboard() {
           ))}
 
           {/* BCH Pools */}
-          {solopoolData.bch_miners?.filter((m: any) => {
+          {(strategyCoins.size === 0 || strategyCoins.has('BCH')) && solopoolData.bch_miners?.filter((m: any) => {
             if (m.is_strategy_pool) return true;
             return (m.stats?.workers || 0) > 0;
           }).map((miner: any) => (
@@ -292,7 +313,7 @@ export function Dashboard() {
           ))}
 
           {/* BC2 Pools */}
-          {solopoolData.bc2_miners?.filter((m: any) => {
+          {(strategyCoins.size === 0 || strategyCoins.has('BC2')) && solopoolData.bc2_miners?.filter((m: any) => {
             if (m.is_strategy_pool) return true;
             return (m.stats?.workers || 0) > 0;
           }).map((miner: any) => (
@@ -320,7 +341,7 @@ export function Dashboard() {
           ))}
 
           {/* BTC Pools */}
-          {solopoolData.btc_miners?.filter((m: any) => {
+          {(strategyCoins.size === 0 || strategyCoins.has('BTC')) && solopoolData.btc_miners?.filter((m: any) => {
             if (m.is_strategy_pool) return true;
             return (m.stats?.workers || 0) > 0;
           }).map((miner: any) => (
@@ -350,7 +371,7 @@ export function Dashboard() {
         )}
 
         {/* Braiins Pool */}
-        {braiinsData && braiinsData.enabled && braiinsData.stats && 
+        {(strategyCoins.size === 0 || strategyCoins.has('BTC_POOLED')) && braiinsData && braiinsData.enabled && braiinsData.stats && 
           (braiinsData.show_always || (braiinsData.stats.workers_online > 0)) && (
           <BraiinsTile
             workersOnline={braiinsData.stats.workers_online || 0}
