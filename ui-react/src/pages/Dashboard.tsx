@@ -101,11 +101,22 @@ export function Dashboard() {
           onClick={() => navigate("/miners")}
           subtext={
             <>
-              <div>Pool: {formatHashrate(stats.total_pool_hashrate_ghs || 0)}</div>
+              <div>
+                Pool: {braiinsData?.enabled && braiinsData?.stats?.hashrate_5m 
+                  ? braiinsData.stats.hashrate_5m 
+                  : formatHashrate(stats.total_hashrate_ghs || 0)}
+              </div>
               <div className="text-xs">
-                ⚡ {stats.pool_efficiency_percent 
-                  ? `${stats.pool_efficiency_percent.toFixed(1)}%` 
-                  : "Unavailable"}
+                ⚡ {(() => {
+                  const minerHashrate = stats.total_hashrate_ghs || 0; // GH/s
+                  const poolHashrate = braiinsData?.stats?.hashrate_raw || 0; // TH/s
+                  if (minerHashrate > 0 && poolHashrate > 0) {
+                    const poolHashrateGH = poolHashrate * 1000; // Convert TH/s to GH/s
+                    const efficiency = (minerHashrate / poolHashrateGH) * 100;
+                    return `${efficiency.toFixed(1)}%`;
+                  }
+                  return "Unavailable";
+                })()}
               </div>
             </>
           }
