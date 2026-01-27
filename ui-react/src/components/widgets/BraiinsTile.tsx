@@ -17,7 +17,6 @@ interface BraiinsTileProps {
 
 export function BraiinsTile({
   workersOnline,
-  workersOffline,
   hashrate5m,
   currentBalance,
   todayReward,
@@ -47,10 +46,10 @@ export function BraiinsTile({
         <Card className="hover:shadow-md transition-all bg-orange-500/10">
           <CardContent className="p-4">
             <div className="text-xs font-medium text-muted-foreground mb-1">
-              ₿ Workers (Online/Offline)
+              Braiins Workers Online
             </div>
             <div className="text-2xl font-bold">
-              {workersOnline} / {workersOffline}
+              {workersOnline}
             </div>
             {hashrate5m && (
               <div className="text-xs text-muted-foreground mt-1">{hashrate5m}</div>
