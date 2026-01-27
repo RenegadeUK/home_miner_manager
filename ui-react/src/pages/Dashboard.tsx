@@ -200,7 +200,18 @@ export function Dashboard() {
                   
                   if (minerHashrate > 0 && totalPoolHashrateGH > 0) {
                     const efficiency = (totalPoolHashrateGH / minerHashrate) * 100;
-                    return `${efficiency.toFixed(1)}%`;
+                    
+                    // Determine color based on efficiency thresholds
+                    let color = '';
+                    if (efficiency >= 95) {
+                      color = 'text-green-500';
+                    } else if (efficiency >= 85) {
+                      color = 'text-yellow-500';
+                    } else {
+                      color = 'text-red-500';
+                    }
+                    
+                    return <span className={color}>{efficiency.toFixed(0)}% of expected</span>;
                   }
                   return "Unavailable";
                 })()}
