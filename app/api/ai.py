@@ -65,9 +65,11 @@ async def save_ai_config(config: AIConfig):
         # Only update API key if provided (not masked placeholder)
         if config.api_key and config.api_key != "●●●●●●●●●●●●●●●●":
             ai_config["api_key"] = str(config.api_key)
-        elif "openai" in app_config and "api_key" in app_config["openai"]:
-            # Keep existing key
-            ai_config["api_key"] = str(app_config["openai"]["api_key"])
+        else:
+            # Keep existing key if present
+            existing_config = app_config.get("openai", {})
+            if isinstance(existing_config, dict) and "api_key" in existing_config:
+                ai_config["api_key"] = str(existing_config["api_key"])
         
         app_config["openai"] = ai_config
         app_config.save()
@@ -75,7 +77,9 @@ async def save_ai_config(config: AIConfig):
         return {"success": True}
     
     except Exception as e:
+        import traceback
         logger.error(f"Failed to save AI config: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
