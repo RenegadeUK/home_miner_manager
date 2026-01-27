@@ -731,7 +731,6 @@ async def get_crypto_prices():
         "bellscoin": 0,
         "digibyte": 0,
         "bitcoin": 0,
-        "monero": 0,
         "success": False,
         "error": None,
         "source": None,
@@ -748,7 +747,6 @@ async def get_crypto_prices():
             prices["bitcoin-cash"] = cached_prices.get("bitcoin-cash").price_gbp if "bitcoin-cash" in cached_prices else 0
             prices["bellscoin"] = cached_prices.get("bellscoin").price_gbp if "bellscoin" in cached_prices else 0
             prices["digibyte"] = cached_prices.get("digibyte").price_gbp if "digibyte" in cached_prices else 0
-            prices["monero"] = cached_prices.get("monero").price_gbp if "monero" in cached_prices else 0
             prices["success"] = True
             prices["source"] = cached_prices.get("bitcoin").source if "bitcoin" in cached_prices else "cache"
             
@@ -783,7 +781,7 @@ async def fetch_and_cache_crypto_prices():
             response = await client.get(
                 'https://api.coingecko.com/api/v3/simple/price',
                 params={
-                    'ids': 'bitcoin-cash,bellscoin,digibyte,bitcoin,monero',
+                    'ids': 'bitcoin-cash,bellscoin,digibyte,bitcoin',
                     'vs_currencies': 'gbp'
                 }
             )
@@ -794,11 +792,10 @@ async def fetch_and_cache_crypto_prices():
                 prices["bellscoin"] = data.get("bellscoin", {}).get("gbp", 0)
                 prices["digibyte"] = data.get("digibyte", {}).get("gbp", 0)
                 prices["bitcoin"] = data.get("bitcoin", {}).get("gbp", 0)
-                prices["monero"] = data.get("monero", {}).get("gbp", 0)
                 prices["success"] = True
                 prices["source"] = "coingecko"
                 
-                logger.info(f"Fetched crypto prices from CoinGecko: BCH=£{prices['bitcoin-cash']}, BC2=£{prices['bellscoin']}, DGB=£{prices['digibyte']}, BTC=£{prices['bitcoin']}, XMR=£{prices['monero']}")
+                logger.info(f"Fetched crypto prices from CoinGecko: BCH=£{prices['bitcoin-cash']}, BC2=£{prices['bellscoin']}, DGB=£{prices['digibyte']}, BTC=£{prices['bitcoin']}")
                 return prices
             else:
                 error_msg = f"CoinGecko API returned status {response.status_code}: {response.text[:200]}"
@@ -819,34 +816,31 @@ async def fetch_and_cache_crypto_prices():
     # Fallback to CoinCap API
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # CoinCap uses different IDs: bitcoin-cash, bellscoin, digibyte, bitcoin, monero
+            # CoinCap uses different IDs: bitcoin-cash, bellscoin, digibyte, bitcoin
             bch_response = await client.get('https://api.coincap.io/v2/assets/bitcoin-cash')
             bc2_response = await client.get('https://api.coincap.io/v2/assets/bellscoin')
             dgb_response = await client.get('https://api.coincap.io/v2/assets/digibyte')
             btc_response = await client.get('https://api.coincap.io/v2/assets/bitcoin')
-            xmr_response = await client.get('https://api.coincap.io/v2/assets/monero')
             
             # Get GBP exchange rate
             gbp_response = await client.get('https://api.coincap.io/v2/rates/british-pound-sterling')
             
-            if all(r.status_code == 200 for r in [bch_response, bc2_response, dgb_response, btc_response, xmr_response, gbp_response]):
+            if all(r.status_code == 200 for r in [bch_response, bc2_response, dgb_response, btc_response, gbp_response]):
                 gbp_rate = float(gbp_response.json()["data"]["rateUsd"])
                 
                 bch_usd = float(bch_response.json()["data"]["priceUsd"])
                 bc2_usd = float(bc2_response.json()["data"]["priceUsd"])
                 dgb_usd = float(dgb_response.json()["data"]["priceUsd"])
                 btc_usd = float(btc_response.json()["data"]["priceUsd"])
-                xmr_usd = float(xmr_response.json()["data"]["priceUsd"])
                 
                 prices["bitcoin-cash"] = bch_usd / gbp_rate
                 prices["bellscoin"] = bc2_usd / gbp_rate
                 prices["digibyte"] = dgb_usd / gbp_rate
                 prices["bitcoin"] = btc_usd / gbp_rate
-                prices["monero"] = xmr_usd / gbp_rate
                 prices["success"] = True
                 prices["source"] = "coincap"
                 
-                logger.info(f"Fetched crypto prices from CoinCap: BCH=£{prices['bitcoin-cash']:.2f}, BC2=£{prices['bellscoin']:.6f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}, XMR=£{prices['monero']:.2f}")
+                logger.info(f"Fetched crypto prices from CoinCap: BCH=£{prices['bitcoin-cash']:.2f}, BC2=£{prices['bellscoin']:.6f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}")
                 return prices
             else:
                 logger.warning("CoinCap API returned non-200 status")
@@ -857,10 +851,9 @@ async def fetch_and_cache_crypto_prices():
     # Fallback to Binance API (convert via USDT then to GBP)
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            # Binance provides direct GBP pairs for BTC, BCH, XMR
+            # Binance provides direct GBP pairs for BTC, BCH
             btc_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=BTCGBP')
             bch_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=BCHGBP')
-            xmr_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=XMRGBP')
             
             # DGB and BC2 not on Binance with GBP, get USDT price and convert
             dgb_usdt_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=DGBUSDT')
@@ -871,10 +864,9 @@ async def fetch_and_cache_crypto_prices():
                 bc2_usdt_response = None
             usdt_gbp_response = await client.get('https://api.binance.com/api/v3/ticker/price?symbol=GBPUSDT')
             
-            if all(r.status_code == 200 for r in [btc_response, bch_response, xmr_response, dgb_usdt_response, usdt_gbp_response]):
+            if all(r.status_code == 200 for r in [btc_response, bch_response, dgb_usdt_response, usdt_gbp_response]):
                 prices["bitcoin"] = float(btc_response.json()["price"])
                 prices["bitcoin-cash"] = float(bch_response.json()["price"])
-                prices["monero"] = float(xmr_response.json()["price"])
                 
                 dgb_usdt = float(dgb_usdt_response.json()["price"])
                 gbp_usdt = float(usdt_gbp_response.json()["price"])
@@ -888,7 +880,7 @@ async def fetch_and_cache_crypto_prices():
                 prices["success"] = True
                 prices["source"] = "binance"
                 
-                logger.info(f"Fetched crypto prices from Binance: BCH=£{prices['bitcoin-cash']:.2f}, BC2=£{prices['bellscoin']:.6f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}, XMR=£{prices['monero']:.2f}")
+                logger.info(f"Fetched crypto prices from Binance: BCH=£{prices['bitcoin-cash']:.2f}, BC2=£{prices['bellscoin']:.6f}, DGB=£{prices['digibyte']:.6f}, BTC=£{prices['bitcoin']:.2f}")
                 return prices
             else:
                 logger.warning("Binance API returned non-200 status")
@@ -923,7 +915,7 @@ async def update_crypto_prices_cache():
     if prices["success"]:
         # Store in database
         async with AsyncSessionLocal() as session:
-            for coin_id in ["bitcoin", "bitcoin-cash", "bellscoin", "digibyte", "monero"]:
+            for coin_id in ["bitcoin", "bitcoin-cash", "bellscoin", "digibyte"]:
                 price_value = prices.get(coin_id, 0)
                 if price_value > 0:
                     # Check if exists
