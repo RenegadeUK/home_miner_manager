@@ -52,22 +52,22 @@ async def save_ai_config(config: AIConfig):
     try:
         # Update config
         ai_config = {
-            "enabled": config.enabled,
-            "provider": config.provider,
-            "model": config.model,
-            "max_tokens": config.max_tokens
+            "enabled": bool(config.enabled),
+            "provider": str(config.provider),
+            "model": str(config.model),
+            "max_tokens": int(config.max_tokens)
         }
         
         # Add base_url if provided
         if config.base_url:
-            ai_config["base_url"] = config.base_url
+            ai_config["base_url"] = str(config.base_url)
         
         # Only update API key if provided (not masked placeholder)
         if config.api_key and config.api_key != "●●●●●●●●●●●●●●●●":
-            ai_config["api_key"] = config.api_key
+            ai_config["api_key"] = str(config.api_key)
         elif "openai" in app_config and "api_key" in app_config["openai"]:
             # Keep existing key
-            ai_config["api_key"] = app_config["openai"]["api_key"]
+            ai_config["api_key"] = str(app_config["openai"]["api_key"])
         
         app_config["openai"] = ai_config
         app_config.save()
