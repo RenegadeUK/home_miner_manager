@@ -287,7 +287,7 @@ export default function MinerDetail() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-400">URL</span>
                 <a 
-                  href={`http://${minerDetails.ip_address}${minerDetails.effective_port !== 80 ? ':' + minerDetails.effective_port : ''}`}
+                  href={`http://${minerDetails.ip_address}`}
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-sm text-blue-400 hover:text-blue-300 hover:underline"
