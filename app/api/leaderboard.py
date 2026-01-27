@@ -79,7 +79,8 @@ async def get_high_diff_leaderboard(
         
         # Calculate percent of block if network diff available
         badge = None
-        if share.network_difficulty and share.network_difficulty > 0:
+        # Only assign "pain" badges to shares that DIDN'T solve the block
+        if share.network_difficulty and share.network_difficulty > 0 and not share.was_block_solve:
             percent_of_block = (share.difficulty / share.network_difficulty) * 100
             
             # Assign badge based on how close to solving a block
