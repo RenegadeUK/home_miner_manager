@@ -7,6 +7,7 @@ import { Analytics } from './pages/Analytics'
 import { Leaderboard } from './pages/Leaderboard'
 import CoinHunter from './pages/CoinHunter'
 import Miners from './pages/Miners'
+import MinerDetail from './pages/MinerDetail'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/coin-hunter" element={<CoinHunter />} />
         <Route path="/miners" element={<Miners />} />
+        <Route path="/miners/:minerId" element={<MinerDetail />} />
       </Routes>
     </Layout>
   )

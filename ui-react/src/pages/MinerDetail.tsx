@@ -1,0 +1,532 @@
+import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  Settings, Activity, Sliders, Network, Power, RefreshCw, 
+  Trash2, Edit, AlertCircle, CheckCircle, Clock 
+} from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import type { Miner } from '@/types/miner';
+import type { MinerTelemetry, MinerModes, Pool, DevicePool } from '@/types/telemetry';
+
+const API_BASE = 'http://10.200.204.22:8080';
+
+export default function MinerDetail() {
+  const { minerId } = useParams<{ minerId: string }>();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  
+  const [selectedMode, setSelectedMode] = useState<string>('');
+  const [selectedPoolId, setSelectedPoolId] = useState<number | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  // Fetch miner details
+  const { data: allMiners } = useQuery<{ miners: Miner[] }>({
+    queryKey: ['miners'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/api/dashboard/all?dashboard_type=all`);
+      if (!response.ok) throw new Error('Failed to fetch miners');
+      return response.json();
+    },
+  });
+
+  const miner = allMiners?.miners.find(m => m.id === parseInt(minerId || '0'));
+
+  // Fetch telemetry with auto-refresh
+  const { data: telemetry, isLoading: telemetryLoading, error: telemetryError } = useQuery<MinerTelemetry>({
+    queryKey: ['telemetry', minerId],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/api/miners/${minerId}/telemetry`);
+      if (!response.ok) throw new Error('Failed to fetch telemetry');
+      return response.json();
+    },
+    refetchInterval: autoRefresh ? 5000 : false, // Auto-refresh every 5 seconds
+    enabled: !!minerId,
+  });
+
+  // Fetch available modes
+  const { data: modesData } = useQuery<MinerModes>({
+    queryKey: ['modes', minerId],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/api/miners/${minerId}/modes`);
+      if (!response.ok) throw new Error('Failed to fetch modes');
+      return response.json();
+    },
+    enabled: !!minerId && miner?.miner_type !== 'xmrig',
+  });
+
+  // Fetch pools
+  const { data: pools = [] } = useQuery<Pool[]>({
+    queryKey: ['pools'],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/api/pools/`);
+      if (!response.ok) throw new Error('Failed to fetch pools');
+      return response.json();
+    },
+  });
+
+  // Fetch device pools (for current pool selection)
+  useQuery<DevicePool[]>({
+    queryKey: ['devicePools', minerId],
+    queryFn: async () => {
+      const response = await fetch(`${API_BASE}/api/miners/${minerId}/device-pools`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!minerId && miner?.miner_type !== 'xmrig',
+  });
+
+  // Set mode mutation
+  const setModeMutation = useMutation({
+    mutationFn: async (mode: string) => {
+      const response = await fetch(`${API_BASE}/api/miners/${minerId}/mode?mode=${mode}`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to set mode');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['telemetry', minerId] });
+      queryClient.invalidateQueries({ queryKey: ['miners'] });
+    },
+  });
+
+  // Switch pool mutation
+  const switchPoolMutation = useMutation({
+    mutationFn: async (poolId: number) => {
+      const response = await fetch(`${API_BASE}/api/miners/${minerId}/pool?pool_id=${poolId}`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to switch pool');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['telemetry', minerId] });
+      queryClient.invalidateQueries({ queryKey: ['devicePools', minerId] });
+    },
+  });
+
+  // Restart miner mutation
+  const restartMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`${API_BASE}/api/miners/${minerId}/restart`, {
+        method: 'POST',
+      });
+      if (!response.ok) throw new Error('Failed to restart miner');
+      return response.json();
+    },
+  });
+
+  // Delete miner mutation
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`${API_BASE}/api/miners/${minerId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete miner');
+      return response.json();
+    },
+    onSuccess: () => {
+      navigate('/miners');
+    },
+  });
+
+  const handleSetMode = () => {
+    if (selectedMode) {
+      setModeMutation.mutate(selectedMode);
+    }
+  };
+
+  const handleSwitchPool = () => {
+    if (selectedPoolId !== null) {
+      switchPoolMutation.mutate(selectedPoolId);
+    }
+  };
+
+  const handleRestart = () => {
+    if (confirm('Are you sure you want to restart this miner?')) {
+      restartMutation.mutate();
+    }
+  };
+
+  const handleDelete = () => {
+    if (confirm(`Are you sure you want to delete ${miner?.name}? This cannot be undone.`)) {
+      deleteMutation.mutate();
+    }
+  };
+
+  const formatUptime = (seconds: number) => {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    
+    if (days > 0) return `${days}d ${hours}h ${mins}m`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  };
+
+  const formatNumber = (num: number | undefined, decimals = 2) => {
+    if (num === undefined || num === null) return '—';
+    if (num >= 1000000000) return `${(num / 1000000000).toFixed(2)}B`;
+    if (num >= 1000000) return `${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(2)}K`;
+    return num.toFixed(decimals);
+  };
+
+  if (!miner) {
+    return (
+      <div className="p-6">
+        <Card className="border-red-500/20 bg-red-500/5">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 text-red-400">
+              <AlertCircle className="h-5 w-5" />
+              <p>Miner not found</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const isXMRig = miner.miner_type === 'xmrig';
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{miner.name}</h1>
+          <p className="text-gray-400 text-sm mt-1">{miner.miner_type}</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+            {autoRefresh ? 'Auto' : 'Manual'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+          >
+            <a href={`/miners/${minerId}/edit`}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </a>
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDelete}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Configuration Card */}
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-3 pb-3">
+            <Settings className="h-5 w-5 text-gray-400" />
+            <h3 className="font-semibold">Configuration</h3>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Status</span>
+              <span className={`px-2 py-1 rounded text-xs font-medium ${miner.enabled ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}`}>
+                {miner.enabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Type</span>
+              <span className="text-sm font-medium">{miner.miner_type}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">IP Address</span>
+              <span className="text-sm font-medium">{miner.ip_address}</span>
+            </div>
+            {!isXMRig && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-400">URL</span>
+                <a 
+                  href={`http://${miner.ip_address}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-400 hover:text-blue-300"
+                >
+                  Open Device
+                </a>
+              </div>
+            )}
+            {telemetry?.extra_data?.current_mode && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-400">Current Mode</span>
+                <span className="text-sm font-medium">{telemetry.extra_data.current_mode}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-400">Current Pool</span>
+              <span className="text-sm font-medium truncate max-w-[150px]">
+                {telemetry?.pool_in_use || '—'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Live Telemetry - Primary Stats */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center gap-3 pb-3">
+            <Activity className="h-5 w-5 text-gray-400" />
+            <h3 className="font-semibold">Live Telemetry</h3>
+            {telemetry && (
+              <span className="text-xs text-gray-500 ml-auto">
+                <Clock className="h-3 w-3 inline mr-1" />
+                {new Date(telemetry.timestamp).toLocaleTimeString()}
+              </span>
+            )}
+          </CardHeader>
+          <CardContent>
+            {telemetryLoading && (
+              <div className="text-center py-8 text-gray-400">Loading telemetry...</div>
+            )}
+            
+            {telemetryError && (
+              <div className="flex items-center gap-3 text-red-400 p-4 bg-red-500/10 rounded-lg border border-red-500/20">
+                <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                <p className="text-sm">Failed to load telemetry data</p>
+              </div>
+            )}
+
+            {telemetry && !isXMRig && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <StatBox label="Hashrate" value={`${telemetry.hashrate.toFixed(2)} ${telemetry.hashrate_unit}`} />
+                <StatBox label="Temperature" value={`${telemetry.temperature.toFixed(1)}°C`} />
+                <StatBox label="Power" value={`${telemetry.power_watts.toFixed(1)} W`} />
+                <StatBox label="Accepted" value={telemetry.shares_accepted.toString()} />
+                <StatBox label="Rejected" value={telemetry.shares_rejected.toString()} />
+                {telemetry.extra_data.uptime && (
+                  <StatBox label="Uptime" value={formatUptime(telemetry.extra_data.uptime)} />
+                )}
+              </div>
+            )}
+
+            {telemetry && isXMRig && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <StatBox label="Hashrate" value={`${telemetry.hashrate.toFixed(2)} ${telemetry.hashrate_unit}`} />
+                <StatBox label="CPU Model" value={telemetry.extra_data.cpu_model || '—'} className="col-span-2" />
+                <StatBox label="Temperature" value={`${telemetry.temperature.toFixed(1)}°C`} />
+                <StatBox label="Threads" value={telemetry.extra_data.threads?.toString() || '—'} />
+                <StatBox label="Algorithm" value={telemetry.extra_data.algo || '—'} />
+                <StatBox label="Accepted" value={telemetry.shares_accepted.toString()} />
+                <StatBox label="Rejected" value={telemetry.shares_rejected.toString()} />
+                {telemetry.extra_data.uptime && (
+                  <StatBox label="Uptime" value={formatUptime(telemetry.extra_data.uptime)} />
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Extended Stats */}
+      {telemetry && !isXMRig && (
+        <Card>
+          <CardHeader>
+            <h3 className="font-semibold">Extended Stats</h3>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {telemetry.extra_data.frequency && (
+                <StatBox label="Frequency" value={`${telemetry.extra_data.frequency} MHz`} />
+              )}
+              {telemetry.extra_data.voltage && (
+                <StatBox label="Voltage" value={`${(telemetry.extra_data.voltage / 1000).toFixed(2)} V`} />
+              )}
+              {telemetry.extra_data.best_diff && (
+                <StatBox label="Best Diff" value={formatNumber(telemetry.extra_data.best_diff)} />
+              )}
+              {telemetry.extra_data.best_session_diff && (
+                <StatBox label="Best Session" value={formatNumber(telemetry.extra_data.best_session_diff)} />
+              )}
+              {telemetry.extra_data.difficulty && (
+                <StatBox label="Pool Difficulty" value={formatNumber(telemetry.extra_data.difficulty)} />
+              )}
+              {telemetry.extra_data.network_difficulty && (
+                <StatBox label="Network Diff" value={formatNumber(telemetry.extra_data.network_difficulty)} />
+              )}
+              {telemetry.extra_data.response_time !== undefined && (
+                <StatBox label="Pool Response" value={`${telemetry.extra_data.response_time.toFixed(0)} ms`} />
+              )}
+              {telemetry.extra_data.error_percentage !== undefined && (
+                <StatBox label="Error Rate" value={`${telemetry.extra_data.error_percentage.toFixed(2)}%`} />
+              )}
+              {telemetry.extra_data.wifi_rssi && (
+                <StatBox label="WiFi Signal" value={telemetry.extra_data.wifi_rssi} />
+              )}
+              {telemetry.extra_data.version && (
+                <StatBox label="Firmware" value={telemetry.extra_data.version} />
+              )}
+              {telemetry.extra_data.found_blocks !== undefined && (
+                <StatBox label="Found Blocks 🎉" value={telemetry.extra_data.found_blocks.toString()} />
+              )}
+              {telemetry.extra_data.hw_errors !== undefined && (
+                <StatBox label="HW Errors" value={telemetry.extra_data.hw_errors.toString()} />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Controls */}
+      {!isXMRig && (
+        <Card>
+          <CardHeader className="flex flex-row items-center gap-3 pb-3">
+            <Sliders className="h-5 w-5 text-gray-400" />
+            <h3 className="font-semibold">Controls</h3>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Mode Control */}
+            <div className="space-y-3">
+              <Label>Operating Mode</Label>
+              <div className="flex gap-2">
+                <Select value={selectedMode} onValueChange={setSelectedMode}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select mode..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {modesData?.modes.map(mode => (
+                      <SelectItem key={mode} value={mode}>
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button 
+                  onClick={handleSetMode} 
+                  disabled={!selectedMode || setModeMutation.isPending}
+                >
+                  {setModeMutation.isPending ? 'Applying...' : 'Apply Mode'}
+                </Button>
+              </div>
+              {setModeMutation.isSuccess && (
+                <div className="flex items-center gap-2 text-green-400 text-sm">
+                  <CheckCircle className="h-4 w-4" />
+                  Mode updated successfully
+                </div>
+              )}
+            </div>
+
+            {/* Pool Control */}
+            <div className="space-y-3">
+              <Label>Pool Selection</Label>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {pools.map(pool => (
+                  <label
+                    key={pool.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-gray-700 hover:bg-gray-800/50 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="radio"
+                      name="pool"
+                      value={pool.id}
+                      checked={selectedPoolId === pool.id}
+                      onChange={() => setSelectedPoolId(pool.id)}
+                      className="text-blue-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{pool.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{pool.url}:{pool.port}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <Button 
+                onClick={handleSwitchPool}
+                disabled={selectedPoolId === null || switchPoolMutation.isPending}
+                className="w-full"
+              >
+                <Network className="h-4 w-4 mr-2" />
+                {switchPoolMutation.isPending ? 'Switching...' : 'Switch Pool'}
+              </Button>
+              {switchPoolMutation.isSuccess && (
+                <div className="flex items-center gap-2 text-green-400 text-sm">
+                  <CheckCircle className="h-4 w-4" />
+                  Pool switched successfully
+                </div>
+              )}
+            </div>
+
+            {/* Restart Control */}
+            <div className="space-y-3">
+              <Label>Device Control</Label>
+              <Button 
+                onClick={handleRestart}
+                disabled={restartMutation.isPending}
+                variant="outline"
+                className="w-full gap-2 text-orange-400 hover:text-orange-300 border-orange-500/20"
+              >
+                <Power className="h-4 w-4" />
+                {restartMutation.isPending ? 'Restarting...' : 'Restart Miner'}
+              </Button>
+              {restartMutation.isSuccess && (
+                <div className="flex items-center gap-2 text-green-400 text-sm">
+                  <CheckCircle className="h-4 w-4" />
+                  Restart command sent
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* XMRig Info */}
+      {isXMRig && (
+        <Card className="border-blue-500/20 bg-blue-500/5">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2 text-sm">
+                <p className="font-medium text-blue-400">XMRig Control</p>
+                <p className="text-gray-400">
+                  XMRig configuration must be managed directly via its config.json file or command line arguments.
+                </p>
+                <ul className="space-y-1 text-gray-400 list-disc list-inside">
+                  <li>Pool changes: Edit config.json and restart XMRig</li>
+                  <li>Thread count: Adjust "threads" setting</li>
+                  <li>Hugepages: Enable in your OS for 20-30% performance boost</li>
+                  <li>Algorithm: Set via "algo" parameter</li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+interface StatBoxProps {
+  label: string;
+  value: string;
+  className?: string;
+}
+
+function StatBox({ label, value, className = '' }: StatBoxProps) {
+  return (
+    <div className={`bg-gray-800/50 rounded-lg p-3 border border-gray-700/50 ${className}`}>
+      <div className="text-xs text-gray-400 uppercase tracking-wide mb-1">{label}</div>
+      <div className="font-semibold text-sm truncate">{value}</div>
+    </div>
+  );
+}
