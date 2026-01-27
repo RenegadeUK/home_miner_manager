@@ -17,15 +17,15 @@ interface MinerData {
 
 interface DashboardAllResponse {
   miners: MinerData[]
-}
-
-interface DashboardStatsResponse {
-  total_miners: number
-  active_miners: number
-  online_miners: number
-  total_power_watts: number
-  total_cost_24h_pence: number
-  avg_efficiency_wth: number | null
+  stats: {
+    total_miners: number
+    active_miners: number
+    online_miners: number
+    total_power_watts: number
+    total_cost_24h_pence: number
+    total_cost_24h_pounds: number
+    avg_efficiency_wth: number | null
+  }
 }
 
 interface HealthMiner {
@@ -52,23 +52,12 @@ interface HealthAllResponse {
 }
 
 export function Analytics() {
-  // Fetch miner data with efficiency from dashboard
+  // Fetch power/cost summary from dashboard all (ASIC miners only, consistent with main dashboard)
   const { data: dashboardAll } = useQuery<DashboardAllResponse>({
-    queryKey: ['dashboard-all'],
+    queryKey: ['dashboard-all-asic'],
     queryFn: async () => {
       const response = await fetch('/api/dashboard/all?dashboard_type=asic')
       if (!response.ok) throw new Error('Failed to fetch dashboard data')
-      return response.json()
-    },
-    refetchInterval: 30000,
-  })
-
-  // Fetch power/cost summary from dashboard stats
-  const { data: dashboardStats } = useQuery<DashboardStatsResponse>({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      const response = await fetch('/api/dashboard/stats')
-      if (!response.ok) throw new Error('Failed to fetch stats')
       return response.json()
     },
     refetchInterval: 10000,
@@ -84,6 +73,9 @@ export function Analytics() {
     },
     refetchInterval: 30000,
   })
+
+  // Use stats from dashboardAll instead of separate call
+  const stats = dashboardAll?.stats
 
   const getEfficiencyColor = (efficiency: number): string => {
     if (efficiency < 50) return 'text-green-600'
@@ -146,10 +138,10 @@ export function Analytics() {
             Total Power
           </div>
           <div className="mt-2 text-2xl font-bold">
-            {dashboardStats?.total_power_watts.toFixed(0) ?? '-'} W
+            {stats?.total_power_watts.toFixed(0) ?? '-'} W
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            {dashboardStats?.online_miners ?? 0} / {dashboardStats?.total_miners ?? 0} miners online
+            {stats?.online_miners ?? 0} / {stats?.total_miners ?? 0} miners online
           </div>
         </div>
 
@@ -159,10 +151,10 @@ export function Analytics() {
             24h Cost
           </div>
           <div className="mt-2 text-2xl font-bold">
-            £{((dashboardStats?.total_cost_24h_pence ?? 0) / 100).toFixed(2)}
+            £{stats?.total_cost_24h_pounds.toFixed(2) ?? '-'}
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
-            Last 24 hours
+            ASIC miners only
           </div>
         </div>
 
@@ -172,7 +164,7 @@ export function Analytics() {
             Avg Efficiency
           </div>
           <div className="mt-2 text-2xl font-bold">
-            {dashboardStats?.avg_efficiency_wth ? dashboardStats.avg_efficiency_wth.toFixed(1) : '-'} W/TH
+            {stats?.avg_efficiency_wth ? stats.avg_efficiency_wth.toFixed(1) : '-'} W/TH
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             Fleet average
