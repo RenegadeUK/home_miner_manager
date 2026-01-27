@@ -351,10 +351,7 @@ export function Dashboard() {
 
         {/* Braiins Pool */}
         {braiinsData && braiinsData.enabled && braiinsData.stats && 
-          (solopoolData?.strategy_enabled 
-            ? braiinsData.is_strategy_active || braiinsData.show_always
-            : (braiinsData.stats.workers_online > 0 && braiinsData.stats.hashrate_raw > 0)
-          ) && (
+          (braiinsData.show_always || (braiinsData.stats.workers_online > 0)) && (
           <BraiinsTile
             workersOnline={braiinsData.stats.workers_online || 0}
             hashrate5m={braiinsData.stats.hashrate_5m || null}
