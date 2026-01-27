@@ -96,13 +96,19 @@
             <!-- Base URL -->
             <div class="form-group">
                 <label for="ollama-base-url">Ollama Base URL <span class="required">*</span></label>
-                <input 
-                    type="text" 
-                    id="ollama-base-url" 
-                    name="base_url"
-                    placeholder="http://localhost:11434/v1" 
-                    value="http://localhost:11434/v1"
-                >
+                <div class="input-with-button">
+                    <input 
+                        type="text" 
+                        id="ollama-base-url" 
+                        name="base_url"
+                        placeholder="http://localhost:11434/v1" 
+                        value="http://localhost:11434/v1"
+                    >
+                    <button type="button" class="btn btn-secondary" onclick="testOllamaConnection()" aria-label="Test connection">
+                        <i class="fas fa-plug"></i> Test
+                    </button>
+                </div>
+                <div id="ollama-key-status" style="display: none; margin-top: 0.5rem;"></div>
                 <p class="form-help">
                     URL to your Ollama instance. Use <code>http://ollama:11434/v1</code> if running in Docker.
                     <a href="https://ollama.ai" target="_blank" rel="noopener">Install Ollama →</a>
@@ -334,6 +340,50 @@ async function testOpenAIConnection() {
         }
     } catch (error) {
         showKeyStatus('openai', 'error', '❌ Test failed: ' + error.message);
+    }
+}
+
+async function testOllamaConnection() {
+    const baseUrl = document.getElementById('ollama-base-url').value;
+    const modelSelect = document.getElementById('ollama-model');
+    let model = modelSelect.value;
+    
+    if (model === 'custom') {
+        model = document.getElementById('ollama-custom-model').value;
+    }
+    
+    if (!baseUrl) {
+        showKeyStatus('ollama', 'error', '❌ Please enter a base URL');
+        return;
+    }
+    
+    if (!model) {
+        showKeyStatus('ollama', 'error', '❌ Please select or enter a model');
+        return;
+    }
+    
+    showKeyStatus('ollama', 'info', '⏳ Testing connection and checking model...');
+    
+    try {
+        const response = await fetch('/api/ai/test', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                provider: 'ollama',
+                base_url: baseUrl,
+                model: model
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showKeyStatus('ollama', 'success', '✅ ' + result.message);
+        } else {
+            showKeyStatus('ollama', 'error', '❌ ' + result.error);
+        }
+    } catch (error) {
+        showKeyStatus('ollama', 'error', '❌ Test failed: ' + error.message);
     }
 }
 

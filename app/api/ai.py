@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import logging
+import httpx
 
 from core.config import app_config
 
@@ -20,6 +21,14 @@ class AIConfig(BaseModel):
     base_url: Optional[str] = None
     model: str = "gpt-4o"
     max_tokens: int = 1000
+
+
+class AITestRequest(BaseModel):
+    """AI test connection request"""
+    provider: str
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    model: str
 
 
 @router.get("/config")
@@ -68,3 +77,86 @@ async def save_ai_config(config: AIConfig):
     except Exception as e:
         logger.error(f"Failed to save AI config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/test")
+async def test_ai_connection(request: AITestRequest):
+    """Test AI connection (OpenAI or Ollama)"""
+    try:
+        if request.provider == "openai":
+            # Test OpenAI API
+            if not request.api_key:
+                return {"success": False, "error": "API key is required"}
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.post(
+                    f"{request.base_url or 'https://api.openai.com/v1'}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {request.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": request.model,
+                        "messages": [{"role": "user", "content": "test"}],
+                        "max_tokens": 5
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return {
+                        "success": True,
+                        "model": data.get("model", request.model),
+                        "message": f"Connected! Using model: {request.model}"
+                    }
+                else:
+                    error_data = response.json() if response.text else {}
+                    error_msg = error_data.get("error", {}).get("message", response.text or "Unknown error")
+                    return {"success": False, "error": error_msg}
+        
+        elif request.provider == "ollama":
+            # Test Ollama connection and check if model exists
+            base_url = request.base_url or "http://localhost:11434"
+            # Remove /v1 suffix if present
+            base_url = base_url.rstrip("/v1").rstrip("/")
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                # First, check if Ollama is reachable
+                try:
+                    response = await client.get(f"{base_url}/api/tags")
+                    
+                    if response.status_code != 200:
+                        return {
+                            "success": False,
+                            "error": f"Cannot reach Ollama at {base_url}. Status: {response.status_code}"
+                        }
+                    
+                    # Check if model exists
+                    data = response.json()
+                    models = data.get("models", [])
+                    model_names = [m.get("name") for m in models]
+                    
+                    if request.model in model_names:
+                        return {
+                            "success": True,
+                            "message": f"Connected! Model '{request.model}' is available."
+                        }
+                    else:
+                        available = ", ".join(model_names[:5]) if model_names else "none"
+                        return {
+                            "success": False,
+                            "error": f"Model '{request.model}' not found. Available: {available}. Run: ollama pull {request.model}"
+                        }
+                
+                except httpx.ConnectError:
+                    return {
+                        "success": False,
+                        "error": f"Cannot connect to Ollama at {base_url}. Is Ollama running?"
+                    }
+        
+        else:
+            return {"success": False, "error": f"Unknown provider: {request.provider}"}
+    
+    except Exception as e:
+        logger.error(f"AI test error: {e}")
+        return {"success": False, "error": str(e)}
