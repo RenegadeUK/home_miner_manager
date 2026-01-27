@@ -232,6 +232,7 @@ export function Dashboard() {
               currentLuck={miner.stats?.current_luck || null}
               ettb={miner.stats?.ettb?.formatted || null}
               lastBlockTime={miner.stats?.lastBlockTimestamp ? formatTimeAgo(Math.floor(Date.now() / 1000) - miner.stats.lastBlockTimestamp) : null}
+              lastBlockTimestamp={miner.stats?.lastBlockTimestamp || null}
               blocks24h={miner.stats?.blocks_24h || 0}
               blocks7d={miner.stats?.blocks_7d || 0}
               blocks30d={miner.stats?.blocks_30d || 0}
@@ -259,6 +260,7 @@ export function Dashboard() {
               currentLuck={miner.stats?.current_luck || null}
               ettb={miner.stats?.ettb?.formatted || null}
               lastBlockTime={miner.stats?.lastBlockTimestamp ? formatTimeAgo(Math.floor(Date.now() / 1000) - miner.stats.lastBlockTimestamp) : null}
+              lastBlockTimestamp={miner.stats?.lastBlockTimestamp || null}
               blocks24h={miner.stats?.blocks_24h || 0}
               blocks7d={miner.stats?.blocks_7d || 0}
               blocks30d={miner.stats?.blocks_30d || 0}
@@ -286,6 +288,7 @@ export function Dashboard() {
               currentLuck={miner.stats?.current_luck || null}
               ettb={miner.stats?.ettb?.formatted || null}
               lastBlockTime={miner.stats?.lastBlockTimestamp ? formatTimeAgo(Math.floor(Date.now() / 1000) - miner.stats.lastBlockTimestamp) : null}
+              lastBlockTimestamp={miner.stats?.lastBlockTimestamp || null}
               blocks24h={miner.stats?.blocks_24h || 0}
               blocks7d={miner.stats?.blocks_7d || 0}
               blocks30d={miner.stats?.blocks_30d || 0}
@@ -313,6 +316,7 @@ export function Dashboard() {
               currentLuck={miner.stats?.current_luck || null}
               ettb={miner.stats?.ettb?.formatted || null}
               lastBlockTime={miner.stats?.lastBlockTimestamp ? formatTimeAgo(Math.floor(Date.now() / 1000) - miner.stats.lastBlockTimestamp) : null}
+              lastBlockTimestamp={miner.stats?.lastBlockTimestamp || null}
               blocks24h={miner.stats?.blocks_24h || 0}
               blocks7d={miner.stats?.blocks_7d || 0}
               blocks30d={miner.stats?.blocks_30d || 0}

@@ -9,6 +9,7 @@ interface PoolTileProps {
   currentLuck: number | null;
   ettb: string | null;
   lastBlockTime: string | null;
+  lastBlockTimestamp: number | null;
   blocks24h: number;
   blocks7d: number;
   blocks30d: number;
@@ -35,6 +36,7 @@ export function PoolTile({
   currentLuck,
   ettb,
   lastBlockTime,
+  lastBlockTimestamp,
   blocks24h,
   blocks7d,
   blocks30d,
@@ -49,9 +51,38 @@ export function PoolTile({
   const config = coinConfig[coin];
   
   const formatLuck = (luck: number | null) => {
-    if (luck === null) return "N/A";
+    if (luck === null || luck === 0) return "0%";
     if (luck >= 1000) return `${(luck / 1000).toFixed(1)}k%`;
     return `${luck.toFixed(0)}%`;
+  };
+
+  // Get color for time since last block based on ETTB
+  const getBlockTimeColor = (lastBlockTimestamp: number | null, ettbFormatted: string | null) => {
+    if (!lastBlockTimestamp || !ettbFormatted) return "text-muted-foreground";
+    
+    // Parse ETTB seconds from formatted string (e.g., "12h 34m" or "5d 3h")
+    let ettbSeconds = 0;
+    const ettbMatch = ettbFormatted.match(/(\d+)d\s*(\d+)h|(\d+)h\s*(\d+)m|(\d+)m/);
+    if (ettbMatch) {
+      if (ettbMatch[1]) { // days and hours
+        ettbSeconds = parseInt(ettbMatch[1]) * 86400 + parseInt(ettbMatch[2]) * 3600;
+      } else if (ettbMatch[3]) { // hours and minutes
+        ettbSeconds = parseInt(ettbMatch[3]) * 3600 + parseInt(ettbMatch[4]) * 60;
+      } else if (ettbMatch[5]) { // minutes only
+        ettbSeconds = parseInt(ettbMatch[5]) * 60;
+      }
+    }
+    
+    const now = Math.floor(Date.now() / 1000);
+    const timeSinceBlock = now - lastBlockTimestamp;
+    
+    if (ettbSeconds === 0) return "text-muted-foreground";
+    
+    const ratio = timeSinceBlock / ettbSeconds;
+    if (ratio <= 1) return "text-green-500";
+    if (ratio <= 2) return "text-yellow-500";
+    if (ratio <= 3) return "text-orange-500";
+    return "text-red-500";
   };
 
   return (
@@ -90,7 +121,11 @@ export function PoolTile({
             {ettb && (
               <div className="text-xs text-muted-foreground mt-1">
                 ETTB: {ettb}
-                {lastBlockTime && <div className="text-xs mt-0.5">{lastBlockTime}</div>}
+                {lastBlockTime && (
+                  <div className={cn("text-xs mt-0.5 font-medium", getBlockTimeColor(lastBlockTimestamp, ettb))}>
+                    {lastBlockTime}
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
