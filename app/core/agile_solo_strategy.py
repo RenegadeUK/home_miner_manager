@@ -755,11 +755,15 @@ class AgileSoloStrategy:
                     changes={"corrections": ha_corrections, "band": "OFF"}
                 )
                 await db.commit()
-                
+            
+            # ALWAYS return after OFF handling - don't fall through to active mining logic
             return {
                 "reconciled": True,
-                "message": f"OFF state - {len(ha_corrections)} HA devices corrected",
-                "ha_corrections": ha_corrections
+                "band": "OFF",
+                "coin": None,
+                "corrections": 0,
+                "ha_corrections": len(ha_corrections),
+                "details": ha_corrections if ha_corrections else ["All HA devices already OFF"]
             }
         
         # Find target pool
