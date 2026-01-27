@@ -176,6 +176,22 @@ export default function MinerDetail() {
     return num.toFixed(decimals);
   };
 
+  // Show loading or not found state
+  if (!allMiners) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 text-gray-400">
+              <div className="animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+              <p>Loading...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!miner) {
     return (
       <div className="p-6">
