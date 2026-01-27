@@ -203,6 +203,12 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
                 next_timestamp = telemetry_records[i + 1][1]
                 duration_seconds = (next_timestamp - timestamp).total_seconds()
                 duration_hours = duration_seconds / 3600.0
+                
+                # Cap duration at 10 minutes to prevent counting offline gaps
+                # Telemetry is recorded every 30s, so >10min gap = miner was offline
+                max_duration_hours = 10.0 / 60.0  # 10 minutes in hours
+                if duration_hours > max_duration_hours:
+                    duration_hours = max_duration_hours
             else:
                 # Last reading, assume 30 second interval
                 duration_hours = 30.0 / 3600.0
