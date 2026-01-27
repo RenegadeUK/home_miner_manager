@@ -20,7 +20,7 @@ async def get_db():
         yield session
 
 
-@router.get("/health/{miner_id}")
+@router.get("/{miner_id}")
 async def get_miner_health(
     miner_id: int,
     db: AsyncSession = Depends(get_db)
@@ -48,7 +48,7 @@ async def get_miner_health(
     }
 
 
-@router.get("/health/{miner_id}/history")
+@router.get("/{miner_id}/history")
 async def get_miner_health_history(
     miner_id: int,
     hours: int = 24,
@@ -86,7 +86,7 @@ async def get_miner_health_history(
     }
 
 
-@router.get("/health/all")
+@router.get("/all")
 async def get_all_miners_health(db: AsyncSession = Depends(get_db)):
     """Get latest health status for all miners"""
     # Get all miners
@@ -176,7 +176,7 @@ async def trigger_baseline_update(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/health/check")
+@router.post("/check")
 async def trigger_health_check(db: AsyncSession = Depends(get_db)):
     """Manually trigger health check for all miners"""
     from core.anomaly_detection import check_all_miners_health
@@ -237,7 +237,7 @@ async def list_ml_models():
 # PHASE C: CANONICAL MINER HEALTH ENDPOINTS (Output Layer)
 # ============================================================================
 
-@router.get("/miners/{miner_id}/health")
+@router.get("/miners/{miner_id}")
 async def get_current_miner_health(
     miner_id: int,
     db: AsyncSession = Depends(get_db)
@@ -264,7 +264,7 @@ async def get_current_miner_health(
     }
 
 
-@router.get("/miners/health")
+@router.get("/miners")
 async def get_all_miners_health(
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db)
