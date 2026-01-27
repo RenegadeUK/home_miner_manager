@@ -8,7 +8,15 @@ interface MinerHealthData {
   miner_type: string;
   timestamp: string;
   health_score: number;
-  reasons: string[];
+  reasons: Array<string | {
+    code?: string;
+    severity?: string;
+    metric?: string;
+    actual?: number | string;
+    expected_min?: number;
+    expected_max?: number;
+    unit?: string;
+  }>;
   anomaly_score: number;
   mode: string;
   has_issues: boolean;
@@ -170,14 +178,21 @@ export function Health() {
 
             {miner.reasons.length > 0 && (
               <div className="mt-3 space-y-1">
-                {miner.reasons.map((reason, idx) => (
-                  <div
-                    key={idx}
-                    className="text-xs px-2 py-1 rounded bg-background/50"
-                  >
-                    ⚠️ {reason}
-                  </div>
-                ))}
+                {miner.reasons.map((reason, idx) => {
+                  // Reason can be a string or an object
+                  const reasonText = typeof reason === 'string' 
+                    ? reason 
+                    : `${reason.code || ''} ${reason.metric || ''}: ${reason.actual || 'N/A'}${reason.unit || ''}`;
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className="text-xs px-2 py-1 rounded bg-background/50"
+                    >
+                      ⚠️ {reasonText}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
