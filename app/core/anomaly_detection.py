@@ -216,16 +216,17 @@ async def compute_baselines_for_miner(
     baselines = {}
     
     for mode, metrics in metrics_by_mode.items():
-        mode_key = mode if mode else "None"
-        
         for metric_name, values in metrics.items():
             if len(values) >= MIN_SAMPLES_FOR_BASELINE:
                 median, mad = calculate_median_mad(values)
-                key = f"{mode_key}_{metric_name}"
-                baselines[key] = (median, mad)
+                baselines[(mode, metric_name)] = {
+                    "median": median,
+                    "mad": mad,
+                    "samples": len(values)
+                }
                 
                 logger.info(
-                    f"Miner {miner_id} [{mode_key}] {metric_name}: "
+                    f"Miner {miner_id} [{mode if mode else 'None'}] {metric_name}: "
                     f"median={median:.2f}, mad={mad:.2f}, samples={len(values)}"
                 )
     
@@ -246,42 +247,41 @@ async def update_baselines_for_all_miners(db: AsyncSession):
         baselines_24h = await compute_baselines_for_miner(db, miner.id, BASELINE_WINDOW_24H)
         
         # Store in database
-        for key, (median, mad) in baselines_24h.items():
-            parts = key.rsplit("_", 1)
-            if len(parts) == 2:
-                mode_str, metric_name = parts
-                mode = None if mode_str == "None" else mode_str
-                
-                # Upsert baseline
-                result = await db.execute(
-                    select(MinerBaseline)
-                    .where(
-                        and_(
-                            MinerBaseline.miner_id == miner.id,
-                            MinerBaseline.mode == mode,
-                            MinerBaseline.metric_name == metric_name,
-                            MinerBaseline.window_hours == BASELINE_WINDOW_24H
-                        )
+        for (mode_key, metric_name), stats in baselines_24h.items():
+            median = stats["median"]
+            mad = stats["mad"]
+            sample_count = stats["samples"]
+            
+            # Upsert baseline
+            result = await db.execute(
+                select(MinerBaseline)
+                .where(
+                    and_(
+                        MinerBaseline.miner_id == miner.id,
+                        MinerBaseline.mode == mode_key,
+                        MinerBaseline.metric_name == metric_name,
+                        MinerBaseline.window_hours == BASELINE_WINDOW_24H
                     )
                 )
-                existing = result.scalar_one_or_none()
-                
-                if existing:
-                    existing.median_value = median
-                    existing.mad_value = mad
-                    existing.sample_count = len(baselines_24h)
-                    existing.updated_at = datetime.utcnow()
-                else:
-                    baseline = MinerBaseline(
-                        miner_id=miner.id,
-                        mode=mode,
-                        metric_name=metric_name,
-                        median_value=median,
-                        mad_value=mad,
-                        sample_count=len(baselines_24h),
-                        window_hours=BASELINE_WINDOW_24H
-                    )
-                    db.add(baseline)
+            )
+            existing = result.scalar_one_or_none()
+            
+            if existing:
+                existing.median_value = median
+                existing.mad_value = mad
+                existing.sample_count = sample_count
+                existing.updated_at = datetime.utcnow()
+            else:
+                baseline = MinerBaseline(
+                    miner_id=miner.id,
+                    mode=mode_key,
+                    metric_name=metric_name,
+                    median_value=median,
+                    mad_value=mad,
+                    sample_count=sample_count,
+                    window_hours=BASELINE_WINDOW_24H
+                )
+                db.add(baseline)
     
     await db.commit()
     logger.info("Baseline update complete")
