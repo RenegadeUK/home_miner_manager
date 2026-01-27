@@ -626,4 +626,17 @@ async def leaderboard(request: Request):
     })
 
 
+@router.get("/health", response_class=HTMLResponse)
+async def health_page(request: Request, db: AsyncSession = Depends(get_db)):
+    """System Health page"""
+    return templates.TemplateResponse("health.html", {
+        "request": request,
+        "page_title": "System Health",
+        "breadcrumbs": [
+            {"label": "Dashboard", "url": "/"},
+            {"label": "Health", "url": "/health"}
+        ]
+    })
+
+
 

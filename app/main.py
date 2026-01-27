@@ -138,10 +138,9 @@ app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 # Serve React app at /app route
 from fastapi.responses import FileResponse, HTMLResponse
 
-@app.get("/app")
-@app.get("/app/")
-async def serve_react_index():
-    """Serve React app index.html"""
+@app.get("/app/{path:path}")
+async def serve_react_app(path: str):
+    """Serve React SPA for all /app/* routes (client-side routing)"""
     react_index = Path(__file__).parent / "ui" / "static" / "app" / "index.html"
     if react_index.exists():
         return FileResponse(react_index)
