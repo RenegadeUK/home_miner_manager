@@ -55,7 +55,7 @@ export default function MinerDetail() {
       if (!response.ok) throw new Error('Failed to fetch modes');
       return response.json();
     },
-    enabled: !!minerId && miner?.miner_type !== 'xmrig',
+    enabled: !!minerId,
   });
 
   // Fetch pools
