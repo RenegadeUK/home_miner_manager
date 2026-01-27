@@ -201,10 +201,24 @@ export function Health() {
                     reasonText = reason;
                   } else {
                     const code = reason.code || '';
-                    const metric = reason.metric || '';
-                    const actual = reason.actual !== undefined ? reason.actual : 'N/A';
-                    const unit = reason.unit || '';
-                    reasonText = `${code} ${metric}: ${actual} ${unit}`.trim();
+                    
+                    // Special handling for INSUFFICIENT_DATA
+                    if (code === 'INSUFFICIENT_DATA') {
+                      const expected = reason.expected_min || 60;
+                      reasonText = `Collecting baseline data (${reason.actual || 0}/${expected} samples)`;
+                    } else {
+                      const metric = reason.metric || '';
+                      const actual = reason.actual !== undefined ? reason.actual : 'N/A';
+                      const unit = reason.unit || '';
+                      const expected_min = reason.expected_min;
+                      const expected_max = reason.expected_max;
+                      
+                      if (expected_min !== undefined && expected_max !== undefined) {
+                        reasonText = `${code}: ${metric} ${actual}${unit} (expected: ${expected_min}-${expected_max})`;
+                      } else {
+                        reasonText = `${code} ${metric}: ${actual} ${unit}`.trim();
+                      }
+                    }
                   }
                   
                   return (
