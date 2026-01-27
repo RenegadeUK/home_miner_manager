@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Card } from '@/components/ui/card'
-import { Trophy, Zap, Calendar, TrendingUp, Award, Flame } from 'lucide-react'
+import { Trophy, Calendar, Award } from 'lucide-react'
 
 interface LeaderboardEntry {
   id: number
@@ -51,19 +51,6 @@ export function Leaderboard() {
     refetchInterval: 30000,
   })
 
-  const getRankStyle = (rank: number) => {
-    switch (rank) {
-      case 1:
-        return 'text-yellow-500 text-4xl'
-      case 2:
-        return 'text-gray-400 text-3xl'
-      case 3:
-        return 'text-orange-600 text-2xl'
-      default:
-        return 'text-muted-foreground text-xl'
-    }
-  }
-
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
@@ -75,14 +62,6 @@ export function Leaderboard() {
       default:
         return `#${rank}`
     }
-  }
-
-  const getBadgeColor = (badge: string | null) => {
-    if (!badge) return ''
-    if (badge.includes('Emotional Damage')) return 'bg-red-100 text-red-800 border-red-300'
-    if (badge.includes('Pain')) return 'bg-orange-100 text-orange-800 border-orange-300'
-    if (badge.includes('So Close')) return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-    return 'bg-gray-100 text-gray-800 border-gray-300'
   }
 
   const coins = ['BTC', 'BCH', 'BC2', 'DGB']
@@ -144,7 +123,6 @@ export function Leaderboard() {
 
           {/* Coin Filter */}
           <div className="flex items-center gap-2 ml-auto">
-            <Zap className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Coin:</span>
             <div className="flex gap-2">
               <button
@@ -180,112 +158,76 @@ export function Leaderboard() {
         {data?.entries.map((entry) => (
           <Card
             key={entry.id}
-            className={`p-6 transition-all hover:shadow-lg ${
-              entry.rank <= 3 ? 'border-2' : ''
-            } ${
+            className={`p-6 transition-all hover:shadow-md ${
               entry.rank === 1
-                ? 'border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20'
+                ? 'border-l-4 border-l-yellow-500'
                 : entry.rank === 2
-                ? 'border-gray-400/50 bg-gray-50/50 dark:bg-gray-950/20'
+                ? 'border-l-4 border-l-gray-400'
                 : entry.rank === 3
-                ? 'border-orange-600/50 bg-orange-50/50 dark:bg-orange-950/20'
+                ? 'border-l-4 border-l-orange-500'
                 : ''
             }`}
           >
             <div className="flex items-start gap-6">
               {/* Rank */}
-              <div className="flex flex-col items-center justify-center min-w-[80px]">
-                <div className={`font-bold ${getRankStyle(entry.rank)}`}>
+              <div className="flex items-center justify-center min-w-[60px]">
+                <div className="text-3xl font-bold text-muted-foreground">
                   {entry.rank <= 3 ? getRankIcon(entry.rank) : `#${entry.rank}`}
                 </div>
-                {entry.rank <= 3 && (
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {entry.rank === 1 ? 'Gold' : entry.rank === 2 ? 'Silver' : 'Bronze'}
-                  </div>
-                )}
               </div>
 
               {/* Content */}
               <div className="flex-1 space-y-3">
                 {/* Miner Info */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-semibold">{entry.miner_name}</h3>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground font-medium">
-                        {entry.miner_type}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold">{entry.miner_name}</h3>
+                    {entry.was_block_solve && (
+                      <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400">
+                        <Award className="h-3 w-3" />
+                        Block!
                       </span>
-                      {entry.was_block_solve && (
-                        <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 border border-green-300 font-medium">
-                          <Award className="h-3 w-3" />
-                          Block Solved!
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {entry.pool_name} • {entry.days_ago} {entry.days_ago === 1 ? 'day' : 'days'} ago
-                    </div>
+                    )}
+                    {entry.badge && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                        {entry.badge}
+                      </span>
+                    )}
                   </div>
-
-                  {/* Badge */}
-                  {entry.badge && (
-                    <div
-                      className={`px-3 py-1 rounded-full text-sm font-semibold border ${getBadgeColor(
-                        entry.badge
-                      )}`}
-                    >
-                      {entry.badge}
-                    </div>
-                  )}
+                  <div className="text-sm text-muted-foreground">
+                    {entry.pool_name} • {entry.coin} • {entry.days_ago}d ago • {entry.miner_type}
+                  </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {/* Difficulty */}
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <TrendingUp className="h-3 w-3" />
-                      Share Difficulty
-                    </div>
-                    <div className="text-xl font-bold">{entry.difficulty_formatted}</div>
+                {/* Stats */}
+                <div className="flex items-center gap-6 text-sm">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Difficulty</div>
+                    <div className="text-lg font-semibold">{entry.difficulty_formatted}</div>
                   </div>
 
-                  {/* Network % */}
                   {entry.percent_of_block !== null && (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Flame className="h-3 w-3" />
-                        Network %
-                      </div>
-                      <div className="text-xl font-bold text-orange-600">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Of Block</div>
+                      <div className="text-lg font-semibold text-orange-600 dark:text-orange-400">
                         {entry.percent_of_block.toFixed(1)}%
                       </div>
                     </div>
                   )}
 
-                  {/* Hashrate */}
                   {entry.hashrate !== null && (
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Zap className="h-3 w-3" />
-                        Hashrate
-                      </div>
-                      <div className="text-xl font-bold">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Hashrate</div>
+                      <div className="text-lg font-semibold">
                         {entry.hashrate.toFixed(0)} {entry.hashrate_unit}
                       </div>
                     </div>
                   )}
-
-                  {/* Coin */}
-                  <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Coin</div>
-                    <div className="text-xl font-bold text-primary">{entry.coin}</div>
-                  </div>
                 </div>
 
                 {/* Mode */}
                 {entry.miner_mode && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground mt-2">
                     Mode: <span className="font-medium text-foreground uppercase">{entry.miner_mode}</span>
                   </div>
                 )}

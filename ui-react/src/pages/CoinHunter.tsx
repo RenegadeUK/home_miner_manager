@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Trophy, Medal, Coins } from 'lucide-react';
+import { Trophy, Coins } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface CoinHunterEntry {
@@ -39,15 +39,22 @@ export default function CoinHunter() {
   });
 
   const getRankStyle = (rank: number) => {
+    if (rank <= 3) {
+      return 'border-l-4';
+    }
+    return '';
+  };
+  
+  const getRankColor = (rank: number) => {
     switch (rank) {
       case 1:
-        return 'bg-gradient-to-br from-yellow-100 to-yellow-200 border-yellow-400 dark:from-yellow-900/30 dark:to-yellow-800/30 dark:border-yellow-700';
+        return 'border-l-yellow-500';
       case 2:
-        return 'bg-gradient-to-br from-gray-100 to-gray-200 border-gray-400 dark:from-gray-800/30 dark:to-gray-700/30 dark:border-gray-600';
+        return 'border-l-gray-400';
       case 3:
-        return 'bg-gradient-to-br from-orange-100 to-orange-200 border-orange-400 dark:from-orange-900/30 dark:to-orange-800/30 dark:border-orange-700';
+        return 'border-l-orange-500';
       default:
-        return 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700';
+        return '';
     }
   };
 
@@ -81,51 +88,29 @@ export default function CoinHunter() {
       {/* Scoring Legend */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Medal className="h-5 w-5" />
-            Scoring System
-          </CardTitle>
-          <CardDescription>
-            Points awarded based on relative difficulty of each blockchain
-          </CardDescription>
+          <CardTitle className="text-sm font-medium text-muted-foreground">Scoring System</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">₿</span>
-                <span className="font-semibold">BTC</span>
-              </div>
-              <span className="px-2 py-1 rounded text-xs font-bold bg-orange-500 text-white">
-                1,000 pts
-              </span>
+          <div className="flex items-center gap-6 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">₿</span>
+              <span>BTC</span>
+              <span className="text-muted-foreground">1,000 pts</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">฿</span>
-                <span className="font-semibold">BCH</span>
-              </div>
-              <span className="px-2 py-1 rounded text-xs font-bold bg-green-500 text-white">
-                100 pts
-              </span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">฿</span>
+              <span>BCH</span>
+              <span className="text-muted-foreground">100 pts</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">฿₂</span>
-                <span className="font-semibold">BC2</span>
-              </div>
-              <span className="px-2 py-1 rounded text-xs font-bold bg-blue-500 text-white">
-                50 pts
-              </span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">฿₂</span>
+              <span>BC2</span>
+              <span className="text-muted-foreground">50 pts</span>
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">◆</span>
-                <span className="font-semibold">DGB</span>
-              </div>
-              <span className="px-2 py-1 rounded text-xs font-bold bg-purple-500 text-white">
-                1 pt
-              </span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">◆</span>
+              <span>DGB</span>
+              <span className="text-muted-foreground">1 pt</span>
             </div>
           </div>
         </CardContent>
@@ -163,83 +148,52 @@ export default function CoinHunter() {
             return (
               <Card
                 key={`${entry.miner_id}-${entry.rank}`}
-                className={`transition-all hover:shadow-lg ${getRankStyle(entry.rank)}`}
+                className={`transition-all hover:shadow-md ${getRankStyle(entry.rank)} ${getRankColor(entry.rank)}`}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary/10 text-primary font-bold text-lg">
+                      <div className="text-2xl font-bold text-muted-foreground w-12">
                         {medal || `#${entry.rank}`}
                       </div>
                       <div>
-                        <CardTitle className="text-lg">{entry.miner_name}</CardTitle>
-                        <CardDescription className="capitalize">
-                          {entry.miner_type.replace('_', ' ')}
+                        <CardTitle className="text-base">{entry.miner_name}</CardTitle>
+                        <CardDescription className="text-xs">
+                          {entry.total_score.toLocaleString()} pts • {entry.miner_type.replace('_', ' ')}
                         </CardDescription>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-primary">
-                        {entry.total_score.toLocaleString()}
-                      </div>
-                      <div className="text-xs text-muted-foreground">points</div>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   {hasBlocks ? (
-                    <div>
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        {/* BTC */}
-                        {entry.btc_blocks > 0 && (
-                          <div className="flex items-center justify-between p-2 rounded-md bg-orange-50 dark:bg-orange-900/20">
-                            <span className="text-sm flex items-center gap-1">
-                              <span className="text-lg">₿</span>
-                              <span className="font-medium">BTC</span>
-                            </span>
-                            <span className="font-bold">{entry.btc_blocks}</span>
-                          </div>
-                        )}
-                        
-                        {/* BCH */}
-                        {entry.bch_blocks > 0 && (
-                          <div className="flex items-center justify-between p-2 rounded-md bg-green-50 dark:bg-green-900/20">
-                            <span className="text-sm flex items-center gap-1">
-                              <span className="text-lg">฿</span>
-                              <span className="font-medium">BCH</span>
-                            </span>
-                            <span className="font-bold">{entry.bch_blocks}</span>
-                          </div>
-                        )}
-                        
-                        {/* BC2 */}
-                        {entry.bc2_blocks > 0 && (
-                          <div className="flex items-center justify-between p-2 rounded-md bg-blue-50 dark:bg-blue-900/20">
-                            <span className="text-sm flex items-center gap-1">
-                              <span className="text-lg">฿₂</span>
-                              <span className="font-medium">BC2</span>
-                            </span>
-                            <span className="font-bold">{entry.bc2_blocks}</span>
-                          </div>
-                        )}
-                        
-                        {/* DGB */}
-                        {entry.dgb_blocks > 0 && (
-                          <div className="flex items-center justify-between p-2 rounded-md bg-purple-50 dark:bg-purple-900/20">
-                            <span className="text-sm flex items-center gap-1">
-                              <span className="text-lg">◆</span>
-                              <span className="font-medium">DGB</span>
-                            </span>
-                            <span className="font-bold">{entry.dgb_blocks}</span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-2 border-t border-border">
-                        <span className="text-sm text-muted-foreground">Total Blocks</span>
-                        <span className="px-2 py-1 rounded text-xs font-bold border border-border">
-                          {entry.total_blocks}
-                        </span>
+                    <div className="flex items-center gap-4 text-sm">
+                      {entry.btc_blocks > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-lg">₿</span>
+                          <span className="font-semibold">{entry.btc_blocks}</span>
+                        </div>
+                      )}
+                      {entry.bch_blocks > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-lg">฿</span>
+                          <span className="font-semibold">{entry.bch_blocks}</span>
+                        </div>
+                      )}
+                      {entry.bc2_blocks > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-lg">฿₂</span>
+                          <span className="font-semibold">{entry.bc2_blocks}</span>
+                        </div>
+                      )}
+                      {entry.dgb_blocks > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-lg">◆</span>
+                          <span className="font-semibold">{entry.dgb_blocks}</span>
+                        </div>
+                      )}
+                      <div className="ml-auto text-xs text-muted-foreground">
+                        {entry.total_blocks} total
                       </div>
                     </div>
                   ) : (
