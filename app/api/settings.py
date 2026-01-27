@@ -311,7 +311,6 @@ async def get_solopool_stats(db: AsyncSession = Depends(get_db)):
     dgb_network_stats = await SolopoolService.get_dgb_pool_stats() if dgb_pools else None
     btc_network_stats = await SolopoolService.get_btc_pool_stats() if btc_pools else None
     bc2_network_stats = await SolopoolService.get_bc2_pool_stats() if bc2_pools else None
-    xmr_network_stats = await SolopoolService.get_xmr_pool_stats() if xmr_pools else None
     
     # Get all enabled miners
     miner_result = await db.execute(select(Miner).where(Miner.enabled == True))
