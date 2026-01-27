@@ -1,6 +1,7 @@
 """
 API endpoints for miner anomaly detection and health monitoring
 """
+
 import logging
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import select, and_, desc
