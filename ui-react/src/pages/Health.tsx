@@ -101,6 +101,105 @@ export function Health() {
     return `${diffDays}d ago`;
   };
 
+  const CODE_LABELS: Record<string, string> = {
+    SENSOR_MISSING: 'Telemetry offline',
+    HASHRATE_DROP: 'Hashrate low',
+    TEMP_SPIKE: 'Temp spike',
+    FAN_FAILURE: 'Fan fault',
+    POWER_DROP: 'Power drop',
+    NETWORK_LOSS: 'Network loss',
+    OVERHEAT: 'Overheat',
+    INSULATED_TEMP: 'Temp drift',
+    VOLTAGE_ANOMALY: 'Voltage swing',
+    BEST_SHARE_DROP: 'Share quality',
+  };
+
+  const METRIC_LABELS: Record<string, string> = {
+    hashrate_th: 'Hashrate',
+    temperature_hotspot: 'Hotspot temp',
+    temperature: 'Temperature',
+    fan_speed: 'Fan speed',
+    telemetry: 'Telemetry',
+    power_w: 'Power draw',
+    shares: 'Shares',
+  };
+
+  const humanize = (value: string) =>
+    value
+      .replace(/_/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+
+  const formatNumberValue = (value: number) => {
+    if (Math.abs(value) >= 100) return value.toFixed(0);
+    if (Math.abs(value) >= 10) return value.toFixed(1);
+    return value.toFixed(2).replace(/\.00$/, '');
+  };
+
+  const insertNumberSpacing = (text: string) => text.replace(/(\d)([A-Za-z])/g, '$1 $2');
+
+  const formatValueWithUnit = (value: number | string | undefined, unit?: string) => {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'number') {
+      const formatted = formatNumberValue(value);
+      return unit ? `${formatted} ${unit}` : formatted;
+    }
+    const cleaned = insertNumberSpacing(value);
+    return unit ? `${cleaned} ${unit}`.trim() : cleaned;
+  };
+
+  const formatExpectedRange = (min?: number, max?: number, unit?: string) => {
+    if (min !== undefined && max !== undefined) {
+      const range = `${formatNumberValue(min)}–${formatNumberValue(max)}`;
+      return unit ? `${range} ${unit}` : range;
+    }
+    if (min !== undefined) {
+      const target = `${formatNumberValue(min)}`;
+      return unit ? `≥ ${target} ${unit}` : `≥ ${target}`;
+    }
+    if (max !== undefined) {
+      const target = `${formatNumberValue(max)}`;
+      return unit ? `≤ ${target} ${unit}` : `≤ ${target}`;
+    }
+    return '';
+  };
+
+  type ReasonEntry = string | {
+    code?: string;
+    severity?: string;
+    metric?: string;
+    actual?: number | string;
+    expected_min?: number;
+    expected_max?: number;
+    unit?: string;
+  };
+
+  const formatReasonText = (reason: ReasonEntry) => {
+    if (typeof reason === 'string') {
+      return humanize(reason);
+    }
+
+    const code = reason.code || '';
+    if (code === 'INSUFFICIENT_DATA') {
+      const expected = reason.expected_min || 60;
+      return `Collecting baseline — ${reason.actual || 0}/${expected} samples`;
+    }
+
+    const label = CODE_LABELS[code] || humanize(code || 'Alert');
+    const metricLabel = reason.metric ? METRIC_LABELS[reason.metric] || humanize(reason.metric) : '';
+    const actualText = formatValueWithUnit(reason.actual, reason.unit) || (code === 'SENSOR_MISSING' ? 'No samples' : '');
+    const expectedText = formatExpectedRange(reason.expected_min, reason.expected_max, reason.unit);
+
+    const prefix = metricLabel ? `${label} — ${metricLabel}` : label;
+    const body = actualText ? ` ${actualText}` : '';
+    const suffix = expectedText ? ` (target ${expectedText})` : '';
+
+    return `${prefix}${body}${suffix}`.trim();
+  };
+
   const sortedMiners = [...(data?.miners || [])].sort(
     (a, b) => a.health_score - b.health_score
   );
@@ -198,42 +297,14 @@ export function Health() {
 
             {miner.reasons.length > 0 && (
               <div className="mt-3 space-y-1">
-                {miner.reasons.map((reason, idx) => {
-                  // Reason can be a string or an object
-                  let reasonText = '';
-                  if (typeof reason === 'string') {
-                    reasonText = reason;
-                  } else {
-                    const code = reason.code || '';
-                    
-                    // Special handling for INSUFFICIENT_DATA
-                    if (code === 'INSUFFICIENT_DATA') {
-                      const expected = reason.expected_min || 60;
-                      reasonText = `Collecting baseline data (${reason.actual || 0}/${expected} samples)`;
-                    } else {
-                      const metric = reason.metric || '';
-                      const actual = reason.actual !== undefined ? reason.actual : 'N/A';
-                      const unit = reason.unit || '';
-                      const expected_min = reason.expected_min;
-                      const expected_max = reason.expected_max;
-                      
-                      if (expected_min !== undefined && expected_max !== undefined) {
-                        reasonText = `${code}: ${metric} ${actual}${unit} (expected: ${expected_min}-${expected_max})`;
-                      } else {
-                        reasonText = `${code} ${metric}: ${actual} ${unit}`.trim();
-                      }
-                    }
-                  }
-                  
-                  return (
-                    <div
-                      key={idx}
-                      className="text-xs px-2 py-1 rounded bg-background/50"
-                    >
-                      ⚠️ {reasonText}
-                    </div>
-                  );
-                })}
+                {miner.reasons.map((reason, idx) => (
+                  <div
+                    key={idx}
+                    className="text-xs px-2 py-1 rounded bg-background/50"
+                  >
+                    ⚠️ {formatReasonText(reason)}
+                  </div>
+                ))}
               </div>
             )}
 
