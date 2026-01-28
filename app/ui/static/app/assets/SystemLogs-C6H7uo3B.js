@@ -1,1 +1,0 @@
-import{j as s,ag as t}from"./index-BGy3dVUV.js";import{S as e}from"./SettingsPlaceholder-9GPNSLgE.js";function r(){return s.jsx(e,{title:"System Logs",description:"View system events, errors, and activity logs.",icon:s.jsx(t,{className:"h-10 w-10 text-blue-400"})})}export{r as default};

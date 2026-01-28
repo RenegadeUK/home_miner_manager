@@ -1,1 +1,0 @@
-import{j as t,af as e}from"./index-BGy3dVUV.js";import{S as i}from"./SettingsPlaceholder-9GPNSLgE.js";function r(){return t.jsx(i,{title:"Notifications",description:"Configure Telegram and Discord alerts for miner events.",icon:t.jsx(e,{className:"h-10 w-10 text-blue-400"})})}export{r as default};

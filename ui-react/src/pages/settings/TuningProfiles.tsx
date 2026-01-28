@@ -36,6 +36,8 @@ const MINER_TYPE_OPTIONS: { value: MinerType; label: string }[] = [
   { value: 'nerdqaxe', label: 'NerdQaxe++' },
 ]
 
+const ALL_TYPES_VALUE = 'all'
+
 interface CreateProfileForm {
   name: string
   minerType: MinerType | ''
@@ -56,7 +58,7 @@ const INITIAL_FORM: CreateProfileForm = {
 
 export default function TuningProfiles() {
   const queryClient = useQueryClient()
-  const [filter, setFilter] = useState<string>('')
+  const [filter, setFilter] = useState<string>(ALL_TYPES_VALUE)
   const [banner, setBanner] = useState<BannerState | null>(null)
   const [isCreateOpen, setCreateOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateProfileForm>(INITIAL_FORM)
@@ -67,7 +69,8 @@ export default function TuningProfiles() {
 
   const profilesQuery = useQuery({
     queryKey: ['tuning-profiles', filter],
-    queryFn: () => tuningAPI.getProfiles(filter || undefined),
+    queryFn: () =>
+      tuningAPI.getProfiles(filter === ALL_TYPES_VALUE ? undefined : filter),
   })
 
   const minersQuery = useQuery({
@@ -270,7 +273,7 @@ export default function TuningProfiles() {
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All types</SelectItem>
+              <SelectItem value={ALL_TYPES_VALUE}>All types</SelectItem>
               {MINER_TYPE_OPTIONS.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
