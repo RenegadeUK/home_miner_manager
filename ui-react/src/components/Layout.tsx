@@ -170,46 +170,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* Settings Category */}
-            <div className="mt-2">
-              <button
-                onClick={() => toggleSection('settings')}
-                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <div className="flex items-center gap-3">
-                  <Settings className="h-5 w-5" />
-                  <span>Settings</span>
-                </div>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${
-                    sectionStates.settingsOpen ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {sectionStates.settingsOpen && (
-                <div className="ml-4 mt-1 flex flex-col gap-1 border-l-2 border-border pl-4">
-                  {settingsItems.map(({ path, icon: Icon, label }) => {
-                    const isActive = location.pathname === path
-                    return (
-                      <Link
-                        key={path}
-                        to={path}
-                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                          isActive
-                            ? 'bg-primary text-primary-foreground'
-                            : 'hover:bg-accent hover:text-accent-foreground'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {label}
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
             {/* Insights Category */}
             <div className="mt-2">
               <button
@@ -289,6 +249,46 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
             </div>
+
+            {/* Settings Category */}
+            <div className="mt-2">
+              <button
+                onClick={() => toggleSection('settings')}
+                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                <div className="flex items-center gap-3">
+                  <Settings className="h-5 w-5" />
+                  <span>Settings</span>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    sectionStates.settingsOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {sectionStates.settingsOpen && (
+                <div className="ml-4 mt-1 flex flex-col gap-1 border-l-2 border-border pl-4">
+                  {settingsItems.map(({ path, icon: Icon, label }) => {
+                    const isActive = location.pathname === path
+                    return (
+                      <Link
+                        key={path}
+                        to={path}
+                        className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-primary text-primary-foreground'
+                            : 'hover:bg-accent hover:text-accent-foreground'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </nav>
         </div>
       </aside>
@@ -342,23 +342,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </Link>
             )
           })}
-          {settingsItems.map(({ path, icon: Icon, label }) => {
-            const isActive = location.pathname === path
-            return (
-              <Link
-                key={path}
-                to={path}
-                className={`flex flex-col items-center gap-1 px-2 py-2 text-xs transition-colors ${
-                  isActive
-                    ? 'text-primary'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="truncate w-full text-center">{label}</span>
-              </Link>
-            )
-          })}
           {insightsItems.map(({ path, icon: Icon, label }) => {
             const isActive = location.pathname === path
             return (
@@ -377,6 +360,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
             )
           })}
           {leaderboardItems.map(({ path, icon: Icon, label }) => {
+            const isActive = location.pathname === path
+            return (
+              <Link
+                key={path}
+                to={path}
+                className={`flex flex-col items-center gap-1 px-2 py-2 text-xs transition-colors ${
+                  isActive
+                    ? 'text-primary'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="truncate w-full text-center">{label}</span>
+              </Link>
+            )
+          })}
+          {settingsItems.map(({ path, icon: Icon, label }) => {
             const isActive = location.pathname === path
             return (
               <Link
