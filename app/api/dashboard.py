@@ -598,6 +598,12 @@ async def set_energy_region(region: str):
         name=f"Fetch prices for region {region}",
         replace_existing=True
     )
+    scheduler.scheduler.add_job(
+        scheduler._update_agile_forecast,
+        id=f"update_agile_forecast_region_change_{region}",
+        name=f"Fetch Agile Predict forecast for region {region}",
+        replace_existing=True
+    )
     
     return {"status": "success", "region": region}
 

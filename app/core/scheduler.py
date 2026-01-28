@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime, timedelta
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, delete
 from typing import Optional
 from core.config import app_config
 from core.cloud_push import init_cloud_service, get_cloud_service
@@ -37,6 +37,20 @@ class SchedulerService:
             IntervalTrigger(minutes=30),
             id="update_energy_prices",
             name="Update Octopus Agile prices"
+        )
+
+        self.scheduler.add_job(
+            self._update_agile_forecast,
+            CronTrigger(hour=4, minute=30),
+            id="update_agile_forecast",
+            name="Update Agile Predict forecast (daily)"
+        )
+
+        self.scheduler.add_job(
+            self._purge_old_agile_forecasts,
+            IntervalTrigger(days=1),
+            id="purge_old_agile_forecasts",
+            name="Purge stale Agile Predict forecasts"
         )
         
         self.scheduler.add_job(
@@ -286,6 +300,12 @@ class SchedulerService:
             id="update_energy_prices_immediate",
             name="Immediate energy price fetch"
         )
+
+        self.scheduler.add_job(
+            self._update_agile_forecast,
+            id="update_agile_forecast_immediate",
+            name="Immediate Agile Predict forecast fetch"
+        )
         
         # Trigger immediate crypto price fetch
         self.scheduler.add_job(
@@ -470,6 +490,123 @@ class SchedulerService:
                 )
                 db.add(event)
                 await db.commit()
+
+    async def _update_agile_forecast(self, days: int = 7):
+        """Fetch Agile Predict forecast for the active region"""
+        from core.config import app_config
+        from core.database import AsyncSessionLocal, AgileForecastSlot, Event
+
+        enabled = app_config.get("octopus_agile.enabled", False)
+        if not enabled:
+            logger.info("Agile Predict skipped because Octopus Agile is disabled")
+            return
+
+        region = app_config.get("octopus_agile.region", "H")
+        days = int(app_config.get("agile_predict.days", days))
+        url = f"https://agilepredict.com/api/{region}?days={days}&forecast_count=1&high_low=True"
+        logger.info("Fetching Agile Predict forecast", extra={"region": region, "url": url})
+
+        def _parse_iso(value: Optional[str]) -> Optional[datetime]:
+            if not value:
+                return None
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=15) as response:
+                    if response.status != 200:
+                        logger.warning("Failed Agile Predict fetch", extra={"status": response.status})
+                        async with AsyncSessionLocal() as db:
+                            event = Event(
+                                event_type="warning",
+                                source="agile_predict",
+                                message=f"Failed to fetch Agile Predict forecast: HTTP {response.status}"
+                            )
+                            db.add(event)
+                            await db.commit()
+                        return
+
+                    payload = await response.json()
+        except Exception as exc:
+            logger.exception("Exception fetching Agile Predict forecast")
+            async with AsyncSessionLocal() as db:
+                event = Event(
+                    event_type="error",
+                    source="agile_predict",
+                    message=f"Exception fetching Agile Predict forecast: {exc}"
+                )
+                db.add(event)
+                await db.commit()
+            return
+
+        if not payload:
+            logger.warning("Agile Predict returned empty payload")
+            return
+
+        forecast = payload[0]
+        created_at = _parse_iso(forecast.get("created_at")) or datetime.utcnow()
+        prices = forecast.get("prices", [])
+
+        if not prices:
+            logger.warning("Agile Predict response missing prices")
+            return
+
+        slot_objects = []
+        for entry in prices:
+            slot_start = _parse_iso(entry.get("date_time"))
+            if not slot_start:
+                continue
+            slot_end = slot_start + timedelta(minutes=30)
+            slot_objects.append(
+                AgileForecastSlot(
+                    region=region,
+                    slot_start=slot_start,
+                    slot_end=slot_end,
+                    price_pred_pence=entry.get("agile_pred"),
+                    price_low_pence=entry.get("agile_low"),
+                    price_high_pence=entry.get("agile_high"),
+                    forecast_created_at=created_at,
+                )
+            )
+
+        if not slot_objects:
+            logger.warning("No valid Agile Predict slots parsed")
+            return
+
+        async with AsyncSessionLocal() as db:
+            await db.execute(delete(AgileForecastSlot).where(AgileForecastSlot.region == region))
+            db.add_all(slot_objects)
+            await db.commit()
+
+        logger.info(
+            "Stored Agile Predict forecast",
+            extra={"region": region, "slots": len(slot_objects)}
+        )
+
+        async with AsyncSessionLocal() as db:
+            event = Event(
+                event_type="info",
+                source="agile_predict",
+                message=f"Stored {len(slot_objects)} Agile Predict slots for region {region}"
+            )
+            db.add(event)
+            await db.commit()
+
+    async def _purge_old_agile_forecasts(self):
+        """Remove forecast slots that are in the distant past"""
+        from core.database import AsyncSessionLocal, AgileForecastSlot
+
+        cutoff = datetime.utcnow() - timedelta(days=1)
+
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                delete(AgileForecastSlot).where(AgileForecastSlot.slot_end < cutoff)
+            )
+            await db.commit()
+
+        deleted = result.rowcount or 0
+        if deleted:
+            logger.info("Purged stale Agile Predict slots", extra={"deleted": deleted})
     
     async def _update_crypto_prices(self):
         """Update cached crypto prices every 10 minutes"""

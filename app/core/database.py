@@ -209,6 +209,25 @@ class EnergyPrice(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class AgileForecastSlot(Base):
+    """Future Agile price forecast slots from AgilePredict"""
+    __tablename__ = "agile_forecast_slots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    region: Mapped[str] = mapped_column(String(1), index=True)
+    slot_start: Mapped[datetime] = mapped_column(DateTime, index=True)
+    slot_end: Mapped[datetime] = mapped_column(DateTime)
+    price_pred_pence: Mapped[float] = mapped_column(Float)
+    price_low_pence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    price_high_pence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    forecast_created_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index('ix_agile_forecast_region_slot', 'region', 'slot_start', unique=True),
+    )
+
+
 class AutomationRule(Base):
     """Automation rules"""
     __tablename__ = "automation_rules"
