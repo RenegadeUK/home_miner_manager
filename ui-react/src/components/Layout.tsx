@@ -16,7 +16,6 @@ import {
   Lightbulb,
   Home,
   Sparkles,
-  Palette,
   Cloud,
   Radar,
   SlidersHorizontal,
@@ -55,7 +54,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   ]
 
   const settingsItems = [
-    { path: '/settings/defaults', icon: Palette, label: 'Defaults' },
     { path: '/settings/cloud', icon: Cloud, label: 'Cloud Settings' },
     { path: '/settings/discovery', icon: Radar, label: 'Network Discovery' },
     { path: '/settings/tuning', icon: SlidersHorizontal, label: 'Tuning Profiles' },

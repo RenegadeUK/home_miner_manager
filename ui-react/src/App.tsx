@@ -20,7 +20,6 @@ const AutomationRules = lazy(() => import('./pages/AutomationRules'))
 const PoolStrategies = lazy(() => import('./pages/PoolStrategies'))
 const AgilePredict = lazy(() => import('./pages/AgilePredict'))
 const HomeAssistant = lazy(() => import('./pages/HomeAssistant'))
-const SettingsDefaults = lazy(() => import('./pages/settings/Defaults'))
 const SettingsPools = lazy(() => import('./pages/settings/PoolIntegrations'))
 const SettingsCloud = lazy(() => import('./pages/settings/CloudSettings'))
 const SettingsDiscovery = lazy(() => import('./pages/settings/NetworkDiscovery'))
@@ -54,8 +53,7 @@ function App() {
           <Route path="/miners/:minerId/edit" element={<MinerEdit />} />
           <Route path="/pools" element={<Pools />} />
           <Route path="/pools/strategies" element={<PoolStrategies />} />
-          <Route path="/settings" element={<SettingsDefaults />} />
-          <Route path="/settings/defaults" element={<SettingsDefaults />} />
+          <Route path="/settings" element={<SettingsCloud />} />
           <Route path="/settings/pools" element={<SettingsPools />} />
           <Route path="/settings/cloud" element={<SettingsCloud />} />
           <Route path="/settings/discovery" element={<SettingsDiscovery />} />
