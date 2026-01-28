@@ -289,10 +289,15 @@ async def insert_strategy_band(
     strategy = result.scalar_one_or_none()
 
     if not strategy:
-        raise HTTPException(status_code=404, detail="Strategy not found")
+        strategy = AgileStrategy(enabled=False)
+        db.add(strategy)
+        await db.commit()
+        await db.refresh(strategy)
 
     # Ensure bands exist to insert alongside
-    await ensure_strategy_bands(db, strategy.id)
+    bands_ready = await ensure_strategy_bands(db, strategy.id)
+    if not bands_ready:
+        raise HTTPException(status_code=500, detail="Failed to initialize bands")
 
     bands_result = await db.execute(
         select(AgileStrategyBand)
@@ -313,10 +318,10 @@ async def insert_strategy_band(
             raise HTTPException(status_code=404, detail="Anchor band not found")
         insert_position = (anchor_band.sort_order or 0) + 1
 
-    # Shift bands at or after the insertion point
-    for band in bands:
+    # Shift bands at or after insertion point (descending to honor unique constraint)
+    for band in sorted(bands, key=lambda b: b.sort_order or 0, reverse=True):
         if band.sort_order is not None and band.sort_order >= insert_position:
-            band.sort_order += 1
+            band.sort_order = (band.sort_order or 0) + 1
 
     # Create new band with safe defaults
     new_band = AgileStrategyBand(

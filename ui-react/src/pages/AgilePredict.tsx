@@ -273,6 +273,25 @@ export default function AgilePredict() {
         </Card>
       )}
 
+      {chartData && dayCards.length > 0 && (
+        <div className="rounded-md border border-border/40 bg-muted/5 p-4">
+          <div className="flex divide-x divide-border/30">
+            {dayCards.map((day) => {
+              const weekday = new Date(day.date).toLocaleDateString('en-GB', { weekday: 'long' })
+              return (
+                <div key={day.date} className="flex-1 px-3 text-center text-sm">
+                  <div className="mb-2 h-4 w-px bg-blue-500/70 mx-auto" />
+                  <p className="font-medium text-gray-200">{weekday}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className="flex items-center gap-3 text-sm uppercase tracking-widest text-blue-300">
           <CalendarRange className="h-5 w-5" />
