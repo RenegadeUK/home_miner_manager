@@ -19,6 +19,7 @@ const EnergyPricing = lazy(() => import('./pages/EnergyPricing'))
 const AutomationRules = lazy(() => import('./pages/AutomationRules'))
 const PoolStrategies = lazy(() => import('./pages/PoolStrategies'))
 const AgilePredict = lazy(() => import('./pages/AgilePredict'))
+const HomeAssistant = lazy(() => import('./pages/HomeAssistant'))
 
 function App() {
   return (
@@ -46,6 +47,7 @@ function App() {
           <Route path="/settings/agile-solo-strategy" element={<AgileStrategy />} />
           <Route path="/settings/energy" element={<EnergyPricing />} />
           <Route path="/settings/optimization" element={<EnergyOptimization />} />
+          <Route path="/settings/integrations/homeassistant" element={<HomeAssistant />} />
           <Route path="/automation" element={<AutomationRules />} />
         </Routes>
       </Suspense>
