@@ -3,7 +3,7 @@ Agile Solo Mining Strategy API endpoints
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
@@ -318,10 +318,19 @@ async def insert_strategy_band(
             raise HTTPException(status_code=404, detail="Anchor band not found")
         insert_position = (anchor_band.sort_order or 0) + 1
 
-    # Shift bands at or after insertion point (descending to honor unique constraint)
-    for band in sorted(bands, key=lambda b: b.sort_order or 0, reverse=True):
-        if band.sort_order is not None and band.sort_order >= insert_position:
-            band.sort_order = (band.sort_order or 0) + 1
+    # Shift sort orders in the database to avoid unique constraint collisions
+    shift_timestamp = datetime.utcnow()
+    shift_stmt = (
+        update(AgileStrategyBand)
+        .where(AgileStrategyBand.strategy_id == strategy.id)
+        .where(AgileStrategyBand.sort_order >= insert_position)
+        .values(
+            sort_order=AgileStrategyBand.sort_order + 1,
+            updated_at=shift_timestamp
+        )
+    )
+    await db.execute(shift_stmt)
+    await db.flush()
 
     # Create new band with safe defaults
     new_band = AgileStrategyBand(
