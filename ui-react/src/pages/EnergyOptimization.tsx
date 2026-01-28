@@ -184,11 +184,15 @@ export default function EnergyOptimization() {
     queryFn: () => fetchJSON('/api/miners/'),
   })
 
+  const minerOptions = Array.isArray(miners) ? miners : []
+  const forecastPoints = Array.isArray(forecast?.forecast) ? forecast.forecast : []
+  const scheduleSlots = Array.isArray(scheduleResult?.recommended_slots) ? scheduleResult?.recommended_slots : []
+
   useEffect(() => {
-    if (miners && miners.length > 0 && scheduleMinerId === '') {
-      setScheduleMinerId(miners[0].id)
+    if (minerOptions.length > 0 && scheduleMinerId === '') {
+      setScheduleMinerId(minerOptions[0].id)
     }
-  }, [miners, scheduleMinerId])
+  }, [minerOptions, scheduleMinerId])
 
   const toggleAutoMutation = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -232,16 +236,16 @@ export default function EnergyOptimization() {
   })
 
   const chartData = useMemo(() => {
-    if (!forecast?.forecast?.length) {
+    if (!forecastPoints.length) {
       return null
     }
 
     return {
-      labels: forecast.forecast.map((point) => new Date(point.timestamp)),
+      labels: forecastPoints.map((point) => new Date(point.timestamp)),
       datasets: [
         {
           label: 'Price (p/kWh)',
-          data: forecast.forecast.map((point) => point.price_pence),
+          data: forecastPoints.map((point) => point.price_pence),
           borderColor: 'rgba(59, 130, 246, 1)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           tension: 0.3,
@@ -301,7 +305,6 @@ export default function EnergyOptimization() {
     scheduleMutation.mutate({ minerId: scheduleMinerId, hours: hoursValue })
   }
 
-  const scheduleSlots = scheduleResult?.recommended_slots ?? []
   const recommendation = overview?.current_recommendation
 
   const errors = [autoStatusError, overviewError, forecastError].filter(Boolean)
@@ -471,7 +474,7 @@ export default function EnergyOptimization() {
               <div className="space-y-2">
                 <p className="text-xs text-gray-400 uppercase">Target Miner</p>
                 <Select
-                  disabled={minersLoading || !miners?.length}
+                  disabled={minersLoading || minerOptions.length === 0}
                   value={scheduleMinerId ? String(scheduleMinerId) : ''}
                   onValueChange={(value) => setScheduleMinerId(Number(value))}
                 >
@@ -479,7 +482,7 @@ export default function EnergyOptimization() {
                     <SelectValue placeholder={minersLoading ? 'Loading miners…' : 'Select miner'} />
                   </SelectTrigger>
                   <SelectContent>
-                    {miners?.map((miner) => (
+                    {minerOptions.map((miner) => (
                       <SelectItem key={miner.id} value={String(miner.id)}>
                         {miner.name}
                       </SelectItem>
