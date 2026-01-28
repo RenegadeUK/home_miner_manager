@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { humanizeKey } from '@/lib/textFormatters'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -65,7 +66,7 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 function resolveLabel(map: Record<string, string>, value: string) {
-  return map[value] || value.replace(/_/g, ' ')
+  return map[value] || humanizeKey(value)
 }
 
 export default function AutomationRules() {

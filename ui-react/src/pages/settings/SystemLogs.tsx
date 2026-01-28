@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { dashboardAPI, type SystemEvent } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { humanizeKey } from '@/lib/textFormatters'
 
 const EVENTS_PER_PAGE = 200
 const FILTERS = [
@@ -292,9 +293,10 @@ function SeverityBadge({ eventType }: { eventType: string }) {
           ? 'bg-emerald-500/20 text-emerald-200'
           : 'bg-blue-500/20 text-blue-200'
 
+  const label = humanizeKey(eventType || severity)
   return (
     <span className={cn('inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold capitalize', tone)}>
-      {eventType || severity}
+      {label}
     </span>
   )
 }

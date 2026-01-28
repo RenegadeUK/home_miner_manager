@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { MinerTypeBadge } from '@/components/miners/MinerTypeBadge';
+import { formatMetricLabel, formatReasonCode, humanizeKey } from '@/lib/textFormatters';
 
 interface MinerHealthData {
   miner_id: number;
@@ -101,38 +102,6 @@ export function Health() {
     return `${diffDays}d ago`;
   };
 
-  const CODE_LABELS: Record<string, string> = {
-    SENSOR_MISSING: 'Telemetry offline',
-    HASHRATE_DROP: 'Hashrate low',
-    TEMP_SPIKE: 'Temp spike',
-    FAN_FAILURE: 'Fan fault',
-    POWER_DROP: 'Power drop',
-    NETWORK_LOSS: 'Network loss',
-    OVERHEAT: 'Overheat',
-    INSULATED_TEMP: 'Temp drift',
-    VOLTAGE_ANOMALY: 'Voltage swing',
-    BEST_SHARE_DROP: 'Share quality',
-  };
-
-  const METRIC_LABELS: Record<string, string> = {
-    hashrate_th: 'Hashrate',
-    temperature_hotspot: 'Hotspot temp',
-    temperature: 'Temperature',
-    fan_speed: 'Fan speed',
-    telemetry: 'Telemetry',
-    power_w: 'Power draw',
-    shares: 'Shares',
-  };
-
-  const humanize = (value: string) =>
-    value
-      .replace(/_/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .split(' ')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-
   const formatNumberValue = (value: number) => {
     if (Math.abs(value) >= 100) return value.toFixed(0);
     if (Math.abs(value) >= 10) return value.toFixed(1);
@@ -179,7 +148,7 @@ export function Health() {
 
   const formatReasonText = (reason: ReasonEntry) => {
     if (typeof reason === 'string') {
-      return humanize(reason);
+      return humanizeKey(reason);
     }
 
     const code = reason.code || '';
@@ -188,8 +157,8 @@ export function Health() {
       return `Collecting baseline — ${reason.actual || 0}/${expected} samples`;
     }
 
-    const label = CODE_LABELS[code] || humanize(code || 'Alert');
-    const metricLabel = reason.metric ? METRIC_LABELS[reason.metric] || humanize(reason.metric) : '';
+    const label = formatReasonCode(code || '');
+    const metricLabel = reason.metric ? formatMetricLabel(reason.metric) : '';
     const actualText = formatValueWithUnit(reason.actual, reason.unit) || (code === 'SENSOR_MISSING' ? 'No samples' : '');
     const expectedText = formatExpectedRange(reason.expected_min, reason.expected_max, reason.unit);
 

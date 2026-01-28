@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
+import { humanizeKey } from '@/lib/textFormatters'
 import {
   notificationsAPI,
   NotificationChannelType,
@@ -153,7 +154,7 @@ export default function Notifications() {
   const saveChannelMutation = useMutation({
     mutationFn: notificationsAPI.upsertChannel,
     onSuccess: (_, variables) => {
-      showBanner('success', `${capitalize(variables.channel_type)} notifications saved`)
+      showBanner('success', `${humanizeKey(variables.channel_type)} notifications saved`)
       queryClient.invalidateQueries({ queryKey: ['notification-channels'] })
     },
     onError: (error) => showBanner('error', extractError(error)),
@@ -163,7 +164,7 @@ export default function Notifications() {
   const testChannelMutation = useMutation({
     mutationFn: notificationsAPI.testChannel,
     onSuccess: (_, channelType) =>
-      showBanner('success', `Test notification sent to ${capitalize(channelType)}`),
+      showBanner('success', `Test notification sent to ${humanizeKey(channelType)}`),
     onError: (error) => showBanner('error', extractError(error)),
     onSettled: () => setTestingChannel(null),
   })
@@ -250,7 +251,7 @@ export default function Notifications() {
   const handleTestChannel = (channel: NotificationChannelType) => {
     const form = channelForms[channel]
     if (!form?.enabled) {
-      showBanner('error', `${capitalize(channel)} channel must be enabled before testing`)
+      showBanner('error', `${humanizeKey(channel)} channel must be enabled before testing`)
       return
     }
     setTestingChannel(channel)
@@ -452,8 +453,8 @@ export default function Notifications() {
                     logs.map((log) => (
                       <tr key={log.id} className="border-t border-border/50 text-sm">
                         <td className="px-4 py-3 text-foreground">{formatTimestamp(log.timestamp)}</td>
-                        <td className="px-4 py-3 capitalize">{log.channel_type}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{log.alert_type}</td>
+                        <td className="px-4 py-3">{humanizeKey(log.channel_type)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{humanizeKey(log.alert_type)}</td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {truncate(log.message, 80)}
                           {log.error && (
@@ -569,8 +570,4 @@ function formatTimestamp(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleString()
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1)
 }

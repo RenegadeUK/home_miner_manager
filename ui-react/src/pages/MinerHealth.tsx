@@ -15,6 +15,7 @@ import {
   TimeScale
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
+import { formatMetricLabel, formatReasonCode, formatSuggestedAction, humanizeKey } from '@/lib/textFormatters';
 
 ChartJS.register(
   CategoryScale,
@@ -262,7 +263,7 @@ export default function MinerHealth() {
                 if (typeof reason === 'string') {
                   return (
                     <div key={idx} className="border-l-4 border-yellow-500 pl-4 py-2">
-                      <p className="text-sm">{reason}</p>
+                      <p className="text-sm">{humanizeKey(reason)}</p>
                     </div>
                   );
                 }
@@ -272,9 +273,9 @@ export default function MinerHealth() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${getSeverityColor(reason.severity)}`}>
-                          {reason.severity}
+                          {humanizeKey(reason.severity)}
                         </span>
-                        <span className="font-mono text-sm font-semibold">{reason.code}</span>
+                        <span className="text-sm font-semibold">{formatReasonCode(reason.code)}</span>
                       </div>
                       {reason.delta_pct != null && (
                         <span className="text-sm font-semibold text-red-600">
@@ -283,7 +284,7 @@ export default function MinerHealth() {
                       )}
                     </div>
 
-                    <div className="text-sm font-medium">{reason.metric}</div>
+                    <div className="text-sm font-medium">{formatMetricLabel(reason.metric)}</div>
                     
                     {reason.code === 'SENSOR_MISSING' && (
                       <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded">
@@ -333,7 +334,7 @@ export default function MinerHealth() {
               {healthData.suggested_actions.map((action, idx) => (
                 <li key={idx} className="flex items-start gap-2">
                   <span className="text-blue-600 mt-1">•</span>
-                  <span className="text-sm">{action}</span>
+                  <span className="text-sm">{formatSuggestedAction(action)}</span>
                 </li>
               ))}
             </ul>
