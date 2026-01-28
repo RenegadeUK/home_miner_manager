@@ -15,7 +15,9 @@ const AddMiner = lazy(() => import('./pages/AddMiner'))
 const Pools = lazy(() => import('./pages/Pools'))
 const AgileStrategy = lazy(() => import('./pages/AgileStrategy'))
 const EnergyOptimization = lazy(() => import('./pages/EnergyOptimization'))
+const EnergyPricing = lazy(() => import('./pages/EnergyPricing'))
 const AutomationRules = lazy(() => import('./pages/AutomationRules'))
+const PoolStrategies = lazy(() => import('./pages/PoolStrategies'))
 
 function App() {
   return (
@@ -38,7 +40,9 @@ function App() {
           <Route path="/miners/:minerId" element={<MinerDetail />} />
           <Route path="/miners/:minerId/edit" element={<MinerEdit />} />
           <Route path="/pools" element={<Pools />} />
+          <Route path="/pools/strategies" element={<PoolStrategies />} />
           <Route path="/settings/agile-solo-strategy" element={<AgileStrategy />} />
+          <Route path="/settings/energy" element={<EnergyPricing />} />
           <Route path="/settings/optimization" element={<EnergyOptimization />} />
           <Route path="/automation" element={<AutomationRules />} />
         </Routes>
