@@ -1129,6 +1129,10 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     if total_hashrate > 0 and total_power_watts > 0:
         hashrate_ths = total_hashrate / 1000.0  # Convert GH/s to TH/s
         avg_efficiency_wth = total_power_watts / hashrate_ths
+
+    pool_efficiency_percent = None
+    if total_hashrate > 0 and total_pool_hashrate_ghs > 0:
+        pool_efficiency_percent = (total_pool_hashrate_ghs / total_hashrate) * 100.0
     
     # Calculate average pool health
     avg_pool_health = None
