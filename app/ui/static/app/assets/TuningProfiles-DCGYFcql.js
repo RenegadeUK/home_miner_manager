@@ -1,0 +1,1 @@
+import{j as e,ac as r}from"./index-VzWaYuAX.js";import{S as o}from"./SettingsPlaceholder-C5tzi0k-.js";function t(){return e.jsx(o,{title:"Tuning Profiles",description:"Create and manage overclocking profiles for your miners.",icon:e.jsx(r,{className:"h-10 w-10 text-blue-400"})})}export{t as default};
