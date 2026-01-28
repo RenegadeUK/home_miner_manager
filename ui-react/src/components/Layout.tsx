@@ -14,7 +14,8 @@ import {
   Bot,
   Shuffle,
   Lightbulb,
-  Home
+  Home,
+  Sparkles
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Logo } from './Logo'
@@ -42,6 +43,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const insightsItems = [
     { path: '/health', icon: Activity, label: 'Health' },
     { path: '/analytics', icon: BarChart3, label: 'Analytics' },
+    { path: '/insights/agile-predict', icon: Sparkles, label: 'Agile Predict' },
   ]
   
   const leaderboardItems = [

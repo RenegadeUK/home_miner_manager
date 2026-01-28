@@ -18,6 +18,7 @@ const EnergyOptimization = lazy(() => import('./pages/EnergyOptimization'))
 const EnergyPricing = lazy(() => import('./pages/EnergyPricing'))
 const AutomationRules = lazy(() => import('./pages/AutomationRules'))
 const PoolStrategies = lazy(() => import('./pages/PoolStrategies'))
+const AgilePredict = lazy(() => import('./pages/AgilePredict'))
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="/health" element={<Health />} />
           <Route path="/health/:minerId" element={<MinerHealth />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/insights/agile-predict" element={<AgilePredict />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/coin-hunter" element={<CoinHunter />} />
           <Route path="/miners" element={<Miners />} />
