@@ -6,8 +6,8 @@ import { PriceTicker } from './PriceTicker'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
-  const [insightsOpen, setInsightsOpen] = useState(true)
-  const [leaderboardsOpen, setLeaderboardsOpen] = useState(true)
+  const [insightsOpen, setInsightsOpen] = useState(false)
+  const [leaderboardsOpen, setLeaderboardsOpen] = useState(false)
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
