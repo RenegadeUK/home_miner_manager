@@ -17,13 +17,19 @@ import {
   Home,
   Sparkles
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Logo } from './Logo'
 import { PriceTicker } from './PriceTicker'
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const [openSection, setOpenSection] = useState<'manage' | 'insights' | 'leaderboards' | null>(null)
+
+  useEffect(() => {
+    if (location.pathname === '/' || location.pathname === '') {
+      setOpenSection(null)
+    }
+  }, [location.pathname])
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
