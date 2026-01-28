@@ -2,6 +2,7 @@
 Braiins Pool API Integration Service
 """
 import aiohttp
+import time
 from typing import Optional, Dict, Any
 
 
@@ -213,49 +214,56 @@ class BraiinsPoolService:
             return f"{hashrate * 1000000:.2f} MH/s"
 
 
-async def get_braiins_stats(db) -> Optional[Dict[str, Any]]:
+_braiins_summary_cache = {
+    "stats": None,
+    "timestamp": 0.0
+}
+_BRAIINS_SUMMARY_TTL = 300  # seconds
+
+
+async def get_braiins_summary() -> Optional[Dict[str, Any]]:
+    """Return cached Braiins stats summary or fetch fresh data when needed."""
+    from core.config import app_config
+
+    if not app_config.get("braiins_enabled", False):
+        return None
+    api_token = app_config.get("braiins_api_token", "")
+    if not api_token:
+        return None
+
+    now = time.time()
+    cached_stats = _braiins_summary_cache["stats"]
+    cache_age = now - _braiins_summary_cache["timestamp"]
+
+    if cached_stats and cache_age < _BRAIINS_SUMMARY_TTL:
+        return cached_stats
+
+    try:
+        workers_data = await BraiinsPoolService.get_workers(api_token)
+        profile_data = await BraiinsPoolService.get_profile(api_token)
+        rewards_data = await BraiinsPoolService.get_rewards(api_token)
+        summary = BraiinsPoolService.format_stats_summary(workers_data, profile_data, rewards_data)
+        if summary:
+            _braiins_summary_cache["stats"] = summary
+            _braiins_summary_cache["timestamp"] = now
+            return summary
+    except Exception:
+        pass
+
+    return cached_stats
+
+
+async def get_braiins_stats(_db=None) -> Optional[Dict[str, Any]]:
     """
     Get Braiins Pool stats including today_reward for dashboard earnings calculation
     
     Args:
-        db: Database session
+        _db: Unused legacy parameter kept for backwards compatibility
         
     Returns:
         Dict with today_reward (in satoshis) and other stats, or None if Braiins not configured
     """
-    from core.config import app_config
-    
-    # Check if Braiins is enabled
-    braiins_enabled = app_config.get("braiins_enabled", False)
-    if not braiins_enabled:
+    summary = await get_braiins_summary()
+    if not summary:
         return None
-    
-    # Get API token
-    api_token = app_config.get("braiins_api_token", "")
-    if not api_token:
-        return None
-    
-    try:
-        # Fetch profile data which contains today_reward
-        profile_data = await BraiinsPoolService.get_profile(api_token)
-        
-        if profile_data and "btc" in profile_data:
-            btc_data = profile_data["btc"]
-            
-            # Convert BTC string to satoshis (multiply by 100000000)
-            try:
-                today_reward_str = btc_data.get("today_reward", "0")
-                today_reward_satoshis = int(float(today_reward_str) * 100000000)
-                
-                return {
-                    "today_reward": today_reward_satoshis,
-                    "current_balance": int(float(btc_data.get("current_balance", "0")) * 100000000),
-                    "all_time_reward": int(float(btc_data.get("all_time_reward", "0")) * 100000000)
-                }
-            except (ValueError, TypeError):
-                return None
-        
-        return None
-        
-    except Exception:
-        return None
+    return summary

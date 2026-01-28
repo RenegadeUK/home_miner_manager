@@ -136,6 +136,10 @@ async def get_dashboard_stats(db: AsyncSession = Depends(get_db)):
     if total_hashrate > 0 and total_power_watts > 0:
         hashrate_ths = total_hashrate / 1000.0  # Convert GH/s to TH/s
         avg_efficiency_wth = total_power_watts / hashrate_ths
+
+    pool_efficiency_percent = None
+    if total_hashrate > 0 and total_pool_hashrate_ghs > 0:
+        pool_efficiency_percent = (total_pool_hashrate_ghs / total_hashrate) * 100.0
     
     # Get current energy price
     now = datetime.utcnow()
@@ -714,6 +718,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     total_power_watts = 0.0
     total_cost_24h_pence = 0.0
     total_kwh_consumed_24h = 0.0
+    total_pool_hashrate_ghs = 0.0
     
     for miner in miners:
         # Get latest telemetry (last 5 minutes)
@@ -885,6 +890,7 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     # Calculate 24h earnings (from Braiins Pool + Solopool blocks found)
     # Filter by dashboard_type: only count earnings from pools used by filtered miners
     earnings_pounds_24h = 0.0
+    braiins_stats = None
     try:
         from core.braiins import get_braiins_stats
         from core.config import app_config
@@ -933,10 +939,10 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
         
         # 1. Braiins Pool earnings (only if filtered miners use it)
         braiins_enabled = app_config.get("braiins_enabled", False)
-        if braiins_enabled and btc_price_gbp > 0 and dashboard_type != "cpu":
+        if braiins_enabled and dashboard_type != "cpu":
             # Braiins is BTC-only, skip for CPU dashboard
             braiins_stats = await get_braiins_stats(db)
-            if braiins_stats and "today_reward" in braiins_stats:
+            if braiins_stats and btc_price_gbp > 0 and "today_reward" in braiins_stats:
                 # today_reward is in satoshis
                 btc_earned_24h = braiins_stats["today_reward"] / 100000000
                 earnings_pounds_24h += btc_earned_24h * btc_price_gbp
@@ -1025,42 +1031,70 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
             solopool_users_checked.add(username)
             
             # Fetch account stats and calculate earnings from blocks found in last 24h only
-            if is_bch and bch_price_gbp > 0:
+            stats = None
+            if is_bch:
                 raw_stats = await SolopoolService.get_bch_account_stats(username)
                 if raw_stats:
                     stats = SolopoolService.format_stats_summary(raw_stats)
-                    blocks_24h = stats.get("blocks_24h", 0)
-                    # BCH block reward: 3.125 BCH (post-2024 halving)
-                    earned_24h_bch = blocks_24h * 3.125
-                    earnings_pounds_24h += earned_24h_bch * bch_price_gbp
-            elif is_dgb and dgb_price_gbp > 0:
+                    hashrate_raw = stats.get("hashrate_raw")
+                    if hashrate_raw:
+                        try:
+                            total_pool_hashrate_ghs += float(hashrate_raw) / 1e9
+                        except (TypeError, ValueError):
+                            pass
+                    if bch_price_gbp > 0:
+                        blocks_24h = stats.get("blocks_24h", 0)
+                        # BCH block reward: 3.125 BCH (post-2024 halving)
+                        earned_24h_bch = blocks_24h * 3.125
+                        earnings_pounds_24h += earned_24h_bch * bch_price_gbp
+            elif is_dgb:
                 raw_stats = await SolopoolService.get_dgb_account_stats(username)
                 if raw_stats:
                     stats = SolopoolService.format_stats_summary(raw_stats)
-                    blocks_24h = stats.get("blocks_24h", 0)
-                    # DGB block reward: 277.376 DGB (current as of January 2025, post-halving)
-                    earned_24h_dgb = blocks_24h * 277.376
-                    earnings_pounds_24h += earned_24h_dgb * dgb_price_gbp
-            elif is_btc and btc_price_gbp > 0:
+                    hashrate_raw = stats.get("hashrate_raw")
+                    if hashrate_raw:
+                        try:
+                            total_pool_hashrate_ghs += float(hashrate_raw) / 1e9
+                        except (TypeError, ValueError):
+                            pass
+                    if dgb_price_gbp > 0:
+                        blocks_24h = stats.get("blocks_24h", 0)
+                        # DGB block reward: 277.376 DGB (current as of January 2025, post-halving)
+                        earned_24h_dgb = blocks_24h * 277.376
+                        earnings_pounds_24h += earned_24h_dgb * dgb_price_gbp
+            elif is_btc:
                 raw_stats = await SolopoolService.get_btc_account_stats(username)
                 if raw_stats:
                     stats = SolopoolService.format_stats_summary(raw_stats)
-                    blocks_24h = stats.get("blocks_24h", 0)
-                    # BTC block reward: 3.125 BTC (post-2024 halving)
-                    earned_24h_btc = blocks_24h * 3.125
-                    earnings_pounds_24h += earned_24h_btc * btc_price_gbp
-            elif is_bc2 and bc2_price_gbp > 0:
-                # BC2 (BellsCoin) earnings
+                    hashrate_raw = stats.get("hashrate_raw")
+                    if hashrate_raw:
+                        try:
+                            total_pool_hashrate_ghs += float(hashrate_raw) / 1e9
+                        except (TypeError, ValueError):
+                            pass
+                    if btc_price_gbp > 0:
+                        blocks_24h = stats.get("blocks_24h", 0)
+                        # BTC block reward: 3.125 BTC (post-2024 halving)
+                        earned_24h_btc = blocks_24h * 3.125
+                        earnings_pounds_24h += earned_24h_btc * btc_price_gbp
+            elif is_bc2:
                 raw_stats = await SolopoolService.get_bc2_account_stats(username)
                 if raw_stats:
                     stats = SolopoolService.format_stats_summary(raw_stats)
-                    blocks_24h = stats.get("blocks_24h", 0)
-                    # BC2 block reward: 50 BC2 (BellsCoin uses 50 BC2 per block)
-                    earned_24h_bc2 = blocks_24h * 50.0
-                    earnings_pounds_24h += earned_24h_bc2 * bc2_price_gbp
-            elif is_xmr and xmr_price_gbp > 0:
+                    hashrate_raw = stats.get("hashrate_raw")
+                    if hashrate_raw:
+                        try:
+                            total_pool_hashrate_ghs += float(hashrate_raw) / 1e9
+                        except (TypeError, ValueError):
+                            pass
+                    if bc2_price_gbp > 0:
+                        blocks_24h = stats.get("blocks_24h", 0)
+                        # BC2 block reward: 50 BC2 (BellsCoin uses 50 BC2 per block)
+                        earned_24h_bc2 = blocks_24h * 50.0
+                        earnings_pounds_24h += earned_24h_bc2 * bc2_price_gbp
+            elif is_xmr:
                 raw_stats = await SolopoolService.get_xmr_account_stats(username)
-                if raw_stats:
+                if raw_stats and xmr_price_gbp > 0:
                     stats = SolopoolService.format_stats_summary(raw_stats)
                     blocks_24h = stats.get("blocks_24h", 0)
                     # XMR block reward: ~0.6 XMR (emission curve, approximate)
@@ -1070,6 +1104,13 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
     except Exception as e:
         logging.error(f"Error calculating 24h earnings in /all: {e}")
     
+    # Include Braiins hashrate contribution if available (convert TH/s to GH/s)
+    if braiins_stats and braiins_stats.get("hashrate_raw"):
+        try:
+            total_pool_hashrate_ghs += float(braiins_stats["hashrate_raw"]) * 1000.0
+        except (TypeError, ValueError):
+            pass
+
     # Calculate P/L
     pl_pounds_24h = earnings_pounds_24h - (total_cost_24h_pence / 100)
     
@@ -1129,6 +1170,8 @@ async def get_dashboard_all(dashboard_type: str = "all", db: AsyncSession = Depe
             "online_miners": online_miners_count,
             "offline_miners": offline_miners_count,
             "total_hashrate_ghs": total_hashrate,  # Don't round - preserve precision for KH/s miners
+            "total_pool_hashrate_ghs": round(total_pool_hashrate_ghs, 3) if total_pool_hashrate_ghs > 0 else 0.0,
+            "pool_efficiency_percent": round(pool_efficiency_percent, 1) if pool_efficiency_percent is not None else None,
             "total_power_watts": round(total_power_watts, 1),
             "avg_efficiency_wth": round(avg_efficiency_wth, 1) if avg_efficiency_wth is not None else None,
             "current_energy_price_pence": current_energy_price,

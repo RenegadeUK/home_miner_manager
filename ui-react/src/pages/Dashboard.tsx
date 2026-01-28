@@ -123,27 +123,6 @@ export function Dashboard() {
     return formatHashrate(value * 1e9);
   };
 
-  const sumSolopoolHashrateGhs = (miners?: SolopoolStats["dgb_miners"]) => {
-    if (!miners) return 0;
-    return miners.reduce((total, miner) => {
-      const rawHashrate = miner.stats?.hashrate_raw ?? 0; // raw hash is in H/s
-      return total + rawHashrate / 1e9;
-    }, 0);
-  };
-
-  const calculateFallbackPoolHashrateGhs = () => {
-    let totalPoolHashrateGH = 0;
-    totalPoolHashrateGH += sumSolopoolHashrateGhs(solopoolData?.dgb_miners);
-    totalPoolHashrateGH += sumSolopoolHashrateGhs(solopoolData?.bch_miners);
-    totalPoolHashrateGH += sumSolopoolHashrateGhs(solopoolData?.bc2_miners);
-    totalPoolHashrateGH += sumSolopoolHashrateGhs(solopoolData?.btc_miners);
-    if (braiinsData?.stats?.hashrate_raw) {
-      // Braiins raw value is already TH/s, convert to GH/s
-      totalPoolHashrateGH += braiinsData.stats.hashrate_raw * 1000;
-    }
-    return totalPoolHashrateGH;
-  };
-
   const defaultBestShare: DashboardData["stats"]["best_share_24h"] = {
     difficulty: 0,
     coin: "",
@@ -233,24 +212,15 @@ export function Dashboard() {
     }
   };
 
-  const poolHashrateGhs = stats.total_pool_hashrate_ghs && stats.total_pool_hashrate_ghs > 0
-    ? stats.total_pool_hashrate_ghs
-    : calculateFallbackPoolHashrateGhs();
+  const poolHashrateGhs = stats.total_pool_hashrate_ghs ?? 0;
 
   const poolHashrateDisplay = poolHashrateGhs > 0
     ? formatHashrateFromGhs(poolHashrateGhs)
     : "Unavailable";
 
-  const resolvedEfficiency = (() => {
-    if (stats.pool_efficiency_percent && stats.pool_efficiency_percent > 0) {
-      return stats.pool_efficiency_percent;
-    }
-    const minerHashrate = stats.total_hashrate_ghs ?? 0;
-    if (minerHashrate <= 0 || poolHashrateGhs <= 0) {
-      return null;
-    }
-    return (poolHashrateGhs / minerHashrate) * 100;
-  })();
+  const resolvedEfficiency = (stats.pool_efficiency_percent && stats.pool_efficiency_percent > 0)
+    ? stats.pool_efficiency_percent
+    : null;
 
   return (
     <div className="space-y-4">

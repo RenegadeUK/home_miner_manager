@@ -14,21 +14,12 @@ import signal
 from core.database import get_db, Miner, Pool, Telemetry, Event, AsyncSessionLocal, CryptoPrice
 from core.config import app_config
 from core.solopool import SolopoolService
+from core.braiins import BraiinsPoolService, get_braiins_summary
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Braiins API cache (5 minute TTL to prevent rate limiting)
-_braiins_cache = {
-    "workers": None,
-    "profile": None,
-    "rewards": None,
-    "timestamp": None
-}
-_braiins_cache_ttl = 300  # 5 minutes in seconds
-
 
 @router.post("/restart")
 async def restart_application():
@@ -152,7 +143,6 @@ async def save_braiins_settings(settings: BraiinsSettings):
 @router.get("/braiins/stats")
 async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
     """Get Braiins Pool stats for miners using Braiins Pool"""
-    from core.braiins import BraiinsPoolService
     from core.database import AgileStrategy
     from core.agile_bands import get_strategy_bands
     
@@ -217,31 +207,7 @@ async def get_braiins_stats(db: AsyncSession = Depends(get_db)):
         pool_user = braiins_pools[0].user
         braiins_username = pool_user.split('.')[0] if pool_user else ""
     
-    # Fetch data from Braiins API (with caching to prevent rate limiting)
-    now = datetime.utcnow().timestamp()
-    cache_valid = (_braiins_cache["timestamp"] and 
-                   (now - _braiins_cache["timestamp"]) < _braiins_cache_ttl)
-    
-    if cache_valid:
-        # Use cached data
-        workers_data = _braiins_cache["workers"]
-        profile_data = _braiins_cache["profile"]
-        rewards_data = _braiins_cache["rewards"]
-    else:
-        # Fetch fresh data from API
-        workers_data = await BraiinsPoolService.get_workers(api_token)
-        profile_data = await BraiinsPoolService.get_profile(api_token)
-        rewards_data = await BraiinsPoolService.get_rewards(api_token)
-        
-        # Update cache
-        _braiins_cache["workers"] = workers_data
-        _braiins_cache["profile"] = profile_data
-        _braiins_cache["rewards"] = rewards_data
-        _braiins_cache["timestamp"] = now
-    
-    stats = BraiinsPoolService.format_stats_summary(workers_data, profile_data, rewards_data)
-    
-    # Ensure stats is never None - provide fallback
+    stats = await get_braiins_summary()
     if not stats:
         stats = {
             "workers_online": 0,
