@@ -400,6 +400,74 @@ export interface AlertConfigCreatePayload {
   config?: Record<string, unknown> | null
 }
 
+// AI settings
+export type AIProvider = 'openai' | 'ollama'
+
+export interface AIConfigResponse {
+  enabled: boolean
+  provider: AIProvider
+  model: string
+  max_tokens: number
+  base_url?: string | null
+  api_key?: string | null
+}
+
+export interface AIStatusResponse {
+  enabled: boolean
+  configured: boolean
+  provider: AIProvider
+  config: {
+    enabled: boolean
+    provider: AIProvider
+    model: string
+    max_tokens: number
+    base_url?: string | null
+  }
+}
+
+export interface SaveAIConfigPayload {
+  enabled: boolean
+  provider: AIProvider
+  model: string
+  max_tokens: number
+  base_url?: string | null
+  api_key?: string | null
+}
+
+export interface AITestPayload {
+  provider: AIProvider
+  model: string
+  api_key?: string | null
+  base_url?: string | null
+}
+
+export interface AITestResponse {
+  success: boolean
+  message?: string
+  error?: string
+  model?: string
+}
+
+export interface SaveAIConfigResponse {
+  success: boolean
+  error?: string
+}
+
+export const aiAPI = {
+  getConfig: () => fetchAPI<AIConfigResponse>('/ai/config'),
+  getStatus: () => fetchAPI<AIStatusResponse>('/ai/status'),
+  saveConfig: (payload: SaveAIConfigPayload) =>
+    fetchAPI<SaveAIConfigResponse>('/ai/config', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  testConnection: (payload: AITestPayload) =>
+    fetchAPI<AITestResponse>('/ai/test', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+}
+
 export interface AlertConfigUpdatePayload extends NotificationChannelUpdatePayload {}
 
 export interface NotificationLogEntry {
