@@ -286,20 +286,22 @@ export function Dashboard() {
         <StatsCard
           label="Best Share (24h)"
           value={`${bestShare.percentage || 0}%`}
+          badge={
+            bestShare.coin ? (
+              <span className={`inline-block px-1.5 py-0.5 text-xs font-semibold rounded ${
+                bestShare.coin === "BTC" ? "bg-orange-500 text-white" :
+                bestShare.coin === "BCH" ? "bg-green-500 text-white" :
+                bestShare.coin === "DGB" ? "bg-blue-500 text-white" :
+                bestShare.coin === "BC2" ? "bg-purple-500 text-white" :
+                "bg-gray-500 text-white"
+              }`}>
+                {bestShare.coin}
+              </span>
+            ) : null
+          }
           subtext={
             <>
               <div>
-                {bestShare.coin && (
-                  <span className={`inline-block px-1.5 py-0.5 text-xs font-semibold rounded mr-2 ${
-                    bestShare.coin === "BTC" ? "bg-orange-500 text-white" :
-                    bestShare.coin === "BCH" ? "bg-green-500 text-white" :
-                    bestShare.coin === "DGB" ? "bg-blue-500 text-white" :
-                    bestShare.coin === "BC2" ? "bg-purple-500 text-white" :
-                    "bg-gray-500 text-white"
-                  }`}>
-                    {bestShare.coin}
-                  </span>
-                )}
                 Network diff: {formatNetworkDiff(bestShare.network_difficulty)}
               </div>
               <div className="text-xs">

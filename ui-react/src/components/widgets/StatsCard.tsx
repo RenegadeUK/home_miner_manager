@@ -7,9 +7,10 @@ interface StatsCardProps {
   subtext?: React.ReactNode;
   onClick?: () => void;
   className?: string;
+  badge?: React.ReactNode;
 }
 
-export function StatsCard({ label, value, subtext, onClick, className }: StatsCardProps) {
+export function StatsCard({ label, value, subtext, onClick, className, badge }: StatsCardProps) {
   return (
     <Card
       className={cn(
@@ -19,7 +20,12 @@ export function StatsCard({ label, value, subtext, onClick, className }: StatsCa
       )}
       onClick={onClick}
     >
-      <CardContent className="p-6">
+      <CardContent className="p-6 relative">
+        {badge && (
+          <div className="absolute top-4 right-4">
+            {badge}
+          </div>
+        )}
         <div className="text-sm font-medium text-muted-foreground mb-2">{label}</div>
         <div className="text-3xl font-bold mb-2">{value}</div>
         {subtext && (
