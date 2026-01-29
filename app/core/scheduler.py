@@ -221,6 +221,13 @@ class SchedulerService:
         )
         
         self.scheduler.add_job(
+            self._reconcile_ha_device_states,
+            IntervalTrigger(minutes=5),
+            id="reconcile_ha_device_states",
+            name="Reconcile stuck Home Assistant devices"
+        )
+        
+        self.scheduler.add_job(
             self._start_nmminer_listener,
             id="start_nmminer_listener",
             name="Start NMMiner UDP listener"
@@ -3418,6 +3425,99 @@ class SchedulerService:
         except Exception as e:
             logger.error(f"Failed to poll Home Assistant device states: {e}")
     
+    async def _reconcile_ha_device_states(self):
+        """Check devices that were turned OFF and reconcile if still receiving telemetry"""
+        try:
+            from core.database import AsyncSessionLocal, HomeAssistantDevice, HomeAssistantConfig, Telemetry
+            from integrations.homeassistant import HomeAssistantIntegration
+            from core.notifications import NotificationService
+            from sqlalchemy import select
+            from datetime import timedelta
+            import asyncio
+            
+            async with AsyncSessionLocal() as db:
+                # Get HA config
+                ha_config_result = await db.execute(
+                    select(HomeAssistantConfig).where(HomeAssistantConfig.enabled == True)
+                )
+                ha_config = ha_config_result.scalars().first()
+                if not ha_config:
+                    return
+                
+                # Get devices that should be OFF and have linked miners
+                now = datetime.utcnow()
+                five_minutes_ago = now - timedelta(minutes=5)
+                three_minutes_ago = now - timedelta(minutes=3)
+                
+                devices_result = await db.execute(
+                    select(HomeAssistantDevice).where(
+                        HomeAssistantDevice.current_state == "off",
+                        HomeAssistantDevice.miner_id.isnot(None),
+                        HomeAssistantDevice.last_off_command_timestamp.isnot(None),
+                        HomeAssistantDevice.last_off_command_timestamp <= five_minutes_ago
+                    )
+                )
+                devices = devices_result.scalars().all()
+                
+                if not devices:
+                    return
+                
+                ha_integration = HomeAssistantIntegration(
+                    base_url=ha_config.base_url,
+                    access_token=ha_config.access_token
+                )
+                
+                notification_service = NotificationService(db)
+                
+                for ha_device in devices:
+                    # Check if miner has sent telemetry in last 3 minutes
+                    telemetry_result = await db.execute(
+                        select(Telemetry)
+                        .where(
+                            Telemetry.miner_id == ha_device.miner_id,
+                            Telemetry.timestamp >= three_minutes_ago
+                        )
+                        .limit(1)
+                    )
+                    recent_telemetry = telemetry_result.scalars().first()
+                    
+                    if recent_telemetry:
+                        # Device is still sending telemetry despite being OFF - reconcile!
+                        logger.warning(
+                            f"⚠️  HA Device {ha_device.name} ({ha_device.entity_id}) is OFF but miner "
+                            f"#{ha_device.miner_id} still sending telemetry. Reconciling..."
+                        )
+                        
+                        # Cycle device: ON → wait 10s → OFF
+                        on_success = await ha_integration.turn_on(ha_device.entity_id)
+                        if on_success:
+                            logger.info(f"🔄 Turned ON {ha_device.name} for reconciliation")
+                            await asyncio.sleep(10)
+                            
+                            off_success = await ha_integration.turn_off(ha_device.entity_id)
+                            if off_success:
+                                ha_device.last_off_command_timestamp = datetime.utcnow()
+                                ha_device.current_state = "off"
+                                ha_device.last_state_change = datetime.utcnow()
+                                await db.commit()
+                                
+                                logger.info(f"✅ Reconciled {ha_device.name} - turned OFF after 10s delay")
+                                
+                                # Send notification
+                                await notification_service.send_notification(
+                                    alert_type="ha_device_reconciliation",
+                                    title="🔄 HA Device Reconciled",
+                                    message=f"Device {ha_device.name} was stuck ON despite OFF command. "
+                                            f"Cycled device (ON → wait 10s → OFF) to force shutdown."
+                                )
+                            else:
+                                logger.error(f"❌ Failed to turn OFF {ha_device.name} during reconciliation")
+                        else:
+                            logger.error(f"❌ Failed to turn ON {ha_device.name} during reconciliation")
+        
+        except Exception as e:
+            logger.error(f"Error reconciling HA device states: {e}", exc_info=True)
+    
     async def _detect_monero_blocks(self):
         """Detect new Monero solo mining blocks every 5 minutes"""
         logger.info("🟢 MONERO BLOCK DETECTION FUNCTION CALLED - TOP OF FUNCTION")
@@ -3914,6 +4014,8 @@ class SchedulerService:
             
             if success:
                 ha_device.current_state = "on" if turn_on else "off"
+                if not turn_on:  # Track when OFF command sent for reconciliation
+                    ha_device.last_off_command_timestamp = datetime.utcnow()
                 await db.commit()
                 logger.info(f"✅ Energy Optimization: HA device {ha_device.name} turned {action}")
             else:
@@ -3958,6 +4060,8 @@ class SchedulerService:
             
             if success:
                 ha_device.current_state = "on" if turn_on else "off"
+                if not turn_on:  # Track when OFF command sent for reconciliation
+                    ha_device.last_off_command_timestamp = datetime.utcnow()
                 await db.commit()
                 logger.info(f"✅ Automation: HA device {ha_device.name} turned {action}")
             else:

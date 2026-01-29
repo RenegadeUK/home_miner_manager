@@ -449,6 +449,14 @@ class AgileSoloStrategy:
         # Store band identifier for state tracking (use sort_order as identifier)
         target_band_id = target_band_obj.sort_order
         
+        # Detect if this is an actual band transition or staying in current band
+        is_band_transition = strategy.current_price_band != target_band_obj.target_coin
+        
+        if is_band_transition:
+            logger.info(f"BAND TRANSITION: {strategy.current_price_band or 'NONE'} → {target_band_obj.target_coin}")
+        else:
+            logger.debug(f"Staying in current band: {target_band_obj.target_coin}")
+        
         # Update strategy state  
         strategy.current_price_band = target_band_obj.target_coin  # Store coin for backward compatibility
         strategy.last_price_checked = current_price
@@ -462,39 +470,55 @@ class AgileSoloStrategy:
         
         # Handle OFF state - turn off HA devices
         if target_coin == "OFF":
-            logger.info(f"Target coin is OFF (price: {current_price}p/kWh) - turning off linked HA devices")
+            logger.info(f"Target coin is OFF (price: {current_price}p/kWh)")
             
-            ha_actions = []
-            for miner in enrolled_miners:
-                controlled = await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=False)
-                if controlled:
-                    ha_actions.append(f"{miner.name}: HA device turned OFF")
-                else:
-                    ha_actions.append(f"{miner.name}: No HA device linked")
-            
-            await log_audit(
-                db,
-                action="agile_strategy_off_detected",
-                resource_type="agile_strategy",
-                resource_name="Agile Solo Strategy",
-                changes={
+            # Only control HA devices on actual transition to OFF, not every execution
+            if is_band_transition:
+                logger.info("TRANSITIONING TO OFF - turning off linked HA devices")
+                ha_actions = []
+                for miner in enrolled_miners:
+                    controlled = await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=False)
+                    if controlled:
+                        ha_actions.append(f"{miner.name}: HA device turned OFF")
+                    else:
+                        ha_actions.append(f"{miner.name}: No HA device linked")
+                
+                await log_audit(
+                    db,
+                    action="agile_strategy_off_detected",
+                    resource_type="agile_strategy",
+                    resource_name="Agile Solo Strategy",
+                    changes={
+                        "price": current_price,
+                        "miners_enrolled": len(enrolled_miners),
+                        "ha_devices_controlled": len([a for a in ha_actions if "turned OFF" in a])
+                    }
+                )
+                
+                await db.commit()
+                
+                return {
+                    "enabled": True,
                     "price": current_price,
-                    "miners_enrolled": len(enrolled_miners),
-                    "ha_devices_controlled": len([a for a in ha_actions if "turned OFF" in a])
+                    "band": "OFF",
+                    "coin": None,
+                    "miners": len(enrolled_miners),
+                    "message": f"Transitioned to OFF - {len([a for a in ha_actions if 'turned OFF' in a])} HA devices turned off",
+                    "actions": ha_actions
                 }
-            )
-            
-            await db.commit()
-            
-            return {
-                "enabled": True,
-                "price": current_price,
-                "band": "OFF",
-                "coin": None,
-                "miners": len(enrolled_miners),
-                "message": f"OFF state - {len([a for a in ha_actions if 'turned OFF' in a])} HA devices turned off",
-                "actions": ha_actions
-            }
+            else:
+                # Already in OFF band, no action needed
+                logger.debug("Already in OFF band (no action needed)")
+                await db.commit()
+                return {
+                    "enabled": True,
+                    "price": current_price,
+                    "band": "OFF",
+                    "coin": None,
+                    "miners": len(enrolled_miners),
+                    "message": "Already in OFF state (no action taken)",
+                    "actions": []
+                }
         
         else:
             # Find target pool (solo or pooled)
@@ -528,14 +552,21 @@ class AgileSoloStrategy:
                 
                 # Managed externally mode doubles as HA-off per band
                 if target_mode == "managed_externally":
-                    controlled = await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=False)
-                    if controlled:
-                        actions_taken.append(f"{miner.name}: HA device OFF (band control)")
+                    # Only control HA device on actual band transitions
+                    if is_band_transition:
+                        controlled = await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=False)
+                        if controlled:
+                            actions_taken.append(f"{miner.name}: HA device OFF (band transition)")
+                        else:
+                            actions_taken.append(f"{miner.name}: External control (no HA link)")
                     else:
-                        actions_taken.append(f"{miner.name}: External control (no HA link)")
+                        # Already in this band, HA device should already be OFF
+                        logger.debug(f"{miner.name}: Already in managed_externally mode (no action needed)")
                     continue
                 else:
-                    await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=True)
+                    # Only turn ON HA device on actual band transitions
+                    if is_band_transition:
+                        await AgileSoloStrategy.control_ha_device_for_miner(db, miner, turn_on=True)
                 
                 logger.info(f"Miner {miner.name} ({miner.miner_type}): target mode = {target_mode}")
                 

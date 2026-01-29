@@ -1313,3 +1313,14 @@ async def run_migrations():
     except Exception as e:
         print(f"✗ Failed to drop supportxmr_snapshots table: {e}")
         pass
+    
+    # Migration 37: Add last_off_command_timestamp to homeassistant_devices for reconciliation (29 Jan 2026)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text("""
+                ALTER TABLE homeassistant_devices 
+                ADD COLUMN last_off_command_timestamp DATETIME
+            """))
+            print("✓ Added last_off_command_timestamp column to homeassistant_devices")
+        except Exception:
+            pass  # Column already exists

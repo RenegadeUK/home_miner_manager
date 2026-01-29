@@ -369,6 +369,7 @@ export function Dashboard() {
               accountUrl={`https://bch.solopool.org/account/${miner.username}`}
               isStrategyActive={miner.is_active_target}
               isStrategyInactive={miner.is_strategy_pool && !miner.is_active_target}
+              chartData={formatChartData(chartsData?.charts?.bch)}
             />
           ))}
 

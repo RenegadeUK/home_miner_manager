@@ -792,6 +792,7 @@ class HomeAssistantDevice(Base):
     never_auto_control: Mapped[bool] = mapped_column(Boolean, default=False)  # Safety lock
     current_state: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)  # on, off, unavailable
     last_state_change: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_off_command_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # Track when OFF command was sent for reconciliation
     capabilities: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
