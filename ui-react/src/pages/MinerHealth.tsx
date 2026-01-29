@@ -202,7 +202,7 @@ export default function MinerHealth() {
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <button
-          onClick={() => navigate('/app/health')}
+          onClick={() => navigate('/health')}
           className="flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-md hover:bg-muted transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
