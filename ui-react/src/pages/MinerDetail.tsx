@@ -335,11 +335,21 @@ export default function MinerDetail() {
 
             {telemetry && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <StatBox label="Hashrate" value={`${telemetry.hashrate.toFixed(2)} ${telemetry.hashrate_unit}`} />
-                <StatBox label="Temperature" value={`${telemetry.temperature.toFixed(1)}°C`} />
-                <StatBox label="Power" value={`${telemetry.power_watts.toFixed(1)} W`} />
-                <StatBox label="Accepted" value={telemetry.shares_accepted.toString()} />
-                <StatBox label="Rejected" value={telemetry.shares_rejected.toString()} />
+                {telemetry.hashrate !== null && telemetry.hashrate !== undefined && (
+                  <StatBox label="Hashrate" value={`${telemetry.hashrate.toFixed(2)} ${telemetry.hashrate_unit}`} />
+                )}
+                {telemetry.temperature !== null && telemetry.temperature !== undefined && (
+                  <StatBox label="Temperature" value={`${telemetry.temperature.toFixed(1)}°C`} />
+                )}
+                {telemetry.power_watts !== null && telemetry.power_watts !== undefined && (
+                  <StatBox label="Power" value={`${telemetry.power_watts.toFixed(1)} W`} />
+                )}
+                {telemetry.shares_accepted !== null && telemetry.shares_accepted !== undefined && (
+                  <StatBox label="Accepted" value={telemetry.shares_accepted.toString()} />
+                )}
+                {telemetry.shares_rejected !== null && telemetry.shares_rejected !== undefined && (
+                  <StatBox label="Rejected" value={telemetry.shares_rejected.toString()} />
+                )}
                 {telemetry.extra_data.uptime && (
                   <StatBox label="Uptime" value={formatUptime(telemetry.extra_data.uptime)} />
                 )}
@@ -360,7 +370,7 @@ export default function MinerDetail() {
               {telemetry.extra_data.frequency && (
                 <StatBox label="Frequency" value={`${telemetry.extra_data.frequency} MHz`} />
               )}
-              {telemetry.extra_data.voltage && (
+              {telemetry.extra_data.voltage !== null && telemetry.extra_data.voltage !== undefined && (
                 <StatBox label="Voltage" value={`${(telemetry.extra_data.voltage / 1000).toFixed(2)} V`} />
               )}
               {telemetry.extra_data.best_diff && (
@@ -414,7 +424,7 @@ export default function MinerDetail() {
               {telemetry.extra_data.stratum_suggested_difficulty && (
                 <StatBox label="Stratum Diff" value={formatNumber(telemetry.extra_data.stratum_suggested_difficulty)} />
               )}
-              {telemetry.extra_data.free_heap && (
+              {telemetry.extra_data.free_heap !== null && telemetry.extra_data.free_heap !== undefined && (
                 <StatBox label="Free Heap" value={`${(telemetry.extra_data.free_heap / 1024 / 1024).toFixed(1)} MB`} />
               )}
               {telemetry.extra_data.fan_rpm !== null && telemetry.extra_data.fan_rpm !== undefined && (
