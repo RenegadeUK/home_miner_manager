@@ -522,16 +522,19 @@ async def check_miner_health(db: AsyncSession, miner_id: int) -> Optional[Dict]:
     # Check 1: Hashrate drop
     if current_hashrate and "hashrate_mean" in baselines:
         median_hr, mad_hr = baselines["hashrate_mean"]
-        drop_pct = ((median_hr - current_hashrate) / median_hr) * 100 if median_hr > 0 else 0
+        expected_min = max(0, median_hr - (3 * mad_hr))  # 3-MAD threshold (never negative)
+        expected_max = median_hr + (3 * mad_hr)
         
-        if drop_pct > THRESHOLD_HASHRATE_DROP:
+        # Check if current hashrate is outside expected range
+        if current_hashrate < expected_min:
+            drop_pct = ((median_hr - current_hashrate) / median_hr) * 100 if median_hr > 0 else 0
             reason = _build_reason(
                 code=REASON_HASHRATE_DROP,
                 severity=SEVERITY_CRITICAL if drop_pct > 30 else SEVERITY_WARNING,
                 metric="hashrate_th",
                 actual=current_hashrate,
-                expected_min=median_hr - (3 * mad_hr),  # 3-MAD threshold
-                expected_max=median_hr + (3 * mad_hr),
+                expected_min=expected_min,
+                expected_max=expected_max,
                 unit="TH/s",
                 delta_pct=-drop_pct
             )
@@ -541,16 +544,19 @@ async def check_miner_health(db: AsyncSession, miner_id: int) -> Optional[Dict]:
     # Check 2: Efficiency drift (W/TH)
     if current_w_per_th and "w_per_th" in baselines:
         median_eff, mad_eff = baselines["w_per_th"]
-        drift_pct = ((current_w_per_th - median_eff) / median_eff) * 100 if median_eff > 0 else 0
+        expected_min = max(0, median_eff - (3 * mad_eff))  # Never negative
+        expected_max = median_eff + (3 * mad_eff)
         
-        if drift_pct > THRESHOLD_EFFICIENCY_DRIFT:
+        # Check if current efficiency is outside expected range (higher is worse for W/TH)
+        if current_w_per_th > expected_max:
+            drift_pct = ((current_w_per_th - median_eff) / median_eff) * 100 if median_eff > 0 else 0
             reason = _build_reason(
                 code=REASON_EFFICIENCY_DRIFT,
                 severity=SEVERITY_WARNING,
                 metric="w_per_th",
                 actual=current_w_per_th,
-                expected_min=median_eff - (3 * mad_eff),
-                expected_max=median_eff + (3 * mad_eff),
+                expected_min=expected_min,
+                expected_max=expected_max,
                 unit="W/TH",
                 delta_pct=drift_pct
             )
