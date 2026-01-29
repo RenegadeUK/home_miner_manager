@@ -1589,7 +1589,7 @@ class SchedulerService:
             traceback.print_exc()
     
     async def _start_nmminer_listener(self):
-        """Start NMMiner UDP listener"""
+        """Start NMMiner UDP listener (one-time startup)"""
         from core.database import AsyncSessionLocal, Miner
         from adapters.nmminer import NMMinerAdapter, NMMinerUDPListener
         
@@ -1603,14 +1603,15 @@ class SchedulerService:
                 )
                 nmminers = result.scalars().all()
                 
-                if not nmminers:
-                    return
-                
                 # Create adapter registry (shared across system)
                 self.nmminer_adapters = {}
                 for miner in nmminers:
                     adapter = NMMinerAdapter(miner.id, miner.name, miner.ip_address, miner.port, miner.config)
                     self.nmminer_adapters[miner.ip_address] = adapter
+                
+                if not self.nmminer_adapters:
+                    print("📡 No NMMiner devices found - UDP listener not started")
+                    return
                 
                 # Start UDP listener with shared adapters
                 self.nmminer_listener = NMMinerUDPListener(self.nmminer_adapters)
@@ -1632,6 +1633,41 @@ class SchedulerService:
         
         except Exception as e:
             print(f"❌ Failed to start NMMiner UDP listener: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def reload_nmminer_adapters(self):
+        """Reload NMMiner adapter registry (called when miners added/removed/updated)"""
+        from core.database import AsyncSessionLocal, Miner
+        from adapters.nmminer import NMMinerAdapter, NMMinerUDPListener
+        
+        try:
+            async with AsyncSessionLocal() as db:
+                # Get all NMMiner devices
+                result = await db.execute(
+                    select(Miner)
+                    .where(Miner.miner_type == "nmminer")
+                    .where(Miner.enabled == True)
+                )
+                nmminers = result.scalars().all()
+                
+                # Update adapter registry
+                old_count = len(self.nmminer_adapters)
+                self.nmminer_adapters.clear()
+                
+                for miner in nmminers:
+                    adapter = NMMinerAdapter(miner.id, miner.name, miner.ip_address, miner.port, miner.config)
+                    self.nmminer_adapters[miner.ip_address] = adapter
+                
+                new_count = len(self.nmminer_adapters)
+                print(f"♻️ NMMiner adapter registry reloaded: {old_count} → {new_count} devices")
+                
+                # If we went from 0 to >0 and listener isn't running, start it
+                if old_count == 0 and new_count > 0 and self.nmminer_listener is None:
+                    await self._start_nmminer_listener()
+        
+        except Exception as e:
+            print(f"❌ Failed to reload NMMiner adapters: {e}")
             import traceback
             traceback.print_exc()
     

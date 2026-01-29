@@ -144,6 +144,11 @@ async def create_miner(miner: MinerCreate, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(db_miner)
     
+    # If NMMiner, reload UDP listener adapters
+    if miner.miner_type == "nmminer":
+        from core.scheduler import scheduler
+        await scheduler.reload_nmminer_adapters()
+    
     # Calculate effective_port using the adapter
     adapter = create_adapter(db_miner.miner_type, db_miner.id, db_miner.name, db_miner.ip_address, db_miner.port, db_miner.config)
     
@@ -170,17 +175,23 @@ async def update_miner(miner_id: int, miner_update: MinerUpdate, db: AsyncSessio
     if not miner:
         raise HTTPException(status_code=404, detail="Miner not found")
     
+    # Track if this is a NMMiner and if we need to reload adapters
+    is_nmminer = miner.miner_type == "nmminer"
+    needs_reload = False
+    
     # Update fields
     if miner_update.name is not None:
         miner.name = miner_update.name
     if miner_update.ip_address is not None:
         miner.ip_address = miner_update.ip_address
+        needs_reload = is_nmminer  # IP change requires reload
     if miner_update.port is not None:
         miner.port = miner_update.port
     if miner_update.current_mode is not None:
         miner.current_mode = miner_update.current_mode
     if miner_update.enabled is not None:
         miner.enabled = miner_update.enabled
+        needs_reload = is_nmminer  # Enable/disable requires reload
     if miner_update.manual_power_watts is not None:
         # Validate range
         if miner_update.manual_power_watts < 1 or miner_update.manual_power_watts > 5000:
@@ -197,6 +208,11 @@ async def update_miner(miner_id: int, miner_update: MinerUpdate, db: AsyncSessio
     
     await db.commit()
     await db.refresh(miner)
+    
+    # Reload NMMiner adapters if needed
+    if needs_reload:
+        from core.scheduler import scheduler
+        await scheduler.reload_nmminer_adapters()
     
     # Calculate effective_port using the adapter
     adapter = create_adapter(miner.miner_type, miner.id, miner.name, miner.ip_address, miner.port, miner.config)
@@ -224,8 +240,16 @@ async def delete_miner(miner_id: int, db: AsyncSession = Depends(get_db)):
     if not miner:
         raise HTTPException(status_code=404, detail="Miner not found")
     
+    # Track if this is a NMMiner (need to reload adapters after deletion)
+    is_nmminer = miner.miner_type == "nmminer"
+    
     await db.delete(miner)
     await db.commit()
+    
+    # Reload NMMiner adapters if needed
+    if is_nmminer:
+        from core.scheduler import scheduler
+        await scheduler.reload_nmminer_adapters()
     
     return {"status": "deleted"}
 
