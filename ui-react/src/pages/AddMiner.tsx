@@ -232,7 +232,7 @@ export default function AddMiner() {
                     value={ipAddress}
                     onChange={(event) => setIpAddress(event.target.value)}
                     placeholder="192.168.1.120"
-                    pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\\.|$)){4}$"
+                    pattern="^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\.|$)){4}$"
                     className="w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-600/40"
                     required
                   />
